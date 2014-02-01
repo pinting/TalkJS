@@ -27,12 +27,12 @@ function Talk(options) {
                 {RtpDataChannels: false}
             ]
         },
-        peerVolumeWhenSpeaking: 25,
+        peerVolumeWhenSpeaking: 50,
         detectSpeakingEvents: true,
         enableDataChannels: false,
-        adjustPeerVolume: true,
+        adjustPeerVolume: false,
         autoAdjustMic: false,
-        debug: true
+        debug: false
     };
 
     for(item in (options = options || {})) {
@@ -145,21 +145,30 @@ function Talk(options) {
     if(this.config.adjustPeerVolume) {
         this.webrtc.on("localSpeaking", function() {
             self.webrtc.peers.forEach(function(peer) {
-                volumes[peer.id] = peer.element.volume * 100;
-                if(volumes[peer.id] > self.config.peerVolumeWhenSpeaking) {
-                    self.setElementVolume(peer, self.config.peerVolumeWhenSpeaking);
+                if(isNone(volumes[peer.id])) {
+                    if(self.config.peerVolumeWhenSpeaking < peer.element.volume * 100) {
+                        volumes[peer.id] = peer.element.volume * 100;
+                        self.setElementVolume(peer, self.config.peerVolumeWhenSpeaking);
+                    }
                 }
             });
         });
         this.webrtc.on("localStoppedSpeaking", function() {
             self.webrtc.peers.forEach(function(peer) {
-                self.setElementVolume(peer, volumes[peer.id] || 100);
+                if(isNumber(volumes[peer.id])) {
+                    if(self.config.peerVolumeWhenSpeaking == peer.element.volume * 100) {
+                        self.setElementVolume(peer, volumes[peer.id]);
+                    }
+                    delete volumes[peer.id];
+                }
             });
         });
     }
+
     if(config.debug) {
         this.on("*", this.logger.log.bind(this.logger));
     }
+
     ["mute", "unmute", "pause", "resume"].forEach(function(method) {
         self[method] = self.webrtc[method].bind(self.webrtc);
     });
@@ -4686,8 +4695,8 @@ WebRTC.prototype.setupAudioMonitor = function(stream) {
     var timeout;
     var self = this;
     var audio = hark(stream, {
-        threshold: -70,
-        interval: 200
+        threshold: -65,
+        interval: 1000
     });
 
     this.logger.log("Setup audio");
@@ -4712,12 +4721,12 @@ WebRTC.prototype.setupAudioMonitor = function(stream) {
             self.setMicIfEnabled(0.5);
             self.sendToAll("stopped_speaking", {});
             self.emit("localStoppedSpeaking");
-        }, 1000);
+        }, 200);
     });
 };
 
 module.exports = WebRTC;
-},{"./peer":3,"hark":8,"webrtc":9}],3:[function(require,module,exports){
+},{"./peer":3,"hark":9,"webrtc":8}],3:[function(require,module,exports){
 var parent = require("./simplewebrtc/peer");
 var WildEmitter = require("wildemitter");
 var webrtc = require("webrtcsupport");
@@ -5185,7 +5194,7 @@ Peer.prototype.handleDataChannelAdded = function (channel) {
 
 module.exports = Peer;
 
-},{"rtcpeerconnection":13,"webrtcsupport":12,"wildemitter":5}],8:[function(require,module,exports){
+},{"rtcpeerconnection":13,"webrtcsupport":12,"wildemitter":5}],9:[function(require,module,exports){
 var WildEmitter = require('wildemitter');
 
 function getMaxVolume (analyser, fftBins) {
@@ -5278,7 +5287,7 @@ module.exports = function(stream, options) {
   return harker;
 }
 
-},{"wildemitter":5}],9:[function(require,module,exports){
+},{"wildemitter":5}],8:[function(require,module,exports){
 var webrtc = require('webrtcsupport');
 var getUserMedia = require('getusermedia');
 var PeerConnection = require('rtcpeerconnection');
@@ -5685,7 +5694,7 @@ Peer.prototype.handleDataChannelAdded = function (channel) {
 
 module.exports = WebRTC;
 
-},{"getusermedia":14,"hark":8,"mediastream-gain":15,"mockconsole":6,"rtcpeerconnection":13,"webrtcsupport":12,"wildemitter":5}],14:[function(require,module,exports){
+},{"getusermedia":14,"hark":9,"mediastream-gain":15,"mockconsole":6,"rtcpeerconnection":13,"webrtcsupport":12,"wildemitter":5}],14:[function(require,module,exports){
 // getUserMedia helper by @HenrikJoreteg
 var func = (navigator.getUserMedia ||
             navigator.webkitGetUserMedia ||
@@ -6871,12 +6880,21 @@ function isObject(obj) {
 }
 
 /**
- * Check if object is a boolean.
- * @bool {boolean}
+ * Check if object is a number.
+ * @obj {number}
  */
 
-function isBool(bool) {
-    return typeof bool === "boolean";
+function isNumber(obj) {
+    return !isNaN(parseFloat(obj)) && isFinite(obj);
+}
+
+/**
+ * Check if object is a boolean.
+ * @obj {boolean}
+ */
+
+function isBool(obj) {
+    return typeof obj === "boolean";
 }
 
 /**
