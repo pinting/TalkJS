@@ -217,7 +217,7 @@ Set the volume for the audio/video element of a peer. The volume needs to be bet
 
 Set the volume for all audio/video element of peers in the current room.
 
-## Errors:
+## Errors
 
 ### exists
 
@@ -247,7 +247,7 @@ The room type is different from ours.
 
 Internal server error.
 
-## Listeners:
+## Listeners
 
 ### readyToCall
 
