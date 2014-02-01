@@ -1,0 +1,26 @@
+{
+    "name": "TalkJS",
+    "version": "0.3.4",
+    "main": "./build.js",
+    "description": "WebRTC powered IM library",
+    "repository": {
+        "url": "https://github.com/pinting/TalkJS",
+        "type": "git"
+    },
+    "dependencies": {
+        "attachmediastream": "1.0.1",
+        "rtcpeerconnection": "1.1.1",
+        "socket.io-client": "0.9.16",
+        "mediastream-gain": "0.1.1",
+        "getscreenmedia": "0.2.1",
+        "webrtcsupport": "0.7.1",
+        "getusermedia": "0.2.1",
+        "wildemitter": "0.0.5",
+        "mockconsole": "0.0.1",
+        "browserify": "2.22.0",
+        "socket.io": "0.9.16",
+        "uglify-js": "2.3.6",
+        "webrtc": "1.1.1",
+        "hark": "0.1.1"
+    }
+}
