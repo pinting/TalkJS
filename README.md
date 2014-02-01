@@ -1,4 +1,4 @@
-### TalkJS
+# TalkJS
 
 Check out the official client: http://talk.pinting.hu
 
@@ -6,7 +6,7 @@ The base of the library is written by Henrik Joreteg, and I updated it with a bu
 
 ## Functions
 
-# startStream(media, cb)
+### startStream(media, cb)
 
 @media {object} Type of the local stream
 @cb {function}
@@ -20,11 +20,11 @@ Start local stream with the given media type. It needs to be like this:
 }
 ```
 
-# stopStream
+### stopStream
 
 Stop local stream.
 
-# pipeStream
+### pipeStream
 
 @options {object} Options for the element
 @element {object} HTML element
@@ -39,7 +39,7 @@ Pipe stream into the given element, or create a new one. The possible options:
 }
 ```
 
-# createRoom
+### createRoom
 
 @user {string} Username
 @name {string} Name of new room
@@ -51,7 +51,7 @@ Create a new room, if it is not exists and join it, with the given username. The
 function(error) {}
 ```
 
-# leaveRoom
+### leaveRoom
 
 @cb {function}
 
@@ -63,7 +63,7 @@ function(room) {
 }
 ```
 
-# joinRoom
+### joinRoom
 
 @user {string} Username
 @name {string} Name of the existing room
@@ -78,7 +78,7 @@ function(error, clients) {
 }
 ```
 
-# registerUser
+### registerUser
 
 @user {string} Username
 @pass {string} Password
@@ -90,7 +90,7 @@ Register a new user with given parameters. Passwords will be encrypted (with SHA
 function(error) {}
 ```
 
-# loginUser
+### loginUser
 
 @user {string} Username
 @pass {string} Password
@@ -99,11 +99,11 @@ function(error) {}
 
 Login a registered user with the given parameters. Local password encryption can be disabled - for example: if we saved the hashed password to localStorage and we want to reuse it, this can be handy. The argument for the callback is the same as in registerUser.
 
-# logoutUser
+### logoutUser
 
 Logout the current user.
 
-# friendList
+### friendList
 
 @cb {function}
 
@@ -117,109 +117,109 @@ function(error, online, offline) {
 }
 ```
 
-# addFriend
+### addFriend
 
 @name {string}
 @cb {function}
 
 Add a registred user to the current user friend list.
 
-# delFriend
+### delFriend
 
 @name {string}
 @cb {function}
 
 Remove user from the friend list
 
-# changeName
+### changeName
 
 @name {string}
 
 Change the current username to a new one, in the current room - it will not take effect in a registered username.
 
-# sendPrivateMessage
+### sendPrivateMessage
 
 @name {string}
 @message {string}
 
 Send a private message to a user with given username.
 
-# sendRoomMessage
+### sendRoomMessage
 
 @message {string}
 
 Send a message to everybody in the current room.
 
-# muteElement
+### muteElement
 
 @peer {object}
 
 Mute the audio/video element of a peer
 
-# muteElementForAll
+### muteElementForAll
 
 Mute all audio/video element of peers in the current room
 
-# unmuteElement
+### unmuteElement
 
 @peer {object}
 
 Unmute the audio/video element of a peer.
 
-# unmuteElementForAll
+### unmuteElementForAll
 
 Unmute all audio/video element of peers in the current room
 
-# setElementVolume
+### setElementVolume
 
 @peer {object}
 @volume {int}
 
 Set the volume for the audio/video element of a peer. The volume needs to be between 100 and 0.
 
-# setElementVolumeForAll
+### setElementVolumeForAll
 
 @volume {int}
 
 Set the volume for all audio/video element of peers in the current room.
 
-## Errors:
+#### Errors:
 
-# exists
+### exists
 
 The user exists - on register, for example.
 
-# notFound
+### notFound
 
 Selected user not found.
 
-# notLoggedIn
+### notLoggedIn
 
 Login needed, to access to this method.
 
-# args
+### args
 
 The arguments are missing, or invalid.
 
-# roomExists
+### roomExists
 
 The room exists - when try to create a new room, for example.
 
-# typeError
+### typeError
 
 The room type is different from ours.
 
-# error
+### error
 
 Internal server error.
 
-## Listeners:
+#### Listeners:
 
-# readyToCall
+### readyToCall
 
 The library is initialized and ready to use.
 
-# peerAdded
+### peerAdded
 
 A new peer was added. It takes this argument:
 
@@ -227,15 +227,15 @@ A new peer was added. It takes this argument:
 function(peer) {}
 ```
 
-# peerRemoved
+### peerRemoved
 
 A peer leave or disconnect. It takes the same argument as peerAdded.
 
-# nameChanged
+### nameChanged
 
 A peer name was changed. The argument is the same, as in peerAdded.
 
-# chatMessageReceived
+### chatMessageReceived
 
 Chat message was received from a room member. It takes two arguments like this:
 
@@ -243,14 +243,14 @@ Chat message was received from a room member. It takes two arguments like this:
 function(peer, message) {}
 ```
 
-# privateMessageReceived
+### privateMessageReceived
 
 Private message was received from a friend. It takes the same arguments as chatMessageReceived.
 
-# speaking
+### speaking
 
 A peer started speaking. Same argument as peerAdded.
 
-# stoppedSpeaking
+### stoppedSpeaking
 
 A peer stopped speaking. Argument is the same as in peerAdded.
