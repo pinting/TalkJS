@@ -8,10 +8,12 @@ The base of the library is written by Henrik Joreteg, and I updated it with a bu
 
 ### startStream(media, cb)
 
+```js
 @media {object} Type of the local stream
 @cb {function}
+```
 
-Start local stream with the given media type. It needs to be like this:
+Start local stream with the given media type, which needs to be like this:
 
 ```js
 {
@@ -26,10 +28,12 @@ Stop local stream.
 
 ### pipeStream
 
+```js
 @options {object} Options for the element
 @element {object} HTML element
+```
 
-Pipe stream into the given element, or create a new one. The possible options:
+Pipe stream into the given element, or create a new one. The possible options are:
 
 ```js
 {
@@ -41,9 +45,11 @@ Pipe stream into the given element, or create a new one. The possible options:
 
 ### createRoom
 
+```js
 @user {string} Username
 @name {string} Name of new room
 @cb {function}
+```
 
 Create a new room, if it is not exists and join it, with the given username. The argument for the callback function needs to be like this:
 
@@ -53,7 +59,9 @@ function(error) {}
 
 ### leaveRoom
 
+```js
 @cb {function}
+```
 
 Leave the current room. The argument for the callback function needs to be like this:
 
@@ -65,11 +73,13 @@ function(room) {
 
 ### joinRoom
 
+```js
 @user {string} Username
 @name {string} Name of the existing room
 @cb {function}
+```
 
-Join to an existing room, with the given username. The arguments for the callback function need to be like this:
+Join to an existing room, with the given username. The arguments for the callback function:
 
 ```js
 function(error, clients) {
@@ -80,11 +90,13 @@ function(error, clients) {
 
 ### registerUser
 
+```js
 @user {string} Username
 @pass {string} Password
 @cb {function}
+```
 
-Register a new user with given parameters. Passwords will be encrypted (with SHA256) twice: locally, and on the server-side. The argument for the callback function needs to be like this:
+Register a new user with given parameters. Passwords will be encrypted (with SHA256) twice: locally, and on the server-side. The argument for the callback function:
 
 ```js
 function(error) {}
@@ -92,10 +104,12 @@ function(error) {}
 
 ### loginUser
 
+```js
 @user {string} Username
 @pass {string} Password
 @cb {function}
 @encrypt {boolean} Encrypt the password locally
+```
 
 Login a registered user with the given parameters. Local password encryption can be disabled - for example: if we saved the hashed password to localStorage and we want to reuse it, this can be handy. The argument for the callback is the same as in registerUser.
 
@@ -105,9 +119,11 @@ Logout the current user.
 
 ### friendList
 
+```js
 @cb {function}
+```
 
-Get the current logged in user friend list. The arguments for the callback function need to be like this:
+Get the current logged in user friend list. The arguments for the callback function:
 
 ```js
 function(error, online, offline) {
@@ -119,40 +135,52 @@ function(error, online, offline) {
 
 ### addFriend
 
+```js
 @name {string}
 @cb {function}
+```
 
-Add a registred user to the current user friend list.
+Add a registered user to the current user friend list.
 
 ### delFriend
 
+```js
 @name {string}
 @cb {function}
+```
 
 Remove user from the friend list
 
 ### changeName
 
+```js
 @name {string}
+```
 
 Change the current username to a new one, in the current room - it will not take effect in a registered username.
 
 ### sendPrivateMessage
 
+```js
 @name {string}
 @message {string}
+```
 
 Send a private message to a user with given username.
 
 ### sendRoomMessage
 
+```js
 @message {string}
+```
 
 Send a message to everybody in the current room.
 
 ### muteElement
 
+```js
 @peer {object}
+```
 
 Mute the audio/video element of a peer
 
@@ -162,7 +190,9 @@ Mute all audio/video element of peers in the current room
 
 ### unmuteElement
 
+```js
 @peer {object}
+```
 
 Unmute the audio/video element of a peer.
 
@@ -172,14 +202,18 @@ Unmute all audio/video element of peers in the current room
 
 ### setElementVolume
 
+```js
 @peer {object}
 @volume {int}
+```
 
 Set the volume for the audio/video element of a peer. The volume needs to be between 100 and 0.
 
 ### setElementVolumeForAll
 
+```js
 @volume {int}
+```
 
 Set the volume for all audio/video element of peers in the current room.
 
@@ -187,11 +221,11 @@ Set the volume for all audio/video element of peers in the current room.
 
 ### exists
 
-The user exists - on register, for example.
+Selected username exists - on register, for example.
 
 ### notFound
 
-Selected user not found.
+Selected username not found.
 
 ### notLoggedIn
 
@@ -203,7 +237,7 @@ The arguments are missing, or invalid.
 
 ### roomExists
 
-The room exists - when try to create a new room, for example.
+The room exists - for example, when try to create a new room.
 
 ### typeError
 
@@ -229,7 +263,7 @@ function(peer) {}
 
 ### peerRemoved
 
-A peer leave or disconnect. It takes the same argument as peerAdded.
+A peer left or disconnected. It takes the same argument as peerAdded.
 
 ### nameChanged
 
