@@ -15,11 +15,7 @@ var Peer = require("./peer");
 function Talk(options) {
     WildEmitter.call(this);
 
-    var self = this;
-    var volumes = {};
-    var messages = [];
-    var item, connection;
-    var config = this.config = {
+    this.config = {
         server: "http://talk.pinting.hu:8000",
         peerConnectionContraints: {
             optional: [
@@ -34,6 +30,9 @@ function Talk(options) {
         autoAdjustMic: false,
         debug: false
     };
+    var volumes = {};
+    var self = this;
+    var item;
 
     for(item in (options = options || {})) {
         this.config[item] = options[item];
@@ -165,7 +164,7 @@ function Talk(options) {
         });
     }
 
-    if(config.debug) {
+    if(this.config.debug) {
         this.on("*", this.logger.log.bind(this.logger));
     }
 
@@ -271,7 +270,7 @@ Talk.prototype.leaveRoom = function(cb) {
 };
 
 /**
- * Join to an existing
+ * Join to an existing room
  * @user {string}
  * @name {string}
  * @cb {function}
@@ -310,7 +309,7 @@ Talk.prototype.joinRoom = function(user, name, cb) {
 /**
  * Register a new user
  * @user {string}
- * @name {string}
+ * @pass {string}
  * @cb {function}
  */
 
@@ -325,9 +324,9 @@ Talk.prototype.registerUser = function(name, pass, cb) {
 };
 
 /**
- * Register a new user
+ * Login in a registred user
  * @user {string}
- * @name {string}
+ * @pass {string}
  * @cb {function}
  * @encrypt {boolean} Encrypt the password locally
  */
@@ -480,7 +479,8 @@ Talk.prototype.sendPrivateMessage = function(name, message) {
 
 Talk.prototype.handlePeerStreamAdded = function(peer) {
     if(peer.type === "text") {
-        // Dirty fix for Firefox empty video cointainer issues
+        // Dirty fix for Gecko
+        this.emit("peerAdded", peer);
         return;
     }
 
@@ -491,10 +491,7 @@ Talk.prototype.handlePeerStreamAdded = function(peer) {
     peer.element = element;
 
     container.id = [element.id, "container"].join("_");
-    container.className = (peer.broadcaster ? "broadcasting" : "incoming");
     container.appendChild(element);
-
-    document.body.appendChild(container);
     peer.container = container;
 
     this.emit("peerAdded", peer);
@@ -506,10 +503,7 @@ Talk.prototype.handlePeerStreamAdded = function(peer) {
  */
 
 Talk.prototype.handlePeerStreamRemoved = function(peer) {
-    if(peer.container) {
-        document.body.removeChild(peer.container);
-        this.emit("peerRemoved", peer);
-    }
+    this.emit("peerRemoved", peer);
 };
 
 /**
@@ -590,7 +584,7 @@ Talk.prototype.setElementVolumeForAll = function(volume) {
 };
 
 module.exports = Talk;
-},{"./peer":3,"./webrtc":2,"attachmediastream":4,"mockconsole":6,"socket.io-client":7,"wildemitter":5}],4:[function(require,module,exports){
+},{"./peer":3,"./webrtc":2,"attachmediastream":4,"mockconsole":5,"socket.io-client":7,"wildemitter":6}],4:[function(require,module,exports){
 module.exports = function (stream, el, options) {
     var URL = window.URL;
     var opts = {
@@ -632,6 +626,18 @@ module.exports = function (stream, el, options) {
 };
 
 },{}],5:[function(require,module,exports){
+var methods = "assert,count,debug,dir,dirxml,error,exception,group,groupCollapsed,groupEnd,info,log,markTimeline,profile,profileEnd,time,timeEnd,trace,warn".split(",");
+var l = methods.length;
+var fn = function () {};
+var mockconsole = {};
+
+while (l--) {
+    mockconsole[methods[l]] = fn;
+}
+
+module.exports = mockconsole;
+
+},{}],6:[function(require,module,exports){
 /*
 WildEmitter.js is a slim little event emitter by @henrikjoreteg largely based 
 on @visionmedia's Emitter from UI Kit.
@@ -767,18 +773,6 @@ WildEmitter.prototype.getWildcardCallbacks = function (eventName) {
     }
     return result;
 };
-
-},{}],6:[function(require,module,exports){
-var methods = "assert,count,debug,dir,dirxml,error,exception,group,groupCollapsed,groupEnd,info,log,markTimeline,profile,profileEnd,time,timeEnd,trace,warn".split(",");
-var l = methods.length;
-var fn = function () {};
-var mockconsole = {};
-
-while (l--) {
-    mockconsole[methods[l]] = fn;
-}
-
-module.exports = mockconsole;
 
 },{}],7:[function(require,module,exports){
 /*! Socket.IO.js build:0.9.16, development. Copyright(c) 2011 LearnBoost <dev@learnboost.com> MIT Licensed */
@@ -4876,7 +4870,7 @@ Peer.prototype.start = function(type, user) {
 };
 
 module.exports = Peer;
-},{"./pc":11,"./simplewebrtc/peer":10,"webrtcsupport":12,"wildemitter":5}],12:[function(require,module,exports){
+},{"./pc":11,"./simplewebrtc/peer":10,"webrtcsupport":12,"wildemitter":6}],12:[function(require,module,exports){
 // created by @HenrikJoreteg
 var prefix;
 var isChrome = false;
@@ -5017,7 +5011,7 @@ PeerConnection.prototype._answer = function(offer, constraints, cb) {
 
 module.exports = PeerConnection;
 
-},{"rtcpeerconnection":13,"wildemitter":5}],10:[function(require,module,exports){
+},{"rtcpeerconnection":13,"wildemitter":6}],10:[function(require,module,exports){
 var PeerConnection = require('rtcpeerconnection');
 var WildEmitter = require('wildemitter');
 var webrtc = require('webrtcsupport');
@@ -5194,7 +5188,7 @@ Peer.prototype.handleDataChannelAdded = function (channel) {
 
 module.exports = Peer;
 
-},{"rtcpeerconnection":13,"webrtcsupport":12,"wildemitter":5}],9:[function(require,module,exports){
+},{"rtcpeerconnection":13,"webrtcsupport":12,"wildemitter":6}],9:[function(require,module,exports){
 var WildEmitter = require('wildemitter');
 
 function getMaxVolume (analyser, fftBins) {
@@ -5287,7 +5281,7 @@ module.exports = function(stream, options) {
   return harker;
 }
 
-},{"wildemitter":5}],8:[function(require,module,exports){
+},{"wildemitter":6}],8:[function(require,module,exports){
 var webrtc = require('webrtcsupport');
 var getUserMedia = require('getusermedia');
 var PeerConnection = require('rtcpeerconnection');
@@ -5694,7 +5688,7 @@ Peer.prototype.handleDataChannelAdded = function (channel) {
 
 module.exports = WebRTC;
 
-},{"getusermedia":14,"hark":9,"mediastream-gain":15,"mockconsole":6,"rtcpeerconnection":13,"webrtcsupport":12,"wildemitter":5}],14:[function(require,module,exports){
+},{"getusermedia":14,"hark":9,"mediastream-gain":15,"mockconsole":5,"rtcpeerconnection":13,"webrtcsupport":12,"wildemitter":6}],14:[function(require,module,exports){
 // getUserMedia helper by @HenrikJoreteg
 var func = (navigator.getUserMedia ||
             navigator.webkitGetUserMedia ||
@@ -5980,7 +5974,7 @@ PeerConnection.prototype.createDataChannel = function (name, opts) {
 
 module.exports = PeerConnection;
 
-},{"webrtcsupport":12,"wildemitter":5}],15:[function(require,module,exports){
+},{"webrtcsupport":12,"wildemitter":6}],15:[function(require,module,exports){
 var support = require('webrtcsupport');
 
 

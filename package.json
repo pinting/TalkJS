@@ -18,7 +18,6 @@
         "wildemitter": "0.0.5",
         "mockconsole": "0.0.1",
         "browserify": "2.22.0",
-        "socket.io": "0.9.16",
         "uglify-js": "2.3.6",
         "webrtc": "1.1.1",
         "hark": "0.1.1"
