@@ -12,7 +12,7 @@ var exports = {
 };
 
 if(isObject(window.mozRTCPeerConnection)) {
-    exports.version = parseInt((navigator.userAgent.match(/Firefox\/([0-9]+)\./) || 0)[1]) || 0;
+    exports.version = parseInt((navigator.userAgent.match(/Firefox\/([0-9]+)\./) || 0)[1]);
     exports.prefix = "moz";
     exports.desc = window.mozRTCSessionDescription;
     exports.pc = window.mozRTCPeerConnection;
@@ -26,7 +26,6 @@ else if(isObject(window.webkitRTCPeerConnection)) {
 
 module.exports = exports;
 },{}],2:[function(require,module,exports){
-var parent = require("./simplewebrtc/pc");
 var WildEmitter = require("wildemitter");
 var RTC = require("./adapter");
 
@@ -37,8 +36,6 @@ var RTC = require("./adapter");
 
 function PeerConnection(config, constraints) {
     WildEmitter.call(this);
-
-    var item;
 
     this.pc = new RTC.pc(config, constraints);
     this.pc.onremovestream = this.emit.bind(this, "removeStream");
@@ -54,22 +51,22 @@ function PeerConnection(config, constraints) {
         debug: false,
         sdpHack: true
     };
+
+    var item;
+
     for(item in config) {
         this.config[item] = config[item];
     }
+
     if(this.config.debug) {
-        this.on("*", function(eventName, event) {
+        this.on("*", function(name, event) {
             var logger = config.logger || console;
             logger.log("PeerConnection event:", arguments);
         });
     }
 }
 
-PeerConnection.prototype = Object.create(parent.prototype, {
-    constructor: {
-        value: PeerConnection
-    }
-});
+inherits(PeerConnection, require("./simplewebrtc/pc"));
 
 /**
  * Process candidate description
@@ -130,7 +127,6 @@ PeerConnection.prototype._answer = function(offer, constraints, cb) {
 module.exports = PeerConnection;
 
 },{"./adapter":1,"./simplewebrtc/pc":6,"wildemitter":16}],3:[function(require,module,exports){
-var parent = require("./simplewebrtc/peer");
 var WildEmitter = require("wildemitter");
 var webrtc = require("webrtcsupport");
 var PeerConnection = require("./pc");
@@ -194,11 +190,7 @@ function Peer(options) {
     }
 }
 
-Peer.prototype = Object.create(parent.prototype, {
-    constructor: {
-        value: Peer
-    }
-});
+inherits(Peer, require("./simplewebrtc/peer"));
 
 /**
  * Handle message
@@ -1238,11 +1230,7 @@ function Talk(options) {
     });
 }
 
-Talk.prototype = Object.create(WildEmitter.prototype, {
-    constructor: {
-        value: Talk
-    }
-});
+inherits(Talk, WildEmitter);
 
 /**
  * Start local stream
@@ -1663,11 +1651,7 @@ function WebRTC(options) {
     parent.call(this, options);
 }
 
-WebRTC.prototype = Object.create(parent.prototype, {
-    constructor: {
-        value: WebRTC
-    }
-});
+inherits(WebRTC, parent);
 
 /**
  * Create a peer object through the handler
@@ -6752,6 +6736,23 @@ function sha256(string) {
         return CryptoJS.SHA256(string).toString();
     }
     return "";
+}
+
+/**
+ * Inherits an object, from PeerJS
+ * @obj {object}
+ * @parent {object}
+ */
+
+function inherits(obj, parent) {
+    obj.prototype = Object.create(parent.prototype, {
+        constructor: {
+            configurable: true,
+            enumerable: false,
+            writable: true,
+            value: obj
+        }
+    });
 }/*
 CryptoJS v3.1.2
 code.google.com/p/crypto-js
