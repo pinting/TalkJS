@@ -1,6 +1,34 @@
 !function(e){"object"==typeof exports?module.exports=e():"function"==typeof define&&define.amd?define(e):"undefined"!=typeof window?window.Talk=e():"undefined"!=typeof global?global.Talk=e():"undefined"!=typeof self&&(self.Talk=e())}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+/**
+ * WebRTC polyfill to support as many browsers as possible.
+ */
+
+var exports = {
+    desc: window.RTCSessionDescription,
+    pc: window.RTCPeerConnection,
+    ice: window.RTCIceCandidate,
+    version: 0,
+    prefix: ""
+};
+
+if(isObject(window.mozRTCPeerConnection)) {
+    exports.version = parseInt((navigator.userAgent.match(/Firefox\/([0-9]+)\./) || 0)[1]) || 0;
+    exports.prefix = "moz";
+    exports.desc = window.mozRTCSessionDescription;
+    exports.pc = window.mozRTCPeerConnection;
+    exports.ice = window.mozRTCIceCandidate;
+}
+else if(isObject(window.webkitRTCPeerConnection)) {
+    exports.version = parseInt((navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./) || 0)[2]);
+    exports.prefix = "webkit";
+    exports.pc = webkitRTCPeerConnection;
+}
+
+module.exports = exports;
+},{}],2:[function(require,module,exports){
 var parent = require("./simplewebrtc/pc");
 var WildEmitter = require("wildemitter");
+var RTC = require("./adapter");
 
 /**
  * Simpler object for adapter: child of PeerConnection from SimpleWebRTC
@@ -12,7 +40,7 @@ function PeerConnection(config, constraints) {
 
     var item;
 
-    this.pc = new RTCPeerConnection(config, constraints);
+    this.pc = new RTC.pc(config, constraints);
     this.pc.onremovestream = this.emit.bind(this, "removeStream");
     this.pc.onnegotiationneeded = this.emit.bind(this, "negotiationNeeded");
     this.pc.oniceconnectionstatechange = this.emit.bind(this, "iceConnectionStateChange");
@@ -49,7 +77,7 @@ PeerConnection.prototype = Object.create(parent.prototype, {
  */
 
 PeerConnection.prototype.processIce = function(candidate) {
-    this.pc.addIceCandidate(new RTCIceCandidate(candidate));
+    this.pc.addIceCandidate(new RTC.ice(candidate));
 };
 
 /**
@@ -58,7 +86,7 @@ PeerConnection.prototype.processIce = function(candidate) {
  */
 
 PeerConnection.prototype.handleAnswer = function(answer) {
-    this.pc.setRemoteDescription(new RTCSessionDescription(answer));
+    this.pc.setRemoteDescription(new RTC.desc(answer));
 };
 
 /**
@@ -67,7 +95,7 @@ PeerConnection.prototype.handleAnswer = function(answer) {
  */
 
 PeerConnection.prototype._applySdpHack = function(sdp) {
-    if(RTCDetectedPrefix === "webkit" && RTCDetectedVersion < 31) {
+    if(RTC.prefix === "webkit" && RTC.version < 31) {
         var parts = sdp.split("b=AS:30");
         var replace = "b=AS:102400";
         if(parts.length > 1) {
@@ -86,7 +114,7 @@ PeerConnection.prototype._applySdpHack = function(sdp) {
 
 PeerConnection.prototype._answer = function(offer, constraints, cb) {
     var self = this;
-    this.pc.setRemoteDescription(new RTCSessionDescription(offer));
+    this.pc.setRemoteDescription(new RTC.desc(offer));
     this.pc.createAnswer(function(answer) {
             answer.sdp = self._applySdpHack(answer.sdp);
             self.pc.setLocalDescription(answer);
@@ -101,11 +129,12 @@ PeerConnection.prototype._answer = function(offer, constraints, cb) {
 
 module.exports = PeerConnection;
 
-},{"./simplewebrtc/pc":5,"wildemitter":15}],2:[function(require,module,exports){
+},{"./adapter":1,"./simplewebrtc/pc":6,"wildemitter":16}],3:[function(require,module,exports){
 var parent = require("./simplewebrtc/peer");
 var WildEmitter = require("wildemitter");
 var webrtc = require("webrtcsupport");
 var PeerConnection = require("./pc");
+var RTC = require("./adapter");
 
 /**
  * A peer: child of Peer from SimpleWebRTC
@@ -118,9 +147,9 @@ function Peer(options) {
     var self = this;
     this.user = safeStr(options.user) || "";
     this.oneway = options.oneway || false;
-    this.browserPrefix = options.prefix;
     this.logger = options.parent.logger;
     this.type = options.type || "audio";
+    this.prefix = options.prefix;
     this.parent = options.parent;
     this.stream = options.stream;
     this.id = options.id;
@@ -183,7 +212,7 @@ Peer.prototype.handleMessage = function(message) {
         return;
     }
     if(message.prefix) {
-        this.browserPrefix = message.prefix;
+        this.prefix = message.prefix;
     }
     switch(message.type) {
         case "friend":
@@ -221,7 +250,7 @@ Peer.prototype.handleMessage = function(message) {
 Peer.prototype.send = function(type, payload, user) {
     var message = {
         broadcaster: this.broadcaster,
-        prefix: RTCDetectedPrefix,
+        prefix: RTC.prefix,
         roomType: this.type,
         user: user || null,
         payload: payload,
@@ -251,7 +280,7 @@ Peer.prototype.start = function(type, user) {
 };
 
 module.exports = Peer;
-},{"./pc":1,"./simplewebrtc/peer":6,"webrtcsupport":14,"wildemitter":15}],3:[function(require,module,exports){
+},{"./adapter":1,"./pc":2,"./simplewebrtc/peer":7,"webrtcsupport":15,"wildemitter":16}],4:[function(require,module,exports){
 var support = require('webrtcsupport');
 
 
@@ -298,7 +327,7 @@ GainController.prototype.on = function () {
 
 module.exports = GainController;
 
-},{"webrtcsupport":14}],4:[function(require,module,exports){
+},{"webrtcsupport":15}],5:[function(require,module,exports){
 var WildEmitter = require('wildemitter');
 
 function getMaxVolume (analyser, fftBins) {
@@ -397,7 +426,7 @@ module.exports = function(stream, options) {
   return harker;
 }
 
-},{"wildemitter":15}],5:[function(require,module,exports){
+},{"wildemitter":16}],6:[function(require,module,exports){
 var WildEmitter = require('wildemitter');
 var webrtc = require('webrtcsupport');
 
@@ -619,7 +648,7 @@ PeerConnection.prototype.createDataChannel = function (name, opts) {
 
 module.exports = PeerConnection;
 
-},{"webrtcsupport":14,"wildemitter":15}],6:[function(require,module,exports){
+},{"webrtcsupport":15,"wildemitter":16}],7:[function(require,module,exports){
 var PeerConnection = require('./pc');
 var WildEmitter = require('wildemitter');
 var webrtc = require('webrtcsupport');
@@ -796,7 +825,7 @@ Peer.prototype.handleDataChannelAdded = function (channel) {
 
 module.exports = Peer;
 
-},{"./pc":5,"webrtcsupport":14,"wildemitter":15}],7:[function(require,module,exports){
+},{"./pc":6,"webrtcsupport":15,"wildemitter":16}],8:[function(require,module,exports){
 var webrtc = require('webrtcsupport');
 var getUserMedia = require('getusermedia');
 var PeerConnection = require('./pc');
@@ -1034,12 +1063,13 @@ WebRTC.prototype.sendToAll = function (message, payload) {
 
 module.exports = WebRTC;
 
-},{"./gain":3,"./hark":4,"./pc":5,"./peer":6,"getusermedia":11,"mockconsole":12,"webrtcsupport":14,"wildemitter":15}],8:[function(require,module,exports){
+},{"./gain":4,"./hark":5,"./pc":6,"./peer":7,"getusermedia":12,"mockconsole":13,"webrtcsupport":15,"wildemitter":16}],9:[function(require,module,exports){
 var attachMediaStream = require("attachmediastream");
 var WildEmitter = require("wildemitter");
 var mockconsole = require("mockconsole");
 var io = require("socket.io-client");
 var WebRTC = require("./webrtc");
+var RTC = require("./adapter");
 var Peer = require("./peer");
 
 /**
@@ -1244,7 +1274,7 @@ Talk.prototype.checkIfReady = function() {
     if(this.webrtc.localStream && this.sessionReady) {
         setTimeout(function() {
             self.emit("readyToCall", self.connection.socket.sessionid);
-        }, RTCDetectedPrefix === "webkit" ? 1000 : 0);
+        }, RTC.prefix === "webkit" ? 1000 : 0);
     }
 };
 
@@ -1619,7 +1649,7 @@ Talk.prototype.setElementVolumeForAll = function(volume) {
 };
 
 module.exports = Talk;
-},{"./peer":2,"./webrtc":9,"attachmediastream":10,"mockconsole":12,"socket.io-client":13,"wildemitter":15}],9:[function(require,module,exports){
+},{"./adapter":1,"./peer":3,"./webrtc":10,"attachmediastream":11,"mockconsole":13,"socket.io-client":14,"wildemitter":16}],10:[function(require,module,exports){
 var parent = require("./simplewebrtc/webrtc");
 var hark = require("./simplewebrtc/hark");
 var Peer = require("./peer");
@@ -1691,7 +1721,7 @@ WebRTC.prototype.setupAudioMonitor = function(stream) {
 };
 
 module.exports = WebRTC;
-},{"./peer":2,"./simplewebrtc/hark":4,"./simplewebrtc/webrtc":7}],10:[function(require,module,exports){
+},{"./peer":3,"./simplewebrtc/hark":5,"./simplewebrtc/webrtc":8}],11:[function(require,module,exports){
 module.exports = function (stream, el, options) {
     var URL = window.URL;
     var opts = {
@@ -1732,7 +1762,7 @@ module.exports = function (stream, el, options) {
     return element;
 };
 
-},{}],11:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 // getUserMedia helper by @HenrikJoreteg
 var func = (navigator.getUserMedia ||
             navigator.webkitGetUserMedia ||
@@ -1796,7 +1826,7 @@ module.exports = function (constraints, cb) {
     });
 };
 
-},{}],12:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 var methods = "assert,count,debug,dir,dirxml,error,exception,group,groupCollapsed,groupEnd,info,log,markTimeline,profile,profileEnd,time,timeEnd,trace,warn".split(",");
 var l = methods.length;
 var fn = function () {};
@@ -1808,7 +1838,7 @@ while (l--) {
 
 module.exports = mockconsole;
 
-},{}],13:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 /*! Socket.IO.js build:0.9.16, development. Copyright(c) 2011 LearnBoost <dev@learnboost.com> MIT Licensed */
 
 var io = ('undefined' === typeof module ? {} : module.exports);
@@ -5682,7 +5712,7 @@ if (typeof define === "function" && define.amd) {
   define([], function () { return io; });
 }
 })();
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 // created by @HenrikJoreteg
 var prefix;
 var isChrome = false;
@@ -5720,7 +5750,7 @@ module.exports = {
     IceCandidate: IceCandidate
 };
 
-},{}],15:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 /*
 WildEmitter.js is a slim little event emitter by @henrikjoreteg largely based 
 on @visionmedia's Emitter from UI Kit.
@@ -5861,39 +5891,10 @@ WildEmitter.prototype.getWildcardCallbacks = function (eventName) {
     return result;
 };
 
-},{}]},{},[8])
-(8)
+},{}]},{},[9])
+(9)
 });
-;/**
- * WebRTC polyfill to support as many browsers as possible.
- */
-
-var RTCDetectedVersion = 0;
-var RTCDetectedPrefix = "";
-
-if(isObject(window.mozRTCPeerConnection)) {
-    RTCDetectedVersion = parseInt(navigator.userAgent.match(/Firefox\/([0-9]+)\./)[1], 10);
-    RTCDetectedPrefix = "moz";
-
-    window.RTCPeerConnection = window.mozRTCPeerConnection;
-    window.RTCSessionDescription = window.mozRTCSessionDescription;
-    window.RTCIceCandidate = window.mozRTCIceCandidate;
-}
-else if(isObject(window.webkitRTCPeerConnection)) {
-    RTCDetectedVersion = parseInt(navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./)[2], 10);
-    RTCDetectedPrefix = "webkit";
-
-    window.RTCPeerConnection = webkitRTCPeerConnection;
-}
-else if(isObject(window.w4aPeerConnection)) {
-    RTCDetectedPrefix = "w4a";
-
-    window.RTCPeerConnection = window.w4aPeerConnection;
-    window.RTCSessionDescription = window.w4aSessionDescription;
-    window.RTCIceCandidate = window.w4aIceCandidate;
-
-    WebRtc4all_Init();
-}/*
+;/*
 CryptoJS v3.1.2
 code.google.com/p/crypto-js
 (c) 2009-2013 by Jeff Mott. All rights reserved.
