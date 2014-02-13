@@ -1330,7 +1330,7 @@ Talk.prototype.leaveRoom = function(cb) {
  */
 
 Talk.prototype.joinRoom = function(user, name, cb) {
-    var id, peer, client;
+    var peer, client;
     var self = this;
     var room = {
         user: this.loggedIn ? this.user || (this.user = safeStr(user)) : this.user = safeStr(user),
@@ -1343,7 +1343,7 @@ Talk.prototype.joinRoom = function(user, name, cb) {
             self.emit("error", error);
         }
         else {
-            for(id in clients) {
+            for(var id in clients) {
                 client = clients[id];
                 peer = self.webrtc.createPeer({
                     type: client.type === "audio" ? "audio" : "video",
@@ -1420,7 +1420,7 @@ Talk.prototype.logoutUser = function() {
  */
 
 Talk.prototype.friendList = function(cb) {
-    var id, client, peer;
+    var client, peer;
     var friends = [];
     var self = this;
 
@@ -1431,7 +1431,7 @@ Talk.prototype.friendList = function(cb) {
             }
             self.emit("error", error);
         }
-        for(id in online) {
+        for(var id in online) {
             if(!self.friends.filter(function(peer) {
                 if(peer.id === id) {
                     friends.push(peer);
@@ -5878,7 +5878,8 @@ WildEmitter.prototype.getWildcardCallbacks = function (eventName) {
 },{}]},{},[9])
 (9)
 });
-;/*
+;
+/*
 CryptoJS v3.1.2
 code.google.com/p/crypto-js
 (c) 2009-2013 by Jeff Mott. All rights reserved.
@@ -6590,6 +6591,7 @@ var CryptoJS = CryptoJS || (function (Math, undefined) {
 
     return C;
 }(Math));
+
 /**
  * Check if input is a function: if it is not, the return value will be an empty function
  * @cb {function}
@@ -6753,7 +6755,8 @@ function inherits(obj, parent) {
             value: obj
         }
     });
-}/*
+}
+/*
 CryptoJS v3.1.2
 code.google.com/p/crypto-js
 (c) 2009-2013 by Jeff Mott. All rights reserved.
