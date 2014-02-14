@@ -1,8 +1,18 @@
 # TalkJS
 
+The base of the library was written by **Henrik Joreteg**.
+
 Check out the official client: http://talk.pinting.hu
 
-The base of the library is written by **Henrik Joreteg**, and I updated it with a bunch of fixes and features. Still, there is a lot of things left to do. This is just the client side library, and it can only communicate with the official server.
+## Build
+
+`npm install`: Install the dependencies
+
+
+`grunt build`: Build the library
+
+
+`grunt debug`: Search for errors
 
 ## Functions
 
@@ -10,17 +20,16 @@ The base of the library is written by **Henrik Joreteg**, and I updated it with 
 
 ```js
 @media {object} Type of the local stream
-@cb {function}
-```
 
-Start local stream with the given media type, which needs to be like this:
-
-```js
 {
     audio: true,
     video: true
 }
+
+@cb {function}
 ```
+
+Start local stream with the given media type.
 
 ### stopStream
 
@@ -30,18 +39,17 @@ Stop local stream.
 
 ```js
 @options {object} Options for the element
-@element {object} HTML element
-```
 
-Pipe stream into the given element, or create a new one. The possible options are:
-
-```js
 {
     muted: true,
     mirror: true,
     autoplay: true
 }
+
+@element {object} HTML element
 ```
+
+Pipe stream into the given element, or create a new one.
 
 ### createRoom
 
@@ -49,27 +57,23 @@ Pipe stream into the given element, or create a new one. The possible options ar
 @user {string} Username
 @name {string} Name of new room
 @cb {function}
-```
 
-Create a new room, if it is not exists and join it, with the given username. The argument for the callback function needs to be like this:
-
-```js
 function(error) {}
 ```
+
+Create a new room, if it is not exists and join it, with the given username.
 
 ### leaveRoom
 
 ```js
 @cb {function}
-```
 
-Leave the current room. The argument for the callback function needs to be like this:
-
-```js
 function(room) {
     // room: the name of the left room
 }
 ```
+
+Leave the current room.
 
 ### joinRoom
 
@@ -77,16 +81,14 @@ function(room) {
 @user {string} Username
 @name {string} Name of the existing room
 @cb {function}
-```
 
-Join to an existing room, with the given username. The arguments for the callback function:
-
-```js
 function(error, clients) {
     // error: null, if everything went fine
     // clients: an assoc list of users
 }
 ```
+
+Join to an existing room, with the given username. 
 
 ### registerUser
 
@@ -94,13 +96,11 @@ function(error, clients) {
 @user {string} Username
 @pass {string} Password
 @cb {function}
-```
 
-Register a new user with given parameters. Passwords will be encrypted (with SHA256) twice: locally, and on the server-side. The argument for the callback function:
-
-```js
 function(error) {}
 ```
+
+Register a new user with given parameters. Passwords will be encrypted (with SHA256) twice: locally, and on the server-side.
 
 ### loginUser
 
@@ -108,10 +108,13 @@ function(error) {}
 @user {string} Username
 @pass {string} Password
 @cb {function}
+
+function(error) {}
+
 @encrypt {boolean} Encrypt the password locally
 ```
 
-Login a registered user with the given parameters. Local password encryption can be disabled - for example: if we saved the hashed password to localStorage and we want to reuse it, this can be handy. The argument for the callback is the same as in registerUser.
+Login a registered user with the given parameters. Local password encryption can be disabled - this can be handy, if we saved the hashed password to localStorage and we want to reuse it.
 
 ### logoutUser
 
@@ -121,11 +124,7 @@ Logout the current user.
 
 ```js
 @cb {function}
-```
 
-Get the current logged in user friend list. The arguments for the callback function:
-
-```js
 function(error, online, offline) {
     // error: null, if everything went fine
     // online: an assoc list of users
@@ -133,23 +132,29 @@ function(error, online, offline) {
 }
 ```
 
+Get the current logged in user friend list.
+
 ### addFriend
 
 ```js
 @name {string}
 @cb {function}
+
+function(error) {}
 ```
 
-Add a registered user to the current user friend list.
+Add a registered user to the current friend list.
 
 ### delFriend
 
 ```js
 @name {string}
 @cb {function}
+
+function(error) {}
 ```
 
-Remove user from the friend list
+Remove user from the friend list.
 
 ### changeName
 
@@ -157,7 +162,7 @@ Remove user from the friend list
 @name {string}
 ```
 
-Change the current username to a new one, in the current room - it will not take effect in a registered username.
+Change the current username to a new one, in the current room - it will not change the registered username.
 
 ### sendPrivateMessage
 
@@ -225,7 +230,7 @@ Selected username exists - on register, for example.
 
 ### notFound
 
-Selected username not found.
+Selected username was not found.
 
 ### notLoggedIn
 
@@ -255,36 +260,56 @@ The library is initialized and ready to use.
 
 ### peerAdded
 
-A new peer was added. It takes this argument:
+```js
+function(peer) {}
+```
+
+A new peer was added.
+
+### peerRemoved
 
 ```js
 function(peer) {}
 ```
 
-### peerRemoved
-
-A peer left or disconnected. It takes the same argument as peerAdded.
+A peer left or disconnected.
 
 ### nameChanged
 
-A peer name was changed. The argument is the same, as in peerAdded.
+```js
+function(peer) {}
+```
+
+A peer name was changed.
 
 ### chatMessageReceived
-
-Chat message was received from a room member. It takes two arguments like this:
 
 ```js
 function(peer, message) {}
 ```
 
+Chat message was received from a room member.
+
 ### privateMessageReceived
 
-Private message was received from a friend. It takes the same arguments as chatMessageReceived.
+```js
+function(peer, message) {}
+```
+
+Private message was received from a friend.
 
 ### speaking
 
-A peer started speaking. Same argument as peerAdded.
+```js
+function(peer) {}
+```
+
+A peer started speaking.
 
 ### stoppedSpeaking
 
-A peer stopped speaking. Argument is the same as in peerAdded.
+```js
+function(peer) {}
+```
+
+A peer stopped speaking.
