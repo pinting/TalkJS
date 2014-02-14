@@ -51,11 +51,11 @@ module.exports = function(grunt) {
     grunt.loadNpmTasks("grunt-contrib-uglify");
     grunt.loadNpmTasks("grunt-contrib-jshint");
     grunt.loadNpmTasks("grunt-contrib-concat");
-    grunt.registerTask("default", function(type) {
-        grunt.task.run("jshint");
+    grunt.registerTask("build", function(type) {
         grunt.task.run("browserify");
         grunt.task.run("concat");
         grunt.task.run("uglify");
         grunt.task.run("bump:" + (type || "build"));
     });
+    grunt.registerTask("debug", ["jshint"]);
 };
