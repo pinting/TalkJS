@@ -6,7 +6,7 @@ Check out the official client: http://talk.pinting.hu
 
 ## Build
 
-`npm install`: Install the dependencies
+`npm install`: Install dependencies
 
 
 `grunt build`: Build the library
@@ -61,7 +61,7 @@ Pipe stream into the given element, or create a new one.
 function(error) {}
 ```
 
-Create a new room, if it is not exists and join it, with the given username.
+Create a new room if it is not exists, and join it, with the given username.
 
 ### leaveRoom
 
@@ -79,7 +79,7 @@ Leave the current room.
 
 ```js
 @user {string} Username
-@name {string} Name of the existing room
+@name {string} Name of an existing room
 @cb {function}
 
 function(error, clients) {
@@ -132,7 +132,7 @@ function(error, online, offline) {
 }
 ```
 
-Get the current logged in user friend list.
+Get the current friend list.
 
 ### addFriend
 
@@ -143,7 +143,7 @@ Get the current logged in user friend list.
 function(error) {}
 ```
 
-Add a registered user to the current friend list.
+Add a registered user to the friend list.
 
 ### delFriend
 
@@ -162,7 +162,7 @@ Remove user from the friend list.
 @name {string}
 ```
 
-Change the current username to a new one, in the current room - it will not change the registered username.
+Change the current username to a new one, in the current room - this will not change the registered username.
 
 ### sendPrivateMessage
 
@@ -171,7 +171,7 @@ Change the current username to a new one, in the current room - it will not chan
 @message {string}
 ```
 
-Send a private message to a user with given username.
+Send a private message to a user with the given username.
 
 ### sendRoomMessage
 
@@ -191,7 +191,7 @@ Mute the audio/video element of a peer
 
 ### muteElementForAll
 
-Mute all audio/video element of peers in the current room
+Mute every audio/video element of peers in the current room
 
 ### unmuteElement
 
@@ -199,11 +199,11 @@ Mute all audio/video element of peers in the current room
 @peer {object}
 ```
 
-Unmute the audio/video element of a peer.
+Unmute the audio/video element of a peer
 
 ### unmuteElementForAll
 
-Unmute all audio/video element of peers in the current room
+Unmute every audio/video element of peers in the current room
 
 ### setElementVolume
 
@@ -212,7 +212,7 @@ Unmute all audio/video element of peers in the current room
 @volume {int}
 ```
 
-Set the volume for the audio/video element of a peer. The volume needs to be between 100 and 0.
+Set a volume for the audio/video element of a peer. The volume needs to be between 100 and 0.
 
 ### setElementVolumeForAll
 
@@ -220,7 +220,7 @@ Set the volume for the audio/video element of a peer. The volume needs to be bet
 @volume {int}
 ```
 
-Set the volume for all audio/video element of peers in the current room.
+Set a volume for every audio/video element of peers in the current room.
 
 ## Errors
 
@@ -234,7 +234,7 @@ Selected username was not found.
 
 ### notLoggedIn
 
-Login needed, to access to this method.
+Login needed to access to this method.
 
 ### args
 
@@ -242,7 +242,7 @@ The arguments are missing, or invalid.
 
 ### roomExists
 
-The room exists - for example, when try to create a new room.
+The room exists - for example, when we try to create a new room.
 
 ### typeError
 
@@ -250,7 +250,7 @@ The room type is different from ours.
 
 ### error
 
-Internal server error.
+Internal server error - oops.
 
 ## Listeners
 
@@ -264,7 +264,7 @@ The library is initialized and ready to use.
 function(peer) {}
 ```
 
-A new peer was added.
+New peer was added.
 
 ### peerRemoved
 
@@ -272,7 +272,7 @@ A new peer was added.
 function(peer) {}
 ```
 
-A peer left or disconnected.
+Peer has left or disconnected.
 
 ### nameChanged
 
@@ -280,7 +280,7 @@ A peer left or disconnected.
 function(peer) {}
 ```
 
-A peer name was changed.
+Peer name was changed.
 
 ### chatMessageReceived
 
@@ -304,7 +304,7 @@ Private message was received from a friend.
 function(peer) {}
 ```
 
-A peer started speaking.
+Peer has started speaking.
 
 ### stoppedSpeaking
 
@@ -312,4 +312,4 @@ A peer started speaking.
 function(peer) {}
 ```
 
-A peer stopped speaking.
+Peer has stopped speaking.
