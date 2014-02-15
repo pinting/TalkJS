@@ -1073,7 +1073,7 @@ function Talk(options) {
     WildEmitter.call(this);
 
     this.config = {
-        server: "http://talk.pinting.hu:8000",
+        server: "http://srv.talk.pinting.hu:8000",
         peerConnectionContraints: {
             optional: [
                 {DtlsSrtpKeyAgreement: true},
