@@ -16,7 +16,7 @@ Check out the official client: http://talk.pinting.hu
 
 ## Functions
 
-### startStream(media, cb)
+### startLocalMedia(media, cb)
 
 ```js
 @media {object} Type of the local stream
@@ -29,13 +29,37 @@ Check out the official client: http://talk.pinting.hu
 @cb {function}
 ```
 
-Start local stream with the given media type.
+Start a local stream with the given media type.
 
-### stopStream
+### stopLocalMedia
 
-Stop local stream.
+Stop the local stream.
 
-### pipeStream
+### pauseVideo
+
+Pause the local video stream.
+
+### resumeVideo
+
+Resume local video stream.
+
+### pause
+
+Pause the local video stream and mute the microphone.
+
+### resume
+
+Resume the local video stream and unmute the microphone.
+
+### mute
+
+Mute the microphone.
+
+### unmute
+
+Unmute the microphone.
+
+### attachMediaStream
 
 ```js
 @options {object} Options for the element
@@ -61,7 +85,7 @@ Pipe stream into the given element, or create a new one.
 function(error) {}
 ```
 
-Create a new room if it is not exists, and join it, with the given username.
+Create a new room if it is not exists and join it, with the given username.
 
 ### leaveRoom
 
@@ -222,7 +246,7 @@ Set a volume for the audio/video element of a peer. The volume needs to be betwe
 
 Set a volume for every audio/video element of peers in the current room.
 
-## Errors
+## Server errors
 
 ### exists
 
@@ -254,9 +278,13 @@ Internal server error - oops.
 
 ## Listeners
 
-### readyToCall
+### connectionReady
 
-The library is initialized and ready to use.
+The connection with the server is ready.
+
+### localStream
+
+Local stream has started.
 
 ### peerAdded
 
@@ -282,7 +310,7 @@ function(peer) {}
 
 Peer name was changed.
 
-### chatMessageReceived
+### chat
 
 ```js
 function(peer, message) {}
@@ -290,7 +318,7 @@ function(peer, message) {}
 
 Chat message was received from a room member.
 
-### privateMessageReceived
+### pm
 
 ```js
 function(peer, message) {}
@@ -313,3 +341,11 @@ function(peer) {}
 ```
 
 Peer has stopped speaking.
+
+### error
+
+```js
+function(error) {}
+```
+
+Referring to an occurred error.
