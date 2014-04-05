@@ -75,7 +75,7 @@ PeerConnection.prototype.handleAnswer = function(answer) {
  */
 
 PeerConnection.prototype.createDataChannel = function(name, options) {
-    return this.pc.createDataChannel(name, options || {reliable: true});
+    return this.pc.createDataChannel(name, options);
 };
 
 /**
@@ -161,12 +161,10 @@ function Peer(options) {
             break;
     }
 
-    if(this.parent.config.enableDataChannels && webrtc.dataChannel) {
-        if(!isObject(this.getDataChannel("default", {reliable: true}))) {
-            this.logger.warn("Failed to create reliable data channel.");
-            if(!isObject(this.getDataChannel("default", {reliable: false, preset: true}))) {
-                this.logger.warn("Failed to create unreliable data channel.");
-            }
+    if(!isObject(this.createDataChannel("default", {reliable: true}))) {
+        this.logger.warn("Failed to create reliable data channel.");
+        if(!isObject(this.createDataChannel("default", {reliable: false}))) {
+            this.logger.warn("Failed to create unreliable data channel.");
         }
     }
 
@@ -178,42 +176,38 @@ function Peer(options) {
 inherits(Peer, require("./simplewebrtc/peer"));
 
 /**
- * Get an existing data channel or create it
- * @message {object}
+ * Create a data channel
+ * @name {string}
+ * @options {object}
  */
 
-Peer.prototype.getDataChannel = function(name, options) {
-    var channel = this.channels[name];
+Peer.prototype.createDataChannel = function(name, options) {
+    var channel = this.pc.createDataChannel(name, options);
     var self = this;
     var message;
 
-    if(isNone(channel)) {
-        try {
-            channel = this.pc.createDataChannel(name, options || {});
-            channel.onclose = function(event) {
-                self.emit("channelClosed", event);
-            };
-            channel.onerror = function(event) {
-                self.emit("channelError", event);
-            };
-            channel.onopen = function(event) {
-                self.emit("channelOpened", event);
-            };
-            channel.onmessage = function(event) {
-                message = JSON.parse(event.data);
-                message.from = self.id;
-                self.emit("channelMessage", message, self, event);
-                self.logger.log("Getting through RTCDataChannel:", message.type, message);
-            };
-        }
-        catch(e) {
-            this.logger.warn("Failed to create a data channel", e.message);
-            return false;
-        }
-        this.channels[name] = channel;
+    try {
+        channel.onclose = function(event) {
+            self.emit("channelClosed", event);
+        };
+        channel.onerror = function(event) {
+            self.emit("channelError", event);
+        };
+        channel.onopen = function(event) {
+            self.emit("channelOpened", event);
+        };
+        channel.onmessage = function(event) {
+            message = JSON.parse(event.data);
+            message.from = self.id;
+            self.emit("channelMessage", message, self, event);
+            self.logger.log("Getting through RTCDataChannel:", message.type, message);
+        };
+        return channel;
     }
-
-    return channel;
+    catch(e) {
+        this.logger.warn("Failed to create a data channel", e.message);
+        return false;
+    }
 };
 
 /**
@@ -223,10 +217,9 @@ Peer.prototype.getDataChannel = function(name, options) {
  */
 
 Peer.prototype.sendData = function(channel, message) {
-    channel = this.getDataChannel(channel);
-    if(isObject(channel)) {
+    if(isObject(this.channels[channel])) {
         try {
-            channel.send(JSON.stringify(message));
+            this.channels[channel].send(JSON.stringify(message));
             return true;
         }
         catch(e) {
@@ -1175,7 +1168,6 @@ function Talk(options) {
         },
         detectSpeakingEvents: false,
         peerVolumeWhenSpeaking: 50,
-        enableDataChannels: true,
         adjustPeerVolume: false,
         autoAdjustMic: false,
         debug: true
@@ -1661,8 +1653,6 @@ function WebRTC(options) {
             video: false
         },
         detectSpeakingEvents: true,
-        enableDataChannels: true,
-        autoRequestMedia: false,
         autoAdjustMic: false,
         debug: false
     };
@@ -1788,7 +1778,7 @@ WebRTC.prototype.setupAudioMonitor = function(stream) {
             self.emit("localStoppedSpeaking");
         }, 200);
     });
-    this.logger.log("Audio monitor have started");
+    this.logger.log("Audio monitor has started");
 };
 
 module.exports = WebRTC;
