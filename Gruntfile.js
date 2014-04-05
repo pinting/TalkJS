@@ -1,19 +1,5 @@
 module.exports = function(grunt) {
     grunt.initConfig({
-        jshint: {
-            all: [
-                "Gruntfile.js",
-                "lib/**/*.js"
-            ],
-            options: {
-                ignores: [
-                    "lib/simplewebrtc/*.js",
-                    "lib/utils/crypto.js",
-                    "lib/utils/sha256.js"
-                ],
-                force: true
-            }
-        },
         browserify: {
             dist: {
                 files: {
@@ -43,6 +29,20 @@ module.exports = function(grunt) {
                 createTag: false,
                 commit: false,
                 push: false
+            }
+        },
+        jshint: {
+            all: [
+                "Gruntfile.js",
+                "lib/**/*.js"
+            ],
+            options: {
+                ignores: [
+                    "lib/simplewebrtc/*.js",
+                    "lib/utils/crypto.js",
+                    "lib/utils/sha256.js"
+                ],
+                force: true
             }
         }
     });

@@ -34,36 +34,18 @@ var RTC = require("./adapter");
  * @options {object}
  */
 
-function PeerConnection(config, constraints) {
+function PeerConnection(options, constraints) {
     WildEmitter.call(this);
 
-    this.pc = new RTC.pc(config, constraints);
-    this.pc.onremovestream = this.emit.bind(this, "removeStream");
-    this.pc.onnegotiationneeded = this.emit.bind(this, "negotiationNeeded");
+    this.pc = new RTC.pc(options, constraints);
     this.pc.oniceconnectionstatechange = this.emit.bind(this, "iceConnectionStateChange");
     this.pc.onsignalingstatechange = this.emit.bind(this, "signalingStateChange");
+    this.pc.onnegotiationneeded = this.emit.bind(this, "negotiationNeeded");
+    this.pc.onremovestream = this.emit.bind(this, "removeStream");
 
+    this.pc.ondatachannel = this._onDataChannel.bind(this);
     this.pc.onaddstream = this._onAddStream.bind(this);
     this.pc.onicecandidate = this._onIce.bind(this);
-    this.pc.ondatachannel = this._onDataChannel.bind(this);
-
-    this.config = {
-        debug: false,
-        sdpHack: true
-    };
-
-    var item;
-
-    for(item in config) {
-        this.config[item] = config[item];
-    }
-
-    if(this.config.debug) {
-        this.on("*", function(name, event) {
-            var logger = config.logger || console;
-            logger.log("PeerConnection event:", arguments);
-        });
-    }
 }
 
 inherits(PeerConnection, require("./simplewebrtc/pc"));
@@ -84,6 +66,16 @@ PeerConnection.prototype.processIce = function(candidate) {
 
 PeerConnection.prototype.handleAnswer = function(answer) {
     this.pc.setRemoteDescription(new RTC.desc(answer));
+};
+
+/**
+ * Create a data channel
+ * @name {string}
+ * @opts {candidate}
+ */
+
+PeerConnection.prototype.createDataChannel = function(name, options) {
+    return this.pc.createDataChannel(name, options || {reliable: true});
 };
 
 /**
@@ -127,6 +119,7 @@ PeerConnection.prototype._answer = function(offer, constraints, cb) {
 module.exports = PeerConnection;
 
 },{"./adapter":1,"./simplewebrtc/pc":6,"wildemitter":16}],3:[function(require,module,exports){
+var attachMediaStream = require("attachmediastream");
 var WildEmitter = require("wildemitter");
 var webrtc = require("webrtcsupport");
 var PeerConnection = require("./pc");
@@ -149,11 +142,8 @@ function Peer(options) {
     this.parent = options.parent;
     this.stream = options.stream;
     this.id = options.id;
+    this.element = null;
     this.channels = {};
-
-    this.on("*", function () {
-        self.parent.emit.apply(self.parent, arguments);
-    });
 
     this.pc = new PeerConnection(this.parent.config.peerConnectionConfig, this.parent.config.peerConnectionContraints);
     this.pc.on("negotiationNeeded", this.emit.bind(this, "negotiationNeeded"));
@@ -163,34 +153,98 @@ function Peer(options) {
     this.pc.on("ice", this.onIceCandidate.bind(this));
 
     switch(options.type) {
-        case "text":
-            break;
-        default:
-            this.pc.addStream(this.parent.localStream);
+        case "audio":
+        case "video":
+            if(isObject(this.parent.localStream)) {
+                this.pc.addStream(this.parent.localStream);
+            }
             break;
     }
 
     if(this.parent.config.enableDataChannels && webrtc.dataChannel) {
-        try {
-            this.reliableChannel = this.getDataChannel("reliable", {reliable: true});
-        }
-        catch(e) {
+        if(!isObject(this.getDataChannel("default", {reliable: true}))) {
             this.logger.warn("Failed to create reliable data channel.");
-            this.reliableChannel = false;
-            delete this.channels.reliable;
-        }
-        try {
-            this.unreliableChannel = this.getDataChannel("unreliable", {reliable: false, preset: true});
-        }
-        catch(e) {
-            this.logger.warn("Failed to create unreliable data channel.");
-            this.unreliableChannel = false;
-            delete this.channels.unreliableChannel;
+            if(!isObject(this.getDataChannel("default", {reliable: false, preset: true}))) {
+                this.logger.warn("Failed to create unreliable data channel.");
+            }
         }
     }
+
+    this.on("*", function() {
+        self.parent.emit.apply(self.parent, arguments);
+    });
 }
 
 inherits(Peer, require("./simplewebrtc/peer"));
+
+/**
+ * Get an existing data channel or create it
+ * @message {object}
+ */
+
+Peer.prototype.getDataChannel = function(name, options) {
+    var channel = this.channels[name];
+    var self = this;
+    var message;
+
+    if(isNone(channel)) {
+        try {
+            channel = this.pc.createDataChannel(name, options || {});
+            channel.onclose = function(event) {
+                self.emit("channelClosed", event);
+            };
+            channel.onerror = function(event) {
+                self.emit("channelError", event);
+            };
+            channel.onopen = function(event) {
+                self.emit("channelOpened", event);
+            };
+            channel.onmessage = function(event) {
+                message = JSON.parse(event.data);
+                message.from = self.id;
+                self.emit("channelMessage", message, self, event);
+                self.logger.log("Getting through RTCDataChannel:", message.type, message);
+            };
+        }
+        catch(e) {
+            this.logger.warn("Failed to create a data channel", e.message);
+            return false;
+        }
+        this.channels[name] = channel;
+    }
+
+    return channel;
+};
+
+/**
+ * Send data thought the specific channel
+ * @channel {object}
+ * @message {object}
+ */
+
+Peer.prototype.sendData = function(channel, message) {
+    channel = this.getDataChannel(channel);
+    if(isObject(channel)) {
+        try {
+            channel.send(JSON.stringify(message));
+            return true;
+        }
+        catch(e) {
+            this.logger.warn("Failed to send data through RTCDataChannel", e.message);
+            return false;
+        }
+    }
+    return false;
+};
+
+/**
+ * Handle data channel when its added
+ * @channel {object}
+ */
+
+Peer.prototype.handleDataChannelAdded = function(channel) {
+    this.channels[channel.name] = channel;
+};
 
 /**
  * Handle message
@@ -216,41 +270,63 @@ Peer.prototype.handleMessage = function(message) {
                 self.send("answer", description);
             });
             break;
-        case "answer":
-            this.pc.handleAnswer(message.payload);
+        case "stopped_speaking":
+            this.parent.emit("stoppedSpeaking", self);
+            break;
+        case "speaking":
+            this.parent.emit("speaking", self);
             break;
         case "candidate":
             this.pc.processIce(message.payload);
             break;
-        case "speaking":
-            this.parent.emit("speaking", {id: message.from});
+        case "set_name":
+            this.user = safeStr(message.payload) || "";
+            this.parent.emit("nameChanged", self);
             break;
-        case "stopped_speaking":
-            this.parent.emit("stopped_speaking", {id: message.from});
+        case "answer":
+            this.pc.handleAnswer(message.payload);
+            break;
+        case "chat":
+            this.parent.emit("chat", self, safeText(message.payload));
+            break;
+        case "pm":
+            this.parent.emit("pm", self, safeText(message.payload));
             break;
     }
-    this.logger.log("getting", message.type, message);
+    this.logger.log("Getting:", message.type, message);
 };
 
 /**
- * Create an offer
+ * Send a message
  * @type {string}
  * @payload {object}
- * @user {string}
+ * @user {string} Username of the sender (optional)
  */
 
 Peer.prototype.send = function(type, payload, user) {
     var message = {
-        broadcaster: this.broadcaster,
-        prefix: RTC.prefix,
+        nameMe: user || null,
         roomType: this.type,
-        user: user || null,
+        prefix: RTC.prefix,
         payload: payload,
         to: this.id,
         type: type
     };
-    this.logger.log("sending", type, message);
-    this.parent.emit("message", message);
+    switch(type) {
+        case "stopped_speaking":
+        case "speaking":
+        case "chat":
+        case "pm":
+            if(!this.sendData("default", message)) {
+                this.logger.warn("Fallback to Socket.IO");
+                this.parent.emit("message", message);
+            }
+            break;
+        default:
+            this.parent.emit("message", message);
+            break;
+    }
+    this.logger.log("Sending:", type, message);
 };
 
 /**
@@ -271,8 +347,22 @@ Peer.prototype.start = function(type, user) {
     });
 };
 
+Peer.prototype.handleRemoteStreamAdded = function(event) {
+    if(this.stream) {
+        this.logger.warn("Already have a remote stream");
+    }
+    else {
+        if(find(["audio", "video"], this.type)) {
+            this.element = attachMediaStream(event.stream, document.createElement(this.type));
+            this.element.id = [this.id, this.type].join("_");
+        }
+        this.stream = event.stream;
+        this.parent.emit("peerStreamAdded", this);
+    }
+};
+
 module.exports = Peer;
-},{"./adapter":1,"./pc":2,"./simplewebrtc/peer":7,"webrtcsupport":15,"wildemitter":16}],4:[function(require,module,exports){
+},{"./adapter":1,"./pc":2,"./simplewebrtc/peer":7,"attachmediastream":11,"webrtcsupport":15,"wildemitter":16}],4:[function(require,module,exports){
 var support = require('webrtcsupport');
 
 
@@ -1062,7 +1152,6 @@ var mockconsole = require("mockconsole");
 var io = require("socket.io-client");
 var WebRTC = require("./webrtc");
 var RTC = require("./adapter");
-var Peer = require("./peer");
 
 /**
  * Main object of the application: child of SimpleWebRTC
@@ -1077,15 +1166,19 @@ function Talk(options) {
         peerConnectionContraints: {
             optional: [
                 {DtlsSrtpKeyAgreement: true},
-                {RtpDataChannels: false}
+                {RtpDataChannels: true}
             ]
         },
+        media: {
+            audio: false,
+            video: false
+        },
+        detectSpeakingEvents: false,
         peerVolumeWhenSpeaking: 50,
-        detectSpeakingEvents: true,
-        enableDataChannels: false,
+        enableDataChannels: true,
         adjustPeerVolume: false,
         autoAdjustMic: false,
-        debug: false
+        debug: true
     };
     var volumes = {};
     var self = this;
@@ -1097,12 +1190,6 @@ function Talk(options) {
         }
     }
 
-    this.connection = io.connect(this.config.server);
-    this.loggedIn = false;
-    this.stream = null;
-    this.friends = [];
-    this.room = "";
-    this.user = "";
     this.logger = function() {
         if(self.config.debug) {
             return self.config.logger || console;
@@ -1111,72 +1198,18 @@ function Talk(options) {
             return self.config.logger || mockconsole;
         }
     }();
+    this.loggedIn = false;
+    this.roomName = "";
+    this.userName = "";
+
+    // Server layer
+
+    this.connection = io.connect(this.config.server);
     this.connection.on("connect", function() {
         self.emit("connectionReady", self.connection.socket.sessionid);
-        self.sessionReady = true;
-        self.checkIfReady();
     });
     this.connection.on("message", function(message) {
-        var peers = self.webrtc.getPeers(message.from, message.roomType);
-        var friends = self.friends.filter(function(peer) {
-            return peer.id === message.from;
-        });
-        var peer = peers[0];
-        var friend = friends[0];
-
-        switch(message.type) {
-            case "offer":
-                if(!peers.length) {
-                    peer = self.webrtc.createPeer({
-                        type: message.roomType,
-                        user: message.user,
-                        id: message.from
-                    });
-                    self.webrtc.peers.push(peer);
-                }
-                peer.handleMessage(message);
-                break;
-            case "chat":
-                self.emit("chatMessageReceived", peer, safeText(message.payload));
-                break;
-            case "set_name":
-                peer.user = safeStr(message.payload) || "";
-                self.emit("nameChanged", peer);
-                break;
-            case "speaking":
-                self.emit("speaking", peer);
-                break;
-            case "stopped_speaking":
-                self.emit("stoppedSpeaking", peer);
-                break;
-            case "friend":
-                if(!friends.length) {
-                    friend = new Peer({
-                        parent: self.webrtc,
-                        user: message.user,
-                        id: message.from,
-                        type: "text"
-                    });
-                    self.friends.push(friend);
-                }
-                friend.handleMessage(message);
-                break;
-            case "pm":
-                self.emit("privateMessageReceived", friend, safeText(message.payload));
-                break;
-            default:
-                if(peers.length) {
-                    peers.forEach(function(peer) {
-                        peer.handleMessage(message);
-                    });
-                }
-                if(friends.length) {
-                    friends.forEach(function(friend) {
-                        friend.handleMessage(message);
-                    });
-                }
-                break;
-        }
+        self.webrtc.handleMessage(message);
     });
     this.connection.on("remove", function(peer) {
         if(peer.id !== self.connection.socket.sessionid) {
@@ -1184,18 +1217,18 @@ function Talk(options) {
         }
     });
 
+    // WebRTC layer
+
     this.webrtc = new WebRTC(this.config);
     this.webrtc.on("*", function() {
         self.emit.apply(self, arguments);
     });
-    this.webrtc.on("localStream", function() {
-        self.checkIfReady();
-    });
     this.webrtc.on("message", function(payload) {
         self.connection.emit("message", payload);
     });
-    this.webrtc.on("peerStreamAdded", this.handlePeerStreamAdded.bind(this));
-    this.webrtc.on("peerStreamRemoved", this.handlePeerStreamRemoved.bind(this));
+    this.webrtc.on("channelMessage", function(message, peer) {
+        self.webrtc.handleMessage(message, peer);
+    });
 
     if(this.config.adjustPeerVolume) {
         this.webrtc.on("localSpeaking", function() {
@@ -1221,10 +1254,22 @@ function Talk(options) {
     }
 
     if(this.config.debug) {
-        this.on("*", this.logger.log.bind(this.logger));
+        this.on("*", function() {
+            self.logger.log("Event:", arguments);
+        });
     }
 
-    ["mute", "unmute", "pause", "resume"].forEach(function(method) {
+    // Use function from the underlying libraries
+
+    [
+        "stopLocalMedia",
+        "resumeVideo",
+        "pauseVideo",
+        "resume",
+        "unmute",
+        "pause",
+        "mute"
+    ].forEach(function(method) {
         self[method] = self.webrtc[method].bind(self.webrtc);
     });
 }
@@ -1232,12 +1277,12 @@ function Talk(options) {
 inherits(Talk, WildEmitter);
 
 /**
- * Start local stream
+ * Start local media
  * @media {object} Type of the local stream
  * @cb {function}
  */
 
-Talk.prototype.startStream = function(media, cb) {
+Talk.prototype.startLocalMedia = function(media, cb) {
     var self = this;
     if(!isObject(media) || !isBool(media.audio) || !isBool(media.video)) {
         media = {audio: true, video: true};
@@ -1247,31 +1292,8 @@ Talk.prototype.startStream = function(media, cb) {
         if(error) {
             self.emit("error", error);
         }
-        self.stream = stream;
         safeCb(cb)(error, stream);
     });
-};
-
-/**
- * This function is a workaround for the strange no-audio bug
- */
-
-Talk.prototype.checkIfReady = function() {
-    var self = this;
-    if(this.webrtc.localStream && this.sessionReady) {
-        setTimeout(function() {
-            self.emit("readyToCall", self.connection.socket.sessionid);
-        }, RTC.prefix === "webkit" ? 1000 : 0);
-    }
-};
-
-/**
- * Stop local stream
- */
-
-Talk.prototype.stopStream = function() {
-    this.webrtc.stopLocalMedia();
-    this.stream = null;
 };
 
 /**
@@ -1280,8 +1302,8 @@ Talk.prototype.stopStream = function() {
  * @element {object} HTML element to pipe in (optional)
  */
 
-Talk.prototype.pipeStream = function(options, element) {
-    return attachMediaStream(this.stream, element, options || {
+Talk.prototype.attachMediaStream = function(options, element) {
+    return attachMediaStream(this.webrtc.localStream, element, options || {
         muted: true,
         mirror: true
     });
@@ -1295,11 +1317,11 @@ Talk.prototype.pipeStream = function(options, element) {
  */
 
 Talk.prototype.createRoom = function(user, name, cb) {
-    this.room = safeStr(name);
+    this.roomName = safeStr(name);
     this.connection.emit("create", {
-        user: this.loggedIn ? this.user : this.user = safeStr(user),
-        name: this.room,
-        type: this.config.media.video ? "video" : "audio"
+        user: this.loggedIn ? this.userName : this.userName = safeStr(user),
+        name: this.roomName,
+        type: this.config.media.video ? "video" : this.config.media.audio ? "audio" : "data"
     }, safeCb(cb));
 };
 
@@ -1309,15 +1331,15 @@ Talk.prototype.createRoom = function(user, name, cb) {
  */
 
 Talk.prototype.leaveRoom = function(cb) {
-    if(this.room) {
+    if(this.roomName) {
         this.connection.emit("leave");
         this.webrtc.peers.forEach(function(peer) {
             peer.end();
         });
-        safeCb(cb)(this.room);
-        this.emit("leftRoom", this.room);
+        safeCb(cb)(this.roomName);
+        this.emit("leftRoom", this.roomName);
         this.webrtc.peers = [];
-        this.room = null;
+        this.roomName = null;
     }
 };
 
@@ -1332,9 +1354,9 @@ Talk.prototype.joinRoom = function(user, name, cb) {
     var peer, client;
     var self = this;
     var room = {
-        user: this.loggedIn ? this.user || (this.user = safeStr(user)) : this.user = safeStr(user),
-        name: safeStr(name),
-        type: this.config.media.video ? "video" : "audio"
+        user: this.loggedIn ? this.userName || (this.userName = safeStr(user)) : this.userName = safeStr(user),
+        type: this.config.media.video ? "video" : this.config.media.audio ? "audio" : "data",
+        name: safeStr(name)
     };
 
     this.connection.emit("join", room, function(error, clients) {
@@ -1345,14 +1367,14 @@ Talk.prototype.joinRoom = function(user, name, cb) {
             for(var id in clients) {
                 client = clients[id];
                 peer = self.webrtc.createPeer({
-                    type: client.type === "audio" ? "audio" : "video",
+                    type: client.type,
                     user: client.user,
                     id: id
                 });
-                peer.start("offer", self.user || user);
+                peer.start("offer", self.userName || user);
                 self.webrtc.peers.push(peer);
             }
-            self.room = room.name;
+            self.roomName = room.name;
             self.emit("joinedRoom", room.name);
         }
         safeCb(cb)(error, clients);
@@ -1405,12 +1427,12 @@ Talk.prototype.loginUser = function(name, pass, cb, encrypt) {
  */
 
 Talk.prototype.logoutUser = function() {
-    this.friends.forEach(function(peer) {
+    this.webrtc.friends.forEach(function(peer) {
         peer.pc.close();
     });
     this.connection.emit("logout");
+    this.webrtc.friends = [];
     this.loggedIn = false;
-    this.friends = [];
 };
 
 /**
@@ -1431,7 +1453,7 @@ Talk.prototype.friendList = function(cb) {
             self.emit("error", error);
         }
         for(var id in online) {
-            if(!self.friends.filter(function(peer) {
+            if(!self.webrtc.friends.filter(function(peer) {
                 if(peer.id === id) {
                     friends.push(peer);
                     return true;
@@ -1439,22 +1461,21 @@ Talk.prototype.friendList = function(cb) {
                 return false;
             }).length) {
                 client = online[id];
-                peer =  new Peer({
-                    parent: self.webrtc,
+                peer = self.webrtc.createPeer({
                     user: client.user,
-                    type: "text",
+                    type: "data",
                     id: id
                 });
-                peer.start("friend", self.user);
+                peer.start("friend", self.userName);
                 friends.push(peer);
             }
         }
-        self.friends.forEach(function(peer) {
+        self.webrtc.friends.forEach(function(peer) {
             if(friends.indexOf(peer) < 0) {
                 peer.pc.close();
             }
         });
-        self.friends = friends;
+        self.webrtc.friends = friends;
         safeCb(cb)(error, online, offline);
     });
 };
@@ -1505,7 +1526,7 @@ Talk.prototype.delFriend = function(name, cb) {
 Talk.prototype.changeName = function(name) {
     if(name = safeStr(name)) {
         this.webrtc.sendToAll("set_name", name);
-        this.user = name;
+        this.userName = name;
     }
 };
 
@@ -1517,45 +1538,11 @@ Talk.prototype.changeName = function(name) {
  */
 
 Talk.prototype.sendPrivateMessage = function(name, message) {
-    this.friends.forEach(function(peer) {
+    this.webrtc.friends.forEach(function(peer) {
         if(peer.user === name) {
             peer.send("pm", message);
         }
     });
-};
-
-/**
- * Handle when peer added
- * @peer {object}
- */
-
-Talk.prototype.handlePeerStreamAdded = function(peer) {
-    if(peer.type === "text") {
-        // Dirty fix for Gecko
-        this.emit("peerAdded", peer);
-        return;
-    }
-
-    var element = attachMediaStream(peer.stream, document.createElement(peer.type === "audio" ? "audio" : "video"));
-    var container = document.createElement("div");
-
-    element.id = [peer.id, peer.type, peer.broadcaster ? "broadcasting" : "incoming"].join("_");
-    peer.element = element;
-
-    container.id = [element.id, "container"].join("_");
-    container.appendChild(element);
-    peer.container = container;
-
-    this.emit("peerAdded", peer);
-};
-
-/**
- * Handle when peer removed
- * @peer {object}
- */
-
-Talk.prototype.handlePeerStreamRemoved = function(peer) {
-    this.emit("peerRemoved", peer);
 };
 
 /**
@@ -1636,9 +1623,13 @@ Talk.prototype.setElementVolumeForAll = function(volume) {
 };
 
 module.exports = Talk;
-},{"./adapter":1,"./peer":3,"./webrtc":10,"attachmediastream":11,"mockconsole":13,"socket.io-client":14,"wildemitter":16}],10:[function(require,module,exports){
+},{"./adapter":1,"./webrtc":10,"attachmediastream":11,"mockconsole":13,"socket.io-client":14,"wildemitter":16}],10:[function(require,module,exports){
 var parent = require("./simplewebrtc/webrtc");
+var getUserMedia = require("getusermedia");
 var hark = require("./simplewebrtc/hark");
+var mockconsole = require("mockconsole");
+var WildEmitter = require("wildemitter");
+var RTC = require("./adapter");
 var Peer = require("./peer");
 
 /**
@@ -1647,10 +1638,110 @@ var Peer = require("./peer");
  */
 
 function WebRTC(options) {
-    parent.call(this, options);
+    WildEmitter.call(this);
+
+    this.config = {
+        peerConnectionConfig: {
+            iceServers: [
+                {"url": "stun:stun.l.google.com:19302"},
+                {"url": "stun:stun1.l.google.com:19302"},
+                {"url": "stun:stun2.l.google.com:19302"},
+                {"url": "stun:stun3.l.google.com:19302"},
+                {"url": "stun:stun4.l.google.com:19302"}
+            ]
+        },
+        peerConnectionContraints: {
+            optional: [
+                {DtlsSrtpKeyAgreement: true},
+                {RtpDataChannels: true}
+            ]
+        },
+        media: {
+            audio: false,
+            video: false
+        },
+        detectSpeakingEvents: true,
+        enableDataChannels: true,
+        autoRequestMedia: false,
+        autoAdjustMic: false,
+        debug: false
+    };
+    this.localStream = null;
+    this.friends = [];
+    this.peers = [];
+    var self = this;
+    var item;
+
+    for(item in options || {}) {
+        if(!isNone(options[item])) {
+            this.config[item] = options[item];
+        }
+    }
+
+    this.logger = function() {
+        if(self.config.debug) {
+            return self.config.logger || console;
+        }
+        else {
+            return self.config.logger || mockconsole;
+        }
+    }();
+
+    if (!isObject(RTC.pc)) {
+        this.logger.error("Your browser doesn't seem to support WebRTC");
+    }
 }
 
 inherits(WebRTC, parent);
+
+/**
+ * Get peers by id and type
+ * @id {int}
+ * @type {string}
+ */
+
+WebRTC.prototype.getPeers = function(id, type) {
+    var handler = function(peer) {
+        return (isNone(id) || peer.id === id) && (!find(["audio", "video", "data"], type) || peer.type === type);
+    };
+    return this.peers.filter(handler).concat(this.friends.filter(handler));
+};
+
+/**
+ * Handle an incoming message
+ * @message {object}
+ */
+
+WebRTC.prototype.handleMessage = function(message, peer) {
+    peer = peer || this.getPeers(message.from, message.roomType)[0];
+    switch(message.type) {
+        case "offer":
+            if(isNone(peer)) {
+                peer = this.createPeer({
+                    type: message.roomType,
+                    user: message.nameMe,
+                    id: message.from
+                });
+                this.peers.push(peer);
+                peer.handleMessage(message);
+            }
+            break;
+        case "friend":
+            if(isNone(peer)) {
+                peer = this.createPeer({
+                    user: message.nameMe,
+                    id: message.from,
+                    type: "data"
+                });
+                this.friends.push(peer);
+                peer.handleMessage(message);
+            }
+            break;
+    }
+    if(isObject(peer)) {
+        peer.handleMessage(message);
+    }
+};
 
 /**
  * Create a peer object through the handler
@@ -1658,10 +1749,8 @@ inherits(WebRTC, parent);
  */
 
 WebRTC.prototype.createPeer = function(options) {
-    var peer;
     options.parent = this;
-    peer = new Peer(options);
-    return peer;
+    return new Peer(options);
 };
 
 /**
@@ -1676,8 +1765,6 @@ WebRTC.prototype.setupAudioMonitor = function(stream) {
         threshold: -65,
         interval: 1000
     });
-
-    this.logger.log("Setup audio");
 
     audio.on("speaking", function() {
         if(self.hardMuted) {
@@ -1701,10 +1788,11 @@ WebRTC.prototype.setupAudioMonitor = function(stream) {
             self.emit("localStoppedSpeaking");
         }, 200);
     });
+    this.logger.log("Audio monitor have started");
 };
 
 module.exports = WebRTC;
-},{"./peer":3,"./simplewebrtc/hark":5,"./simplewebrtc/webrtc":8}],11:[function(require,module,exports){
+},{"./adapter":1,"./peer":3,"./simplewebrtc/hark":5,"./simplewebrtc/webrtc":8,"getusermedia":12,"mockconsole":13,"wildemitter":16}],11:[function(require,module,exports){
 module.exports = function (stream, el, options) {
     var URL = window.URL;
     var opts = {
@@ -6737,6 +6825,16 @@ function sha256(string) {
         return CryptoJS.SHA256(string).toString();
     }
     return "";
+}
+
+/**
+ * Check if an object can be found in a array
+ * @array {array}
+ * @obj {object}
+ */
+
+function find(array, obj) {
+    return array.indexOf(obj) >= 0;
 }
 
 /**
