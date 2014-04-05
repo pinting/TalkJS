@@ -1144,7 +1144,6 @@ var WildEmitter = require("wildemitter");
 var mockconsole = require("mockconsole");
 var io = require("socket.io-client");
 var WebRTC = require("./webrtc");
-var RTC = require("./adapter");
 
 /**
  * Main object of the application: child of SimpleWebRTC
@@ -1281,8 +1280,8 @@ Talk.prototype.startLocalMedia = function(media, cb) {
     }
     this.config.media = this.webrtc.config.media = media;
     this.webrtc.startLocalMedia(media, function(error, stream) {
-        if(error) {
-            self.emit("error", error);
+        if(!isNone(error)) {
+            self.logger.warn("Error has occurred while starting local media:", error);
         }
         safeCb(cb)(error, stream);
     });
@@ -1309,12 +1308,21 @@ Talk.prototype.attachMediaStream = function(options, element) {
  */
 
 Talk.prototype.createRoom = function(user, name, cb) {
+    var self = this;
     this.roomName = safeStr(name);
     this.connection.emit("create", {
+        type: this.config.media.video ? "video" : this.config.media.audio ? "audio" : "data",
         user: this.loggedIn ? this.userName : this.userName = safeStr(user),
-        name: this.roomName,
-        type: this.config.media.video ? "video" : this.config.media.audio ? "audio" : "data"
-    }, safeCb(cb));
+        name: this.roomName
+    }, function(error) {
+        if(isNone(error)) {
+            self.logger.log("Room has successfully created:", self.roomName);
+        }
+        else {
+            self.logger.warn("Failed to create the room:", self.roomName, error);
+        }
+        safeCb(cb)(error);
+    });
 };
 
 /**
@@ -1328,10 +1336,13 @@ Talk.prototype.leaveRoom = function(cb) {
         this.webrtc.peers.forEach(function(peer) {
             peer.end();
         });
-        safeCb(cb)(this.roomName);
-        this.emit("leftRoom", this.roomName);
+        this.logger.log("Room has left", this.roomName);
         this.webrtc.peers = [];
         this.roomName = null;
+        safeCb(cb)(this.roomName);
+    }
+    else {
+        safeCb(cb)(null);
     }
 };
 
@@ -1352,8 +1363,8 @@ Talk.prototype.joinRoom = function(user, name, cb) {
     };
 
     this.connection.emit("join", room, function(error, clients) {
-        if(error) {
-            self.emit("error", error);
+        if(!isNone(error)) {
+            self.logger.warn("Failed to join to the room:", room.name, error);
         }
         else {
             for(var id in clients) {
@@ -1367,7 +1378,7 @@ Talk.prototype.joinRoom = function(user, name, cb) {
                 self.webrtc.peers.push(peer);
             }
             self.roomName = room.name;
-            self.emit("joinedRoom", room.name);
+            self.logger.log("Joined successfully to the room:", room.name);
         }
         safeCb(cb)(error, clients);
     });
@@ -1382,8 +1393,11 @@ Talk.prototype.joinRoom = function(user, name, cb) {
 Talk.prototype.registerUser = function(name, pass, cb) {
     var self = this;
     this.connection.emit("register", name, sha256(pass), function(error) {
-        if(error) {
-            self.emit("error", error);
+        if(!isNone(error)) {
+            self.logger.warn("Failed to register:", name, error);
+        }
+        else {
+            self.logger.log("Registered successfully:", name);
         }
         safeCb(cb)(error);
     });
@@ -1403,12 +1417,13 @@ Talk.prototype.loginUser = function(name, pass, cb, encrypt) {
         encrypt = true;
     }
     this.connection.emit("login", name, encrypt ? sha256(pass) : pass, function(error) {
-        if(error) {
-            self.emit("error", error);
+        if(!isNone(error)) {
+            self.logger.warn("Failed to login:", name, error);
         }
         else {
             self.loggedIn = true;
             self.changeName(name);
+            self.logger.log("Logged in successfully:", name);
         }
         safeCb(cb)(error);
     });
@@ -1422,6 +1437,7 @@ Talk.prototype.logoutUser = function() {
     this.webrtc.friends.forEach(function(peer) {
         peer.pc.close();
     });
+    this.logger.log("Logged out successfully");
     this.connection.emit("logout");
     this.webrtc.friends = [];
     this.loggedIn = false;
@@ -1438,11 +1454,11 @@ Talk.prototype.friendList = function(cb) {
     var self = this;
 
     this.connection.emit("friends", function(error, online, offline) {
-        if(error) {
+        if(!isNone(error)) {
             if(error === "notLoggedIn") {
                 self.loggedIn = false;
             }
-            self.emit("error", error);
+            self.logger.warn("Failed to get the friend list:", error);
         }
         for(var id in online) {
             if(!self.webrtc.friends.filter(function(peer) {
@@ -1481,11 +1497,14 @@ Talk.prototype.friendList = function(cb) {
 Talk.prototype.addFriend = function(name, cb) {
     var self = this;
     this.connection.emit("add", name, function(error) {
-        if(error) {
+        if(!isNone(error)) {
             if(error === "notLoggedIn") {
                 self.loggedIn = false;
             }
-            self.emit("error", error);
+            self.logger.warn("Failed to add a friend:", name, error);
+        }
+        else {
+            self.logger.log("Friend added successfully");
         }
         safeCb(cb)(error);
     });
@@ -1500,11 +1519,14 @@ Talk.prototype.addFriend = function(name, cb) {
 Talk.prototype.delFriend = function(name, cb) {
     var self = this;
     this.connection.emit("del", name, function(error) {
-        if(error) {
+        if(!isNone(error)) {
             if(error === "notLoggedIn") {
                 self.loggedIn = false;
             }
-            self.emit("error", error);
+            self.logger.warn("Failed to delete a friend:", name, error);
+        }
+        else {
+            self.logger.log("Friend deleted successfully");
         }
         safeCb(cb)(error);
     });
@@ -1519,6 +1541,7 @@ Talk.prototype.changeName = function(name) {
     if(name = safeStr(name)) {
         this.webrtc.sendToAll("set_name", name);
         this.userName = name;
+        this.logger.log("Name has changed:", name);
     }
 };
 
@@ -1615,7 +1638,7 @@ Talk.prototype.setElementVolumeForAll = function(volume) {
 };
 
 module.exports = Talk;
-},{"./adapter":1,"./webrtc":10,"attachmediastream":11,"mockconsole":13,"socket.io-client":14,"wildemitter":16}],10:[function(require,module,exports){
+},{"./webrtc":10,"attachmediastream":11,"mockconsole":13,"socket.io-client":14,"wildemitter":16}],10:[function(require,module,exports){
 var parent = require("./simplewebrtc/webrtc");
 var getUserMedia = require("getusermedia");
 var hark = require("./simplewebrtc/hark");

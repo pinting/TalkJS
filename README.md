@@ -35,30 +35,6 @@ Start a local stream with the given media type.
 
 Stop the local stream.
 
-### pauseVideo
-
-Pause the local video stream.
-
-### resumeVideo
-
-Resume local video stream.
-
-### pause
-
-Pause the local video stream and mute the microphone.
-
-### resume
-
-Resume the local video stream and unmute the microphone.
-
-### mute
-
-Mute the microphone.
-
-### unmute
-
-Unmute the microphone.
-
 ### attachMediaStream
 
 ```js
@@ -245,6 +221,30 @@ Set a volume for the audio/video element of a peer. The volume needs to be betwe
 ```
 
 Set a volume for every audio/video element of peers in the current room.
+
+### pauseVideo
+
+Pause the local video stream.
+
+### resumeVideo
+
+Resume local video stream.
+
+### pause
+
+Pause the local video stream and mute the microphone.
+
+### resume
+
+Resume the local video stream and unmute the microphone.
+
+### mute
+
+Mute the microphone.
+
+### unmute
+
+Unmute the microphone.
 
 ## Server errors
 
