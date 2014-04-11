@@ -341,11 +341,3 @@ function(peer) {}
 ```
 
 Peer has stopped speaking.
-
-### error
-
-```js
-function(error) {}
-```
-
-Referring to an occurred error.
