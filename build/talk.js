@@ -458,7 +458,7 @@ RoomPeer.prototype.handleStreamRemoved = function() {
  * Unmute the media element
  */
 
-RoomPeer.prototype.unmuteElement = function() {
+RoomPeer.prototype.unmute = function() {
     if(Util.isObject(this.element)) {
         this.element.muted = false;
     }
@@ -468,7 +468,7 @@ RoomPeer.prototype.unmuteElement = function() {
  * Mute the media element
  */
 
-RoomPeer.prototype.muteElement = function() {
+RoomPeer.prototype.mute = function() {
     if(Util.isObject(this.element)) {
         this.element.muted = true;
     }
@@ -479,7 +479,7 @@ RoomPeer.prototype.muteElement = function() {
  * @volume {int}
  */
 
-RoomPeer.prototype.setElementVolume = function(volume) {
+RoomPeer.prototype.setVolume = function(volume) {
     if(Util.isObject(this.element)) {
         this.element.volume = volume / 100;
     }
@@ -1358,7 +1358,7 @@ Util.inherits(Talk, WebRTC);
 Talk.prototype.changeName = function(name) {
     if(name = Util.safeStr(name)) {
         this.username = name;
-        this.sendToAll("setName", name);
+        this.sendInRoom("setName", name);
         this.logger.log("Name has changed:", name);
     }
 };
@@ -1866,7 +1866,7 @@ function WebRTC(options) {
                 if(Util.isNone(volumes[peer.id])) {
                     if(self.config.peerVolumeWhenSpeaking < peer.element.volume * 100) {
                         volumes[peer.id] = peer.element.volume * 100;
-                        self.setElementVolume(peer, self.config.peerVolumeWhenSpeaking);
+                        self.setVolume(peer, self.config.peerVolumeWhenSpeaking);
                     }
                 }
             });
@@ -1875,7 +1875,7 @@ function WebRTC(options) {
             self.peers.room.forEach(function(peer) {
                 if(Util.isNumber(volumes[peer.id])) {
                     if(self.config.peerVolumeWhenSpeaking == peer.element.volume * 100) {
-                        self.setElementVolume(peer, volumes[peer.id]);
+                        self.setVolume(peer, volumes[peer.id]);
                     }
                     delete volumes[peer.id];
                 }
@@ -2032,7 +2032,7 @@ WebRTC.prototype.setupAudioMonitor = function(stream) {
             return;
         }
         self.setMicIfEnabled(1);
-        self.sendToAll("speaking", {});
+        self.sendInRoom("speaking", {});
         self.emit("localSpeaking");
     });
 
@@ -2045,7 +2045,7 @@ WebRTC.prototype.setupAudioMonitor = function(stream) {
         }
         timeout = setTimeout(function() {
             self.setMicIfEnabled(0.5);
-            self.sendToAll("stoppedSpeaking", {});
+            self.sendInRoom("stoppedSpeaking", {});
             self.emit("localStoppedSpeaking");
         }, 200);
     });
@@ -2056,9 +2056,9 @@ WebRTC.prototype.setupAudioMonitor = function(stream) {
  * Mute all audio/video elements of peers in the current room
  */
 
-WebRTC.prototype.muteElementForAll = function() {
+WebRTC.prototype.muteRoom = function() {
     this.peers.room.forEach(function(peer) {
-        peer.muteElement();
+        peer.mute();
     });
 };
 
@@ -2066,9 +2066,9 @@ WebRTC.prototype.muteElementForAll = function() {
  * Unmute all audio/video elements of peers in the current room
  */
 
-WebRTC.prototype.unmuteElementForAll = function() {
+WebRTC.prototype.unmuteRoom = function() {
     this.peers.room.forEach(function(peer) {
-        peer.unmuteElement();
+        peer.unmute();
     });
 };
 
@@ -2077,9 +2077,9 @@ WebRTC.prototype.unmuteElementForAll = function() {
  * @volume {int}
  */
 
-WebRTC.prototype.setElementVolumeForAll = function(volume) {
+WebRTC.prototype.setRoomVolume = function(volume) {
     this.peers.room.forEach(function(peer) {
-        peer.setElementVolume(volume);
+        peer.setVolume(volume);
     });
 };
 
@@ -2090,7 +2090,7 @@ WebRTC.prototype.setElementVolumeForAll = function(volume) {
  * @payload {string}
  */
 
-WebRTC.prototype.sendToAll = function(type, payload) {
+WebRTC.prototype.sendInRoom = function(type, payload) {
     this.peers.room.forEach(function(peer) {
         peer.send(type, payload);
     });
@@ -2103,7 +2103,7 @@ WebRTC.prototype.sendToAll = function(type, payload) {
  * @payload {string}
  */
 
-WebRTC.prototype.sendToAllFriends = function(type, payload) {
+WebRTC.prototype.sendToFriends = function(type, payload) {
     this.peers.friend.forEach(function(peer) {
         peer.send(type, payload);
     });

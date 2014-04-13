@@ -2,7 +2,20 @@
 
 The base of the library was written by **Henrik Joreteg**.
 
-Check out the official client: http://talk.pinting.hu
+## Example
+
+```js
+var talk = new Talk();
+var name = talk.Util.randNum().toString();
+
+talk.once("connectionReady", function() {
+    talk.createRoom(name, "test", function(error) {
+        if(error === "roomExists") {
+            talk.joinRoom(name, "test");
+        }
+    });
+});
+```
 
 ## Build
 
@@ -16,7 +29,43 @@ Check out the official client: http://talk.pinting.hu
 
 ## Functions
 
-### startLocalMedia(media, cb)
+### Talk
+
+```js
+@options {object}
+
+{
+    peerConnectionConfig: {
+        iceServers: [
+            {"url": "stun:stun.l.google.com:19302"},
+            {"url": "stun:stun1.l.google.com:19302"},
+            {"url": "stun:stun2.l.google.com:19302"},
+            {"url": "stun:stun3.l.google.com:19302"},
+            {"url": "stun:stun4.l.google.com:19302"}
+        ]
+    },
+    peerConnectionContraints: {
+        optional: [
+            {DtlsSrtpKeyAgreement: true},
+            {RtpDataChannels: true}
+        ]
+    },
+    media: {
+        audio: false,
+        video: false
+    },
+	server: "http://srv.talk.pinting.hu:8000",
+    detectSpeakingEvents: false,
+    peerVolumeWhenSpeaking: 50,
+    adjustPeerVolume: false,
+    autoAdjustMic: false,
+    debug: false
+}
+```
+
+Initialize the library.
+
+### Talk.startLocalMedia(media, cb)
 
 ```js
 @media {object} Type of the local stream
@@ -29,13 +78,13 @@ Check out the official client: http://talk.pinting.hu
 @cb {function}
 ```
 
-Start a local stream with the given media type.
+Start the local stream with the given media type.
 
-### stopLocalMedia
+### Talk.stopLocalMedia
 
 Stop the local stream.
 
-### attachMediaStream
+### Talk.attachMediaStream
 
 ```js
 @options {object} Options for the element
@@ -51,11 +100,11 @@ Stop the local stream.
 
 Pipe stream into the given element, or create a new one.
 
-### createRoom
+### Talk.createRoom
 
 ```js
-@user {string} Username
-@name {string} Name of new room
+@username {string}
+@name {string} Name of the room
 @cb {function}
 
 function(error) {}
@@ -63,23 +112,23 @@ function(error) {}
 
 Create a new room if it is not exists and join it, with the given username.
 
-### leaveRoom
+### Talk.leaveRoom
 
 ```js
 @cb {function}
 
 function(room) {
-    // room: the name of the left room
+    // room: the name of the room
 }
 ```
 
 Leave the current room.
 
-### joinRoom
+### Talk.joinRoom
 
 ```js
-@user {string} Username
-@name {string} Name of an existing room
+@username {string}
+@name {string} Name of the room
 @cb {function}
 
 function(error, clients) {
@@ -90,11 +139,11 @@ function(error, clients) {
 
 Join to an existing room, with the given username. 
 
-### registerUser
+### Talk.registerUser
 
 ```js
-@user {string} Username
-@pass {string} Password
+@username {string}
+@password {string}
 @cb {function}
 
 function(error) {}
@@ -102,11 +151,11 @@ function(error) {}
 
 Register a new user with given parameters. Passwords will be encrypted (with SHA256) twice: locally, and on the server-side.
 
-### loginUser
+### Talk.loginUser
 
 ```js
-@user {string} Username
-@pass {string} Password
+@username {string}
+@password {string}
 @cb {function}
 
 function(error) {}
@@ -116,11 +165,11 @@ function(error) {}
 
 Login a registered user with the given parameters. Local password encryption can be disabled - this can be handy, if we saved the hashed password to localStorage and we want to reuse it.
 
-### logoutUser
+### Talk.logoutUser
 
 Logout the current user.
 
-### friendList
+### Talk.getFriends
 
 ```js
 @cb {function}
@@ -134,10 +183,10 @@ function(error, online, offline) {
 
 Get the current friend list.
 
-### addFriend
+### Talk.addFriend
 
 ```js
-@name {string}
+@username {string}
 @cb {function}
 
 function(error) {}
@@ -145,10 +194,10 @@ function(error) {}
 
 Add a registered user to the friend list.
 
-### delFriend
+### Talk.delFriend
 
 ```js
-@name {string}
+@username {string}
 @cb {function}
 
 function(error) {}
@@ -156,97 +205,139 @@ function(error) {}
 
 Remove user from the friend list.
 
-### changeName
+### Talk.changeName
 
 ```js
-@name {string}
+@username {string}
 ```
 
 Change the current username to a new one, in the current room - this will not change the registered username.
 
-### sendPrivateMessage
+### Talk.getFriendPeer
 
 ```js
-@name {string}
-@message {string}
+@args {object} Type of the local stream
+
+{
+	username: null,
+    type: null,
+    id: null
+}
 ```
 
-Send a private message to a user with the given username.
+Get peers by id, type and username.
 
-### sendRoomMessage
+### Talk.getRoomPeer
 
 ```js
-@message {string}
+@args {object} Type of the local stream
+
+{
+    type: null,
+    id: null
+}
 ```
 
-Send a message to everybody in the current room.
+Get peers by id and type.
 
-### muteElement
+### Talk.sendToFriends
 
 ```js
-@peer {object}
+@type {string}
+@payload {string}
 ```
 
-Mute the audio/video element of a peer
+Send a private message to every friends.
 
-### muteElementForAll
-
-Mute every audio/video element of peers in the current room
-
-### unmuteElement
+### Talk.sendInRoom
 
 ```js
-@peer {object}
+@type {string}
+@payload {string}
 ```
 
-Unmute the audio/video element of a peer
+Send a message to everyone in the current room.
 
-### unmuteElementForAll
+### Talk.muteRoom
 
-Unmute every audio/video element of peers in the current room
+Mute all audio/video elements of peers in the current room.
 
-### setElementVolume
+### Talk.unmuteRoom
+
+Unmute all audio/video elements of peers in the current room.
+
+### Talk.setRoomVolume
 
 ```js
-@peer {object}
 @volume {int}
 ```
 
-Set a volume for the audio/video element of a peer. The volume needs to be between 100 and 0.
+Set volume for all audio/video elements of peers in the current room.
 
-### setElementVolumeForAll
-
-```js
-@volume {int}
-```
-
-Set a volume for every audio/video element of peers in the current room.
-
-### pauseVideo
+### Talk.pauseVideo
 
 Pause the local video stream.
 
-### resumeVideo
+### Talk.resumeVideo
 
 Resume local video stream.
 
-### pause
+### Talk.pause
 
 Pause the local video stream and mute the microphone.
 
-### resume
+### Talk.resume
 
 Resume the local video stream and unmute the microphone.
 
-### mute
+### Talk.mute
 
 Mute the microphone.
 
-### unmute
+### Talk.unmute
 
 Unmute the microphone.
 
-## Server errors
+### Peer.mute
+
+Mute the media element of the peer.
+
+### Peer.unmute
+
+Unmute the media element of the peer.
+
+### Peer.setVolume
+
+```js
+@volume {int}
+```
+
+Set volume for the media element of the peer.
+
+### Peer.createDataChannel
+
+```js
+@name {string}
+@options {object}
+
+{
+    reliable: false,
+    preset: true
+}
+```
+
+Create a data channel for the peer.
+
+### Peer.sendData
+
+```js
+@channel {object}
+@message {object}
+```
+
+Send data thought the given channel.
+
+## Server responses
 
 ### exists
 
@@ -284,23 +375,23 @@ The connection with the server is ready.
 
 ### localStream
 
-Local stream has started.
+The local stream has started.
 
-### peerAdded
-
-```js
-function(peer) {}
-```
-
-New peer was added.
-
-### peerRemoved
+### peerStreamAdded
 
 ```js
 function(peer) {}
 ```
 
-Peer has left or disconnected.
+A new peer was added.
+
+### peerStreamRemoved
+
+```js
+function(peer) {}
+```
+
+A peer has left or disconnected.
 
 ### nameChanged
 
@@ -308,23 +399,23 @@ Peer has left or disconnected.
 function(peer) {}
 ```
 
-Peer name was changed.
+A peer name was changed.
 
-### chat
-
-```js
-function(peer, message) {}
-```
-
-Chat message was received from a room member.
-
-### pm
+### roomMessage
 
 ```js
 function(peer, message) {}
 ```
 
-Private message was received from a friend.
+A chat message was received from a room member.
+
+### friendMessage
+
+```js
+function(peer, message) {}
+```
+
+A private message was received from a friend.
 
 ### speaking
 
@@ -332,7 +423,7 @@ Private message was received from a friend.
 function(peer) {}
 ```
 
-Peer has started speaking.
+A peer has started speaking.
 
 ### stoppedSpeaking
 
@@ -340,4 +431,4 @@ Peer has started speaking.
 function(peer) {}
 ```
 
-Peer has stopped speaking.
+A peer has stopped speaking.
