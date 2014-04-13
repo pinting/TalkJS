@@ -1315,7 +1315,11 @@ function Talk(options) {
     });
     this.connection.on("remove", function(peer) {
         if(peer.id !== self.connection.socket.sessionid) {
-            self.removePeers(peer.id, peer.type);
+            this.getRoomPeer({
+                username: peer.username,
+                type: peer.type,
+                id: peer.id
+            }).end();
         }
     });
     this.connection.on("message", function(type, message) {
@@ -1821,11 +1825,11 @@ function WebRTC(options) {
             audio: false,
             video: false
         },
-        detectSpeakingEvents: true,
+        detectSpeakingEvents: false,
         peerVolumeWhenSpeaking: 50,
         adjustPeerVolume: false,
         autoAdjustMic: false,
-        debug: true
+        debug: false
     };
     this.peers = {
         friend: [],
