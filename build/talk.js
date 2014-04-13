@@ -4,8 +4,9 @@ var Util = require("./util");
 var RTC = require("./rtc");
 
 /**
- * Simpler object for adapter: child of PeerConnection from SimpleWebRTC
+ * Polyfill object, with bindings of native methods
  * @options {object}
+ * @constraints {object}
  */
 
 function PeerConnection(options, constraints) {
@@ -35,7 +36,7 @@ PeerConnection.prototype.processIce = function(candidate) {
 
 /**
  * Handle an answer description
- * @candidate {object}
+ * @answer {object}
  */
 
 PeerConnection.prototype.handleAnswer = function(answer) {
@@ -45,7 +46,7 @@ PeerConnection.prototype.handleAnswer = function(answer) {
 /**
  * Create a data channel
  * @name {string}
- * @opts {candidate}
+ * @opts {object}
  */
 
 PeerConnection.prototype.createDataChannel = function(name, options) {
@@ -53,7 +54,7 @@ PeerConnection.prototype.createDataChannel = function(name, options) {
 };
 
 /**
- * SDP hack for Chrome, from PeerJS
+ * SDP hack for Chrome - from PeerJS
  * @sdp {string}
  */
 
@@ -69,7 +70,7 @@ PeerConnection.prototype._applySdpHack = function(sdp) {
 };
 
 /**
- * Internal code sharing for various types of answer methods
+ * Internal code for various types of answer methods
  * @offer {object} Offer description
  * @constraints {object} Media type
  * @cb {string}
@@ -100,7 +101,7 @@ var Util = require("../util");
 var RTC = require("../rtc");
 
 /**
- * A peer: child of Peer from SimpleWebRTC
+ * Peer object for a friend
  * @options {object}
  */
 
@@ -194,8 +195,8 @@ FriendPeer.prototype.send = function(type, payload, username) {
 
 FriendPeer.prototype.handleStreamRemoved = function() {
     this.parent.peers.friend.splice(this.parent.peers.room.indexOf(this), 1);
-    this.closed = true;
     this.parent.emit("peerStreamRemoved", this);
+    this.closed = true;
 };
 
 module.exports = FriendPeer;
@@ -208,7 +209,7 @@ var Util = require("../util");
 var RTC = require("../rtc");
 
 /**
- * A peer: child of Peer from SimpleWebRTC
+ * Peer object for a room member
  * @options {object}
  */
 
@@ -225,6 +226,7 @@ function RoomPeer(options) {
     this.stream = options.stream;
     this.id = options.id;
     this.element = null;
+    this.closed = false;
     this.channels = {};
 
     this.pc = new PeerConnection(this.parent.config.peerConnectionConfig, this.parent.config.peerConnectionContraints);
@@ -256,8 +258,7 @@ Util.inherits(RoomPeer, require("../simplewebrtc/peer"));
 
 /**
  * Create an offer
- * @type {string} Type of the offer
- * @user {string}
+ * @username {string}
  */
 
 RoomPeer.prototype.start = function(username) {
@@ -480,6 +481,7 @@ RoomPeer.prototype.setElementVolume = function(volume) {
 module.exports = RoomPeer;
 },{"../pc":1,"../rtc":4,"../simplewebrtc/peer":8,"../util":11,"attachmediastream":13,"webrtcsupport":17,"wildemitter":18}],4:[function(require,module,exports){
 var Util = require("./util");
+
 var exports = {
     desc: window.RTCSessionDescription,
     pc: window.RTCPeerConnection,
@@ -1457,7 +1459,7 @@ Talk.prototype.joinRoom = function(username, name, cb) {
 
 Talk.prototype.registerUser = function(username, password, cb) {
     var self = this;
-    this.connection.emit("registerUser", username, sha256(password), function(error) {
+    this.connection.emit("registerUser", username, Util.sha256(password), function(error) {
         if(!Util.isNone(error)) {
             self.logger.warn("Failed to register:", username, error);
         }
@@ -1601,7 +1603,7 @@ module.exports = Talk;
 },{"./util":11,"./webrtc":12,"attachmediastream":13,"socket.io-client":16}],11:[function(require,module,exports){
 module.exports = {
     /**
-     * Check if input is a function: if it is not, the return value will be an empty function
+     * Check if input is a function: if it is not, then return an empty function
      * @cb {function}
      */
 
@@ -1615,7 +1617,7 @@ module.exports = {
     },
 
     /**
-     * Remove unwanted characters from a string (not for messages)
+     * Remove unwanted characters from a string
      * @string {string}
      */
 
@@ -1627,7 +1629,7 @@ module.exports = {
     },
 
     /**
-     * Remove unwanted characters from a message
+     * Make a string HTML-safe
      * @string {string}
      */
 
@@ -1644,8 +1646,8 @@ module.exports = {
     },
 
     /**
-     * Check if input is undefined or null, from TokBox
-     * @obj {Object}
+     * Check if input is undefined or null - from TokBox
+     * @obj {object}
      */
 
     isNone: function(obj) {
@@ -1653,7 +1655,7 @@ module.exports = {
     },
 
     /**
-     * Check if object is empty, from TokBox
+     * Check if object is empty - from TokBox
      * @obj {object}
      */
 
@@ -1682,7 +1684,7 @@ module.exports = {
     },
 
     /**
-     * Check input is object, from TokBox
+     * Check input is object - from TokBox
      * @obj {object}
      */
 
@@ -1714,10 +1716,10 @@ module.exports = {
 
         for(;length > 0; length--) {
             if(Math.floor(length / 2) === length / 2) {
-                result += "bcdfghjklmnpqrstvwxyz"[randNum(0, 20)];
+                result += "bcdfghjklmnpqrstvwxyz"[this.randNum(0, 20)];
             }
             else {
-                result += "aeiou"[randNum(0, 4)];
+                result += "aeiou"[this.randNum(0, 4)];
             }
         }
         return result;
@@ -1747,10 +1749,8 @@ module.exports = {
      */
 
     sha256: function(string) {
-        if(this.isString(string)) {
-            var hash = Crypto.createHash("sha256");
-            hash.update(string);
-            return hash.digest("hex");
+        if(!this.isEmpty(string)) {
+            return CryptoJS.SHA256(string).toString();
         }
         return "";
     },
@@ -1766,7 +1766,7 @@ module.exports = {
     },
 
     /**
-     * Inherits an object, from PeerJS
+     * Inherits an object - from PeerJS
      * @obj {object}
      * @parent {object}
      */
@@ -1784,17 +1784,17 @@ module.exports = {
 };
 },{}],12:[function(require,module,exports){
 var GainController = require("./simplewebrtc/gain");
-var FriendPeer = require("./peers/friend");
 var getUserMedia = require("getusermedia");
+var FriendPeer = require("./peer/friend");
 var hark = require("./simplewebrtc/hark");
 var mockconsole = require("mockconsole");
 var WildEmitter = require("wildemitter");
-var RoomPeer = require("./peers/room");
+var RoomPeer = require("./peer/room");
 var Util = require("./util");
 var RTC = require("./rtc");
 
 /**
- * Peer handler object, child of WebRTC from SimpleWebRTC bundle
+ * Handler object for WebRTC peers
  * @options {object}
  */
 
@@ -1915,8 +1915,7 @@ WebRTC.prototype.startLocalMedia = function(media, cb) {
 
 /**
  * Get peers by id and type
- * @id {string}
- * @type {string}
+ * @args {object}
  */
 
 WebRTC.prototype.getRoomPeer = function(args) {
@@ -1927,9 +1926,8 @@ WebRTC.prototype.getRoomPeer = function(args) {
 };
 
 /**
- * Get friends by id and type
- * @id {string}
- * @type {string}
+ * Get friends by id, type and username
+ * @args {object}
  */
 
 WebRTC.prototype.getFriendPeer = function(args) {
@@ -1988,8 +1986,8 @@ WebRTC.prototype.handleFriendMessage = function(message, peer) {
 };
 
 /**
- * Create a peer object through the handler
- * @options {object} Options for the peer
+ * Create a peer object
+ * @options {object}
  */
 
 WebRTC.prototype.createRoomPeer = function(options) {
@@ -1998,8 +1996,8 @@ WebRTC.prototype.createRoomPeer = function(options) {
 };
 
 /**
- * Create a friend object through the handler
- * @options {object} Options for the friend
+ * Create a friend object
+ * @options {object}
  */
 
 WebRTC.prototype.createFriendPeer = function(options) {
@@ -2008,8 +2006,8 @@ WebRTC.prototype.createFriendPeer = function(options) {
 };
 
 /**
- * Setup audio monitor for a (local) stream
- * @stream {object} Local stream
+ * Setup audio monitor for a stream
+ * @stream {object}
  */
 
 WebRTC.prototype.setupAudioMonitor = function(stream) {
@@ -2046,7 +2044,7 @@ WebRTC.prototype.setupAudioMonitor = function(stream) {
 };
 
 /**
- * Mute all audio/video element of peers in the current room
+ * Mute all audio/video elements of peers in the current room
  */
 
 WebRTC.prototype.muteElementForAll = function() {
@@ -2056,7 +2054,7 @@ WebRTC.prototype.muteElementForAll = function() {
 };
 
 /**
- * Unmute all audio/video element of peers in the current room
+ * Unmute all audio/video elements of peers in the current room
  */
 
 WebRTC.prototype.unmuteElementForAll = function() {
@@ -2066,7 +2064,7 @@ WebRTC.prototype.unmuteElementForAll = function() {
 };
 
 /**
- * Set volume for all audio/video element of peers in the current room
+ * Set volume for all audio/video elements of peers in the current room
  * @volume {int}
  */
 
@@ -2078,7 +2076,7 @@ WebRTC.prototype.setElementVolumeForAll = function(volume) {
 
 
 /**
- * Send a message to everyone in the same room
+ * Send a message to everyone in the current room
  * @type {string}
  * @payload {string}
  */
@@ -2103,7 +2101,7 @@ WebRTC.prototype.sendToAllFriends = function(type, payload) {
 };
 
 module.exports = WebRTC;
-},{"./peers/friend":2,"./peers/room":3,"./rtc":4,"./simplewebrtc/gain":5,"./simplewebrtc/hark":6,"./simplewebrtc/webrtc":9,"./util":11,"getusermedia":14,"mockconsole":15,"wildemitter":18}],13:[function(require,module,exports){
+},{"./peer/friend":2,"./peer/room":3,"./rtc":4,"./simplewebrtc/gain":5,"./simplewebrtc/hark":6,"./simplewebrtc/webrtc":9,"./util":11,"getusermedia":14,"mockconsole":15,"wildemitter":18}],13:[function(require,module,exports){
 module.exports = function (stream, el, options) {
     var URL = window.URL;
     var opts = {
@@ -2146,10 +2144,10 @@ module.exports = function (stream, el, options) {
 
 },{}],14:[function(require,module,exports){
 // getUserMedia helper by @HenrikJoreteg
-var func = (navigator.getUserMedia ||
-            navigator.webkitGetUserMedia ||
-            navigator.mozGetUserMedia ||
-            navigator.msGetUserMedia);
+var func = (window.navigator.getUserMedia ||
+            window.navigator.webkitGetUserMedia ||
+            window.navigator.mozGetUserMedia ||
+            window.navigator.msGetUserMedia);
 
 
 module.exports = function (constraints, cb) {
@@ -2174,7 +2172,7 @@ module.exports = function (constraints, cb) {
         return cb(error);
     }
 
-    func.call(navigator, constraints, function (stream) {
+    func.call(window.navigator, constraints, function (stream) {
         cb(null, stream);
     }, function (err) {
         var error;
@@ -6099,7 +6097,7 @@ if (typeof define === "function" && define.amd) {
 var prefix;
 var isChrome = false;
 var isFirefox = false;
-var ua = navigator.userAgent.toLowerCase();
+var ua = window.navigator.userAgent.toLowerCase();
 
 // basic sniffing
 if (ua.indexOf('firefox') !== -1) {
@@ -6114,7 +6112,7 @@ var PC = window.mozRTCPeerConnection || window.webkitRTCPeerConnection;
 var IceCandidate = window.mozRTCIceCandidate || window.RTCIceCandidate;
 var SessionDescription = window.mozRTCSessionDescription || window.RTCSessionDescription;
 var MediaStream = window.webkitMediaStream || window.MediaStream;
-var screenSharing = navigator.userAgent.match('Chrome') && parseInt(navigator.userAgent.match(/Chrome\/(.*) /)[1], 10) >= 26;
+var screenSharing = window.location.protocol === 'https:' && window.navigator.userAgent.match('Chrome') && parseInt(window.navigator.userAgent.match(/Chrome\/(.*) /)[1], 10) >= 26;
 var AudioContext = window.webkitAudioContext || window.AudioContext;
 
 

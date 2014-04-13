@@ -13,7 +13,7 @@ module.exports = function(grunt) {
         },
         concat: {
             dist: {
-                src: ["build/talk.js", "lib/helpers/**/*.js"],
+                src: ["build/talk.js", "lib/crypto/*.js"],
                 dest: "build/talk.js"
             }
         },
@@ -38,8 +38,8 @@ module.exports = function(grunt) {
             ],
             options: {
                 ignores: [
-                    "lib/simplewebrtc/**/*.js",
-                    "lib/helpers/**/*.js"
+                    "lib/simplewebrtc/*.js",
+                    "lib/crypto/*.js"
                 ],
                 force: true
             }
