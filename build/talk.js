@@ -1,5 +1,6 @@
 !function(e){"object"==typeof exports?module.exports=e():"function"==typeof define&&define.amd?define(e):"undefined"!=typeof window?window.Talk=e():"undefined"!=typeof global?global.Talk=e():"undefined"!=typeof self&&(self.Talk=e())}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 var WildEmitter = require("wildemitter");
+var Util = require("./util");
 var RTC = require("./rtc");
 
 /**
@@ -21,7 +22,7 @@ function PeerConnection(options, constraints) {
     this.pc.onicecandidate = this._onIce.bind(this);
 }
 
-inherits(PeerConnection, require("./simplewebrtc/pc"));
+Util.inherits(PeerConnection, require("./simplewebrtc/pc"));
 
 /**
  * Process candidate description
@@ -81,20 +82,21 @@ PeerConnection.prototype._answer = function(offer, constraints, cb) {
             answer.sdp = self._applySdpHack(answer.sdp);
             self.pc.setLocalDescription(answer);
             self.emit("answer", answer);
-            safeCb(cb)(null, answer);
+            Util.safeCb(cb)(null, answer);
         }, function(error) {
             self.emit("error", error);
-            safeCb(cb)(error);
+            Util.safeCb(cb)(error);
         }, constraints
     );
 };
 
 module.exports = PeerConnection;
 
-},{"./rtc":4,"./simplewebrtc/pc":7,"wildemitter":17}],2:[function(require,module,exports){
+},{"./rtc":4,"./simplewebrtc/pc":7,"./util":11,"wildemitter":18}],2:[function(require,module,exports){
 var attachMediaStream = require("attachmediastream");
 var WildEmitter = require("wildemitter");
 var RoomPeer = require("./room");
+var Util = require("../util");
 var RTC = require("../rtc");
 
 /**
@@ -106,7 +108,7 @@ function FriendPeer(options) {
     RoomPeer.call(this, options);
 }
 
-inherits(FriendPeer, RoomPeer);
+Util.inherits(FriendPeer, RoomPeer);
 
 /**
  * Handle message
@@ -116,7 +118,7 @@ inherits(FriendPeer, RoomPeer);
 FriendPeer.prototype.handleMessage = function(message) {
     var self = this;
 
-    if(!isObject(message)) {
+    if(!Util.isObject(message)) {
         return;
     }
     if(message.prefix) {
@@ -125,7 +127,7 @@ FriendPeer.prototype.handleMessage = function(message) {
     switch(message.type) {
         case "offer":
             this.pc.answer(message.payload, function(error, description) {
-                if(!isNone(error)) {
+                if(!Util.isNone(error)) {
                     self.logger.warn(error);
                 }
                 self.send("answer", description);
@@ -138,7 +140,7 @@ FriendPeer.prototype.handleMessage = function(message) {
             this.pc.processIce(message.payload);
             break;
         case "setName":
-            this.username = safeStr(message.payload) || "";
+            this.username = Util.safeStr(message.payload) || "";
             this.parent.emit("nameChanged", self);
             break;
         case "stoppedSpeaking":
@@ -148,7 +150,7 @@ FriendPeer.prototype.handleMessage = function(message) {
             this.parent.emit("speaking", self);
             break;
         case "chat":
-            this.parent.emit("friendMessage", self, safeText(message.payload));
+            this.parent.emit("friendMessage", self, Util.safeText(message.payload));
             break;
     }
     this.logger.log("Getting:", message.type, message);
@@ -197,11 +199,12 @@ FriendPeer.prototype.handleStreamRemoved = function() {
 };
 
 module.exports = FriendPeer;
-},{"../rtc":4,"./room":3,"attachmediastream":12,"wildemitter":17}],3:[function(require,module,exports){
+},{"../rtc":4,"../util":11,"./room":3,"attachmediastream":13,"wildemitter":18}],3:[function(require,module,exports){
 var attachMediaStream = require("attachmediastream");
 var WildEmitter = require("wildemitter");
 var webrtc = require("webrtcsupport");
 var PeerConnection = require("../pc");
+var Util = require("../util");
 var RTC = require("../rtc");
 
 /**
@@ -213,7 +216,7 @@ function RoomPeer(options) {
     WildEmitter.call(this);
 
     var self = this;
-    this.username = safeStr(options.username) || "";
+    this.username = Util.safeStr(options.username) || "";
     this.oneway = options.oneway || false;
     this.logger = options.parent.logger;
     this.type = options.type || "data";
@@ -231,15 +234,15 @@ function RoomPeer(options) {
     this.pc.on("removeStream", this.handleStreamRemoved.bind(this));
     this.pc.on("ice", this.onIceCandidate.bind(this));
 
-    if(find(["audio", "video"], this.type)) {
-        if(isObject(this.parent.localStream)) {
+    if(Util.find(["audio", "video"], this.type)) {
+        if(Util.isObject(this.parent.localStream)) {
             this.pc.addStream(this.parent.localStream);
         }
     }
 
-    if(!isObject(this.createDataChannel("default", {reliable: true}))) {
+    if(!Util.isObject(this.createDataChannel("default", {reliable: true}))) {
         this.logger.warn("Failed to create reliable data channel.");
-        if(!isObject(this.createDataChannel("default", {reliable: false, preset: true}))) {
+        if(!Util.isObject(this.createDataChannel("default", {reliable: false, preset: true}))) {
             this.logger.warn("Failed to create unreliable data channel.");
         }
     }
@@ -249,7 +252,7 @@ function RoomPeer(options) {
     });
 }
 
-inherits(RoomPeer, require("../simplewebrtc/peer"));
+Util.inherits(RoomPeer, require("../simplewebrtc/peer"));
 
 /**
  * Create an offer
@@ -277,7 +280,7 @@ RoomPeer.prototype.start = function(username) {
 RoomPeer.prototype.handleMessage = function(message) {
     var self = this;
 
-    if(!isObject(message)) {
+    if(!Util.isObject(message)) {
         return;
     }
     if(message.prefix) {
@@ -286,7 +289,7 @@ RoomPeer.prototype.handleMessage = function(message) {
     switch(message.type) {
         case "offer":
             this.pc.answer(message.payload, function(error, description) {
-                if(!isNone(error)) {
+                if(!Util.isNone(error)) {
                     self.logger.warn(error);
                 }
                 self.send("answer", description);
@@ -299,7 +302,7 @@ RoomPeer.prototype.handleMessage = function(message) {
             this.pc.processIce(message.payload);
             break;
         case "setName":
-            this.username = safeStr(message.payload) || "";
+            this.username = Util.safeStr(message.payload) || "";
             this.parent.emit("nameChanged", self);
             break;
         case "stoppedSpeaking":
@@ -309,7 +312,7 @@ RoomPeer.prototype.handleMessage = function(message) {
             this.parent.emit("speaking", self);
             break;
         case "chat":
-            this.parent.emit("roomMessage", self, safeText(message.payload));
+            this.parent.emit("roomMessage", self, Util.safeText(message.payload));
             break;
     }
     this.logger.log("Getting:", message.type, message);
@@ -360,7 +363,7 @@ RoomPeer.prototype.createDataChannel = function(name, options) {
  */
 
 RoomPeer.prototype.sendData = function(channel, message) {
-    if(isObject(this.channels[channel])) {
+    if(Util.isObject(this.channels[channel])) {
         try {
             this.channels[channel].send(JSON.stringify(message));
             return true;
@@ -406,20 +409,6 @@ RoomPeer.prototype.send = function(type, payload, username) {
 };
 
 /**
- * Handle an ice candidate
- * @candidate {object}
- */
-
-RoomPeer.prototype.onIceCandidate = function(candidate) {
-    if (this.closed) return;
-    if (candidate) {
-        this.send('candidate', candidate);
-    } else {
-        this.logger.log("End of candidates.");
-    }
-};
-
-/**
  * Handle data channel when its added
  * @channel {object}
  */
@@ -438,7 +427,7 @@ RoomPeer.prototype.handleRemoteStreamAdded = function(event) {
         this.logger.warn("Already have a remote stream");
     }
     else {
-        if(find(["audio", "video"], this.type)) {
+        if(Util.find(["audio", "video"], this.type)) {
             this.element = attachMediaStream(event.stream, document.createElement(this.type));
             this.element.id = [this.id, this.type].join("_");
         }
@@ -462,7 +451,7 @@ RoomPeer.prototype.handleStreamRemoved = function() {
  */
 
 RoomPeer.prototype.unmuteElement = function() {
-    if(isObject(this.element)) {
+    if(Util.isObject(this.element)) {
         this.element.muted = false;
     }
 };
@@ -472,7 +461,7 @@ RoomPeer.prototype.unmuteElement = function() {
  */
 
 RoomPeer.prototype.muteElement = function() {
-    if(isObject(this.element)) {
+    if(Util.isObject(this.element)) {
         this.element.muted = true;
     }
 };
@@ -483,17 +472,14 @@ RoomPeer.prototype.muteElement = function() {
  */
 
 RoomPeer.prototype.setElementVolume = function(volume) {
-    if(isObject(this.element)) {
+    if(Util.isObject(this.element)) {
         this.element.volume = volume / 100;
     }
 };
 
 module.exports = RoomPeer;
-},{"../pc":1,"../rtc":4,"../simplewebrtc/peer":8,"attachmediastream":12,"webrtcsupport":16,"wildemitter":17}],4:[function(require,module,exports){
-/**
- * WebRTC polyfill to support as many browsers as possible.
- */
-
+},{"../pc":1,"../rtc":4,"../simplewebrtc/peer":8,"../util":11,"attachmediastream":13,"webrtcsupport":17,"wildemitter":18}],4:[function(require,module,exports){
+var Util = require("./util");
 var exports = {
     desc: window.RTCSessionDescription,
     pc: window.RTCPeerConnection,
@@ -502,21 +488,21 @@ var exports = {
     prefix: ""
 };
 
-if(isObject(window.mozRTCPeerConnection)) {
+if(Util.isObject(window.mozRTCPeerConnection)) {
     exports.version = parseInt((navigator.userAgent.match(/Firefox\/([0-9]+)\./) || 0)[1]);
     exports.prefix = "moz";
     exports.desc = window.mozRTCSessionDescription;
     exports.pc = window.mozRTCPeerConnection;
     exports.ice = window.mozRTCIceCandidate;
 }
-else if(isObject(window.webkitRTCPeerConnection)) {
+else if(Util.isObject(window.webkitRTCPeerConnection)) {
     exports.version = parseInt((navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./) || 0)[2]);
     exports.prefix = "webkit";
     exports.pc = webkitRTCPeerConnection;
 }
 
 module.exports = exports;
-},{}],5:[function(require,module,exports){
+},{"./util":11}],5:[function(require,module,exports){
 var support = require('webrtcsupport');
 
 
@@ -563,7 +549,7 @@ GainController.prototype.on = function () {
 
 module.exports = GainController;
 
-},{"webrtcsupport":16}],6:[function(require,module,exports){
+},{"webrtcsupport":17}],6:[function(require,module,exports){
 var WildEmitter = require('wildemitter');
 
 function getMaxVolume (analyser, fftBins) {
@@ -662,7 +648,7 @@ module.exports = function(stream, options) {
   return harker;
 }
 
-},{"wildemitter":17}],7:[function(require,module,exports){
+},{"wildemitter":18}],7:[function(require,module,exports){
 var WildEmitter = require('wildemitter');
 var webrtc = require('webrtcsupport');
 
@@ -884,7 +870,7 @@ PeerConnection.prototype.createDataChannel = function (name, opts) {
 
 module.exports = PeerConnection;
 
-},{"webrtcsupport":16,"wildemitter":17}],8:[function(require,module,exports){
+},{"webrtcsupport":17,"wildemitter":18}],8:[function(require,module,exports){
 var PeerConnection = require('./pc');
 var WildEmitter = require('wildemitter');
 var webrtc = require('webrtcsupport');
@@ -1061,7 +1047,7 @@ Peer.prototype.handleDataChannelAdded = function (channel) {
 
 module.exports = Peer;
 
-},{"./pc":7,"webrtcsupport":16,"wildemitter":17}],9:[function(require,module,exports){
+},{"./pc":7,"webrtcsupport":17,"wildemitter":18}],9:[function(require,module,exports){
 var webrtc = require('webrtcsupport');
 var getUserMedia = require('getusermedia');
 var PeerConnection = require('./pc');
@@ -1299,10 +1285,11 @@ WebRTC.prototype.sendToAll = function (message, payload) {
 
 module.exports = WebRTC;
 
-},{"./gain":5,"./hark":6,"./pc":7,"./peer":8,"getusermedia":13,"mockconsole":14,"webrtcsupport":16,"wildemitter":17}],10:[function(require,module,exports){
+},{"./gain":5,"./hark":6,"./pc":7,"./peer":8,"getusermedia":14,"mockconsole":15,"webrtcsupport":17,"wildemitter":18}],10:[function(require,module,exports){
 var attachMediaStream = require("attachmediastream");
 var io = require("socket.io-client");
 var WebRTC = require("./webrtc");
+var Util = require("./util");
 
 /**
  * Main object of the application: child of SimpleWebRTC
@@ -1318,8 +1305,9 @@ function Talk(options) {
     this.loggedIn = false;
     this.roomName = "";
     this.username = "";
+    this.Util = Util;
 
-    this.connection = io.connect(this.config.server);
+    this.connection = io.connect(this.config.server, {timeout: 60000});
     this.connection.on("connect", function() {
         self.emit("connectionReady", self.connection.socket.sessionid);
     });
@@ -1349,7 +1337,7 @@ function Talk(options) {
     }
 }
 
-inherits(Talk, WebRTC);
+Util.inherits(Talk, WebRTC);
 
 /**
  * Change the current username
@@ -1357,7 +1345,7 @@ inherits(Talk, WebRTC);
  */
 
 Talk.prototype.changeName = function(name) {
-    if(name = safeStr(name)) {
+    if(name = Util.safeStr(name)) {
         this.username = name;
         this.sendToAll("setName", name);
         this.logger.log("Name has changed:", name);
@@ -1386,19 +1374,19 @@ Talk.prototype.attachMediaStream = function(options, element) {
 
 Talk.prototype.createRoom = function(username, name, cb) {
     var self = this;
-    this.roomName = safeStr(name);
+    this.roomName = Util.safeStr(name);
     this.connection.emit("createRoom", {
         type: this.config.media.video ? "video" : this.config.media.audio ? "audio" : "data",
-        username: this.loggedIn ? this.username : this.username = safeStr(username),
+        username: this.loggedIn ? this.username : this.username = Util.safeStr(username),
         name: this.roomName
     }, function(error) {
-        if(isNone(error)) {
+        if(Util.isNone(error)) {
             self.logger.log("Room has successfully created:", self.roomName);
         }
         else {
             self.logger.warn("Failed to create the room:", self.roomName, error);
         }
-        safeCb(cb)(error);
+        Util.safeCb(cb)(error);
     });
 };
 
@@ -1416,10 +1404,10 @@ Talk.prototype.leaveRoom = function(cb) {
         this.logger.log("Room has left", this.roomName);
         this.peers.room = [];
         this.roomName = null;
-        safeCb(cb)(this.roomName);
+        Util.safeCb(cb)(this.roomName);
     }
     else {
-        safeCb(cb)(null);
+        Util.safeCb(cb)(null);
     }
 };
 
@@ -1434,13 +1422,13 @@ Talk.prototype.joinRoom = function(username, name, cb) {
     var peer, client;
     var self = this;
     var room = {
-        username: this.loggedIn ? this.username || (this.username = safeStr(username)) : this.username = safeStr(username),
+        username: this.loggedIn ? this.username || (this.username = Util.safeStr(username)) : this.username = Util.safeStr(username),
         type: this.config.media.video ? "video" : this.config.media.audio ? "audio" : "data",
-        name: safeStr(name)
+        name: Util.safeStr(name)
     };
 
     this.connection.emit("joinRoom", room, function(error, clients) {
-        if(!isNone(error)) {
+        if(!Util.isNone(error)) {
             self.logger.warn("Failed to join to the room:", room.name, error);
         }
         else {
@@ -1457,7 +1445,7 @@ Talk.prototype.joinRoom = function(username, name, cb) {
             self.roomName = room.name;
             self.logger.log("Joined successfully to the room:", room.name);
         }
-        safeCb(cb)(error, clients);
+        Util.safeCb(cb)(error, clients);
     });
 };
 /**
@@ -1470,13 +1458,13 @@ Talk.prototype.joinRoom = function(username, name, cb) {
 Talk.prototype.registerUser = function(username, password, cb) {
     var self = this;
     this.connection.emit("registerUser", username, sha256(password), function(error) {
-        if(!isNone(error)) {
+        if(!Util.isNone(error)) {
             self.logger.warn("Failed to register:", username, error);
         }
         else {
             self.logger.log("Registered successfully:", username);
         }
-        safeCb(cb)(error);
+        Util.safeCb(cb)(error);
     });
 };
 
@@ -1490,11 +1478,11 @@ Talk.prototype.registerUser = function(username, password, cb) {
 
 Talk.prototype.loginUser = function(username, password, cb, encrypt) {
     var self = this;
-    if(isNone(encrypt)) {
+    if(Util.isNone(encrypt)) {
         encrypt = true;
     }
-    this.connection.emit("loginUser", username, encrypt ? sha256(password) : password, function(error) {
-        if(!isNone(error)) {
+    this.connection.emit("loginUser", username, encrypt ? Util.sha256(password) : password, function(error) {
+        if(!Util.isNone(error)) {
             self.logger.warn("Failed to login:", username, error);
         }
         else {
@@ -1502,7 +1490,7 @@ Talk.prototype.loginUser = function(username, password, cb, encrypt) {
             self.changeName(username);
             self.logger.log("Logged in successfully:", username);
         }
-        safeCb(cb)(error);
+        Util.safeCb(cb)(error);
     });
 };
 
@@ -1531,7 +1519,7 @@ Talk.prototype.getFriends = function(cb) {
     var self = this;
 
     this.connection.emit("getFriends", function(error, online, offline) {
-        if(!isNone(error)) {
+        if(!Util.isNone(error)) {
             if(error === "notLoggedIn") {
                 self.loggedIn = false;
             }
@@ -1556,12 +1544,12 @@ Talk.prototype.getFriends = function(cb) {
             }
         }
         self.peers.friend.forEach(function(peer) {
-            if(!find(friends, peer)) {
+            if(!Util.find(friends, peer)) {
                 peer.pc.close();
             }
         });
         self.peers.friend = friends;
-        safeCb(cb)(error, online, offline);
+        Util.safeCb(cb)(error, online, offline);
     });
 };
 
@@ -1574,7 +1562,7 @@ Talk.prototype.getFriends = function(cb) {
 Talk.prototype.addFriend = function(username, cb) {
     var self = this;
     this.connection.emit("addFriend", username, function(error) {
-        if(!isNone(error)) {
+        if(!Util.isNone(error)) {
             if(error === "notLoggedIn") {
                 self.loggedIn = false;
             }
@@ -1583,7 +1571,7 @@ Talk.prototype.addFriend = function(username, cb) {
         else {
             self.logger.log("Friend added successfully");
         }
-        safeCb(cb)(error);
+        Util.safeCb(cb)(error);
     });
 };
 
@@ -1596,7 +1584,7 @@ Talk.prototype.addFriend = function(username, cb) {
 Talk.prototype.delFriend = function(username, cb) {
     var self = this;
     this.connection.emit("delFriend", username, function(error) {
-        if(!isNone(error)) {
+        if(!Util.isNone(error)) {
             if(error === "notLoggedIn") {
                 self.loggedIn = false;
             }
@@ -1605,12 +1593,196 @@ Talk.prototype.delFriend = function(username, cb) {
         else {
             self.logger.log("Friend deleted successfully");
         }
-        safeCb(cb)(error);
+        Util.safeCb(cb)(error);
     });
 };
 
 module.exports = Talk;
-},{"./webrtc":11,"attachmediastream":12,"socket.io-client":15}],11:[function(require,module,exports){
+},{"./util":11,"./webrtc":12,"attachmediastream":13,"socket.io-client":16}],11:[function(require,module,exports){
+module.exports = {
+    /**
+     * Check if input is a function: if it is not, the return value will be an empty function
+     * @cb {function}
+     */
+
+    safeCb: function(cb) {
+        if(typeof cb === "function") {
+            return cb;
+        }
+        else {
+            return function() {};
+        }
+    },
+
+    /**
+     * Remove unwanted characters from a string (not for messages)
+     * @string {string}
+     */
+
+    safeStr: function(string) {
+        if(this.isString(string)) {
+            return string.replace(/\s/g, "-").replace(/[^A-Za-z0-9_\-]/g, "").toString();
+        }
+        return "";
+    },
+
+    /**
+     * Remove unwanted characters from a message
+     * @string {string}
+     */
+
+    safeText: function(string) {
+        if(this.isString(string)) {
+            return string
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&apos;")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+        }
+        return "";
+    },
+
+    /**
+     * Check if input is undefined or null, from TokBox
+     * @obj {Object}
+     */
+
+    isNone: function(obj) {
+        return obj === undefined || obj === null;
+    },
+
+    /**
+     * Check if object is empty, from TokBox
+     * @obj {object}
+     */
+
+    isEmpty: function(obj) {
+        if(obj === null || obj === undefined) {
+            return true;
+        }
+        if(Array.isArray(obj) || typeof(obj) === "string") {
+            return obj.length === 0;
+        }
+        for(var key in obj) {
+            if(obj.hasOwnProperty(key)) {
+                return false;
+            }
+        }
+        return true;
+    },
+
+    /**
+     * Check if object is a NOT EMPTY string.
+     * @obj {string}
+     */
+
+    isString: function(obj) {
+        return typeof obj === "string" && !this.isEmpty(obj);
+    },
+
+    /**
+     * Check input is object, from TokBox
+     * @obj {object}
+     */
+
+    isObject: function(obj) {
+        return obj === Object(obj);
+    },
+
+    /**
+     * Create a random number between the minimum and the maximum argument
+     * @min {int}
+     * @max {int}
+     */
+
+    randNum: function(min, max) {
+        max = max || Math.pow(10, 16);
+        min = min || 0;
+
+        return Math.floor(Math.random() * (max - min + 1) + min);
+    },
+
+    /**
+     * Create a random word
+     * @length {int}
+     */
+
+    randWord: function(length) {
+        var result = "";
+        length = length || 8;
+
+        for(;length > 0; length--) {
+            if(Math.floor(length / 2) === length / 2) {
+                result += "bcdfghjklmnpqrstvwxyz"[randNum(0, 20)];
+            }
+            else {
+                result += "aeiou"[randNum(0, 4)];
+            }
+        }
+        return result;
+    },
+
+    /**
+     * Check if object is a number.
+     * @obj {number}
+     */
+
+    isNumber: function(obj) {
+        return !isNaN(parseFloat(obj)) && isFinite(obj);
+    },
+
+    /**
+     * Check if object is a boolean.
+     * @obj {boolean}
+     */
+
+    isBool: function(obj) {
+        return typeof obj === "boolean";
+    },
+
+    /**
+     * Make an SHA256 hash from a string
+     * @string {string}
+     */
+
+    sha256: function(string) {
+        if(this.isString(string)) {
+            var hash = Crypto.createHash("sha256");
+            hash.update(string);
+            return hash.digest("hex");
+        }
+        return "";
+    },
+
+    /**
+     * Check if an object can be found in a array
+     * @array {array}
+     * @obj {object}
+     */
+
+    find: function(array, obj) {
+        return array.indexOf(obj) >= 0;
+    },
+
+    /**
+     * Inherits an object, from PeerJS
+     * @obj {object}
+     * @parent {object}
+     */
+
+    inherits: function(obj, parent) {
+        obj.prototype = Object.create(parent.prototype, {
+            constructor: {
+                configurable: true,
+                enumerable: false,
+                writable: true,
+                value: obj
+            }
+        });
+    }
+};
+},{}],12:[function(require,module,exports){
 var GainController = require("./simplewebrtc/gain");
 var FriendPeer = require("./peers/friend");
 var getUserMedia = require("getusermedia");
@@ -1618,6 +1790,7 @@ var hark = require("./simplewebrtc/hark");
 var mockconsole = require("mockconsole");
 var WildEmitter = require("wildemitter");
 var RoomPeer = require("./peers/room");
+var Util = require("./util");
 var RTC = require("./rtc");
 
 /**
@@ -1664,7 +1837,7 @@ function WebRTC(options) {
     var item;
 
     for(item in options || {}) {
-        if(!isNone(options[item])) {
+        if(!Util.isNone(options[item])) {
             this.config[item] = options[item];
         }
     }
@@ -1681,7 +1854,7 @@ function WebRTC(options) {
     if(this.config.adjustPeerVolume) {
         this.on("localSpeaking", function() {
             self.peers.room.forEach(function(peer) {
-                if(isNone(volumes[peer.id])) {
+                if(Util.isNone(volumes[peer.id])) {
                     if(self.config.peerVolumeWhenSpeaking < peer.element.volume * 100) {
                         volumes[peer.id] = peer.element.volume * 100;
                         self.setElementVolume(peer, self.config.peerVolumeWhenSpeaking);
@@ -1691,7 +1864,7 @@ function WebRTC(options) {
         });
         this.on("localStoppedSpeaking", function() {
             self.peers.room.forEach(function(peer) {
-                if(isNumber(volumes[peer.id])) {
+                if(Util.isNumber(volumes[peer.id])) {
                     if(self.config.peerVolumeWhenSpeaking == peer.element.volume * 100) {
                         self.setElementVolume(peer, volumes[peer.id]);
                     }
@@ -1701,12 +1874,12 @@ function WebRTC(options) {
         });
     }
 
-    if(!isObject(RTC.pc)) {
+    if(!Util.isObject(RTC.pc)) {
         this.logger.error("Your browser doesn't seem to support WebRTC");
     }
 }
 
-inherits(WebRTC, require("./simplewebrtc/webrtc"));
+Util.inherits(WebRTC, require("./simplewebrtc/webrtc"));
 
 /**
  * Start local media
@@ -1717,13 +1890,13 @@ inherits(WebRTC, require("./simplewebrtc/webrtc"));
 WebRTC.prototype.startLocalMedia = function(media, cb) {
     var self = this;
 
-    if(!isObject(media) || !isBool(media.audio) || !isBool(media.video)) {
+    if(!Util.isObject(media) || !Util.isBool(media.audio) || !Util.isBool(media.video)) {
         media = {audio: true, video: true};
     }
     this.config.media = media;
     getUserMedia(media, function(error, stream) {
-        if(isNone(error)) {
-            if(isBool(media.audio) && self.config.detectSpeakingEvents) {
+        if(Util.isNone(error)) {
+            if(Util.isBool(media.audio) && self.config.detectSpeakingEvents) {
                 self.setupAudioMonitor(stream);
             }
             if(self.config.autoAdjustMic) {
@@ -1736,7 +1909,7 @@ WebRTC.prototype.startLocalMedia = function(media, cb) {
         else {
             self.logger.warn("Error has occurred while starting local media:", error);
         }
-        safeCb(cb)(error, stream);
+        Util.safeCb(cb)(error, stream);
     });
 };
 
@@ -1748,8 +1921,8 @@ WebRTC.prototype.startLocalMedia = function(media, cb) {
 
 WebRTC.prototype.getRoomPeer = function(args) {
     return this.peers.room.filter(function(peer) {
-        return (!find(["audio", "video", "data"], args.type) || peer.type === args.type) &&
-               (isNone(args.id) || peer.id === args.id);
+        return (!Util.find(["audio", "video", "data"], args.type) || peer.type === args.type) &&
+               (Util.isNone(args.id) || peer.id === args.id);
     })[0];
 };
 
@@ -1761,9 +1934,9 @@ WebRTC.prototype.getRoomPeer = function(args) {
 
 WebRTC.prototype.getFriendPeer = function(args) {
     return this.peers.friend.filter(function(peer) {
-        return (isNone(args.username) || peer.username === args.username) &&
-               (isNone(args.type) || peer.type === args.type) &&
-               (isNone(args.id) || peer.id === args.id);
+        return (Util.isNone(args.username) || peer.username === args.username) &&
+               (Util.isNone(args.type) || peer.type === args.type) &&
+               (Util.isNone(args.id) || peer.id === args.id);
     })[0];
 };
 
@@ -1776,7 +1949,7 @@ WebRTC.prototype.getFriendPeer = function(args) {
 WebRTC.prototype.handleRoomMessage = function(message, peer) {
     peer = peer || this.getRoomPeer({id: message.from, type: message.roomType}) || null;
     if(message.type === "offer") {
-        if(isNone(peer)) {
+        if(Util.isNone(peer)) {
             peer = this.createRoomPeer({
                 username: message.nameMe,
                 type: message.roomType,
@@ -1786,7 +1959,7 @@ WebRTC.prototype.handleRoomMessage = function(message, peer) {
             peer.handleMessage(message);
         }
     }
-    if(isObject(peer)) {
+    if(Util.isObject(peer)) {
         peer.handleMessage(message);
     }
 };
@@ -1800,7 +1973,7 @@ WebRTC.prototype.handleRoomMessage = function(message, peer) {
 WebRTC.prototype.handleFriendMessage = function(message, peer) {
     peer = peer || this.getFriendPeer({id: message.from, type: message.roomType}) || null;
     if(message.type === "offer") {
-        if(isNone(peer)) {
+        if(Util.isNone(peer)) {
             peer = this.createFriendPeer({
                 username: message.nameMe,
                 id: message.from
@@ -1809,7 +1982,7 @@ WebRTC.prototype.handleFriendMessage = function(message, peer) {
             peer.handleMessage(message);
         }
     }
-    if(isObject(peer)) {
+    if(Util.isObject(peer)) {
         peer.handleMessage(message);
     }
 };
@@ -1930,7 +2103,7 @@ WebRTC.prototype.sendToAllFriends = function(type, payload) {
 };
 
 module.exports = WebRTC;
-},{"./peers/friend":2,"./peers/room":3,"./rtc":4,"./simplewebrtc/gain":5,"./simplewebrtc/hark":6,"./simplewebrtc/webrtc":9,"getusermedia":13,"mockconsole":14,"wildemitter":17}],12:[function(require,module,exports){
+},{"./peers/friend":2,"./peers/room":3,"./rtc":4,"./simplewebrtc/gain":5,"./simplewebrtc/hark":6,"./simplewebrtc/webrtc":9,"./util":11,"getusermedia":14,"mockconsole":15,"wildemitter":18}],13:[function(require,module,exports){
 module.exports = function (stream, el, options) {
     var URL = window.URL;
     var opts = {
@@ -1971,7 +2144,7 @@ module.exports = function (stream, el, options) {
     return element;
 };
 
-},{}],13:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 // getUserMedia helper by @HenrikJoreteg
 var func = (navigator.getUserMedia ||
             navigator.webkitGetUserMedia ||
@@ -2035,7 +2208,7 @@ module.exports = function (constraints, cb) {
     });
 };
 
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 var methods = "assert,count,debug,dir,dirxml,error,exception,group,groupCollapsed,groupEnd,info,log,markTimeline,profile,profileEnd,time,timeEnd,trace,warn".split(",");
 var l = methods.length;
 var fn = function () {};
@@ -2047,7 +2220,7 @@ while (l--) {
 
 module.exports = mockconsole;
 
-},{}],15:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 /*! Socket.IO.js build:0.9.16, development. Copyright(c) 2011 LearnBoost <dev@learnboost.com> MIT Licensed */
 
 var io = ('undefined' === typeof module ? {} : module.exports);
@@ -5921,7 +6094,7 @@ if (typeof define === "function" && define.amd) {
   define([], function () { return io; });
 }
 })();
-},{}],16:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 // created by @HenrikJoreteg
 var prefix;
 var isChrome = false;
@@ -5959,7 +6132,7 @@ module.exports = {
     IceCandidate: IceCandidate
 };
 
-},{}],17:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 /*
 WildEmitter.js is a slim little event emitter by @henrikjoreteg largely based 
 on @visionmedia's Emitter from UI Kit.
@@ -6817,180 +6990,6 @@ var CryptoJS = CryptoJS || (function (Math, undefined) {
     return C;
 }(Math));
 
-/**
- * Check if input is a function: if it is not, the return value will be an empty function
- * @cb {function}
- */
-
-function safeCb(cb) {
-    if(typeof cb === "function") {
-        return cb;
-    }
-    else {
-        return function() {};
-    }
-}
-
-/**
- * Remove unwanted characters from a string (not for messages)
- * @string {string}
- */
-
-function safeStr(string) {
-    if(typeof string === "string") {
-        return string.replace(/\s/g, "-").replace(/[^A-Za-z0-9_\-]/g, "").toString();
-    }
-    return "";
-}
-
-/**
- * Remove unwanted characters from a message
- * @string {string}
- */
-
-function safeText(string) {
-    if(typeof string === "string") {
-        return string.replace(/[<>\/\\\{\}]/g, "").toString();
-    }
-    return "";
-}
-
-/**
- * Create a random number between the minimum and the maximum argument
- * @min {int}
- * @max {int}
- */
-
-function randNum(min, max) {
-    max = max || Math.pow(10, 16);
-    min = min || 0;
-
-    return Math.floor(Math.random() * (max - min + 1) + min);
-}
-
-/**
- * Create a random word
- * @length {int}
- */
-
-function randWord(length) {
-    var result = "";
-    length = length || 8;
-
-    for(;length > 0; length--) {
-        if(Math.floor(length / 2) === length / 2) {
-            result += "bcdfghjklmnpqrstvwxyz"[randNum(0, 20)];
-        }
-        else {
-            result += "aeiou"[randNum(0, 4)];
-        }
-    }
-    return result;
-}
-
-/**
- * Check if object is empty, from TokBox
- * @obj {object}
- */
-
-function isEmpty(obj) {
-    if(obj === null || obj === undefined) {
-        return true;
-    }
-    if(Array.isArray(obj) || typeof(obj) === "string") {
-        return obj.length === 0;
-    }
-    for(var key in obj) {
-        if(obj.hasOwnProperty(key)) {
-            return false;
-        }
-    }
-    return true;
-}
-
-/**
- * Check if input is undefined or null, from TokBox
- * @obj {object}
- */
-
-function isNone(obj) {
-    return obj === undefined || obj === null;
-}
-
-/**
- * Check input is object, from TokBox
- * @obj {object}
- */
-
-function isObject(obj) {
-    return obj === Object(obj);
-}
-
-/**
- * Check if object is a number.
- * @obj {number}
- */
-
-function isNumber(obj) {
-    return !isNaN(parseFloat(obj)) && isFinite(obj);
-}
-
-/**
- * Check if object is a boolean.
- * @obj {boolean}
- */
-
-function isBool(obj) {
-    return typeof obj === "boolean";
-}
-
-/**
- * Check if object is a NOT EMPTY string.
- * @obj {string}
- */
-
-function isString(obj) {
-    return typeof obj === "string" && !isEmpty(obj);
-}
-
-/**
- * Make an SHA256 hash from a string
- * @string {string}
- */
-
-function sha256(string) {
-    if(!isEmpty(string)) {
-        return CryptoJS.SHA256(string).toString();
-    }
-    return "";
-}
-
-/**
- * Check if an object can be found in a array
- * @array {array}
- * @obj {object}
- */
-
-function find(array, obj) {
-    return array.indexOf(obj) >= 0;
-}
-
-/**
- * Inherits an object, from PeerJS
- * @obj {object}
- * @parent {object}
- */
-
-function inherits(obj, parent) {
-    obj.prototype = Object.create(parent.prototype, {
-        constructor: {
-            configurable: true,
-            enumerable: false,
-            writable: true,
-            value: obj
-        }
-    });
-}
 /*
 CryptoJS v3.1.2
 code.google.com/p/crypto-js
