@@ -195,8 +195,15 @@ FriendPeer.prototype.send = function(type, payload, username) {
 
 FriendPeer.prototype.handleStreamRemoved = function() {
     this.parent.peers.friend.splice(this.parent.peers.room.indexOf(this), 1);
-    this.parent.emit("peerStreamRemoved", this);
     this.closed = true;
+};
+
+/**
+ * Handle when a new remote stream is added
+ */
+
+FriendPeer.prototype.handleRemoteStreamAdded = function() {
+
 };
 
 module.exports = FriendPeer;
@@ -443,8 +450,8 @@ RoomPeer.prototype.handleRemoteStreamAdded = function(event) {
 
 RoomPeer.prototype.handleStreamRemoved = function() {
     this.parent.peers.room.splice(this.parent.peers.room.indexOf(this), 1);
-    this.closed = true;
     this.parent.emit("peerStreamRemoved", this);
+    this.closed = true;
 };
 
 /**
@@ -1315,11 +1322,9 @@ function Talk(options) {
     });
     this.connection.on("remove", function(peer) {
         if(peer.id !== self.connection.socket.sessionid) {
-            this.getRoomPeer({
-                username: peer.username,
-                type: peer.type,
-                id: peer.id
-            }).end();
+            if(Util.isObject(peer = self.getRoomPeer(peer))) {
+                peer.end();
+            }
         }
     });
     this.connection.on("message", function(type, message) {
@@ -1403,7 +1408,7 @@ Talk.prototype.createRoom = function(username, name, cb) {
 
 Talk.prototype.leaveRoom = function(cb) {
     if(this.roomName) {
-        this.connection.emit("leave");
+        this.connection.emit("leaveRoom");
         this.peers.room.forEach(function(peer) {
             peer.end();
         });
