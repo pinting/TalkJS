@@ -65,7 +65,7 @@ talk.once("connectionReady", function() {
 
 Initialize the library.
 
-### Talk.startLocalMedia(media, cb)
+### Talk.startLocalMedia
 
 ```js
 @media {object} Type of the local stream
