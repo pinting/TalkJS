@@ -177,7 +177,7 @@ FriendPeer.prototype.send = function(type, payload, username) {
         case "stoppedSpeaking":
         case "speaking":
         case "chat":
-            if(!this.sendData("default", message)) {
+            if(!this.sendDirectly("default", message)) {
                 this.logger.warn("Fallback to Socket.IO");
                 this.parent.emit("message", "friend", message);
             }
@@ -370,9 +370,23 @@ RoomPeer.prototype.createDataChannel = function(name, options) {
  * @message {object}
  */
 
-RoomPeer.prototype.sendData = function(channel, message) {
+RoomPeer.prototype.sendDirectly = function(channel, type, payload, username) {
     if(Util.isObject(this.channels[channel])) {
         try {
+            var message;
+            if(arguments.length > 2) {
+                message = {
+                    nameMe: username || null,
+                    roomType: this.type,
+                    prefix: RTC.prefix,
+                    payload: payload,
+                    to: this.id,
+                    type: type
+                };
+            }
+            else {
+                message = type;
+            }
             this.channels[channel].send(JSON.stringify(message));
             return true;
         }
@@ -392,19 +406,25 @@ RoomPeer.prototype.sendData = function(channel, message) {
  */
 
 RoomPeer.prototype.send = function(type, payload, username) {
-    var message = {
-        nameMe: username || null,
-        roomType: this.type,
-        prefix: RTC.prefix,
-        payload: payload,
-        to: this.id,
-        type: type
-    };
+    var message;
+    if(arguments.length > 1) {
+        message = {
+            nameMe: username || null,
+            roomType: this.type,
+            prefix: RTC.prefix,
+            payload: payload,
+            to: this.id,
+            type: type
+        };
+    }
+    else {
+        message = type;
+    }
     switch(type) {
         case "stoppedSpeaking":
         case "speaking":
         case "chat":
-            if(!this.sendData("default", message)) {
+            if(!this.sendDirectly("default", message)) {
                 this.logger.warn("Fallback to Socket.IO");
                 this.parent.emit("message", "room", message);
             }
@@ -1309,6 +1329,7 @@ function Talk(options) {
     WebRTC.call(this, options || {});
 
     var self = this;
+    var peer;
 
     this.config.server = this.config.server || "http://srv.talk.pinting.hu:8000";
     this.loggedIn = false;
@@ -1326,14 +1347,35 @@ function Talk(options) {
                 peer.end();
             }
         }
+        self.logger.log("Server:", "remove", peer);
+    });
+    this.connection.on("online", function(client) {
+        peer = self.createFriendPeer({
+            username: client.username,
+            type: client.type,
+            id: client.id
+        });
+        peer.start(self.username);
+        self.logger.log("Server:", "online", client);
+    });
+    this.connection.on("offline", function(client) {
+        peer = self.getFriendPeer({
+            username: client.username,
+            type: client.type,
+            id: client.id
+        });
+        if(Util.isObject(peer)) {
+            peer.end();
+        }
+        self.logger.log("Server:", "offline", client);
     });
     this.connection.on("message", function(type, message) {
         switch(type) {
-            case "room":
-                self.handleRoomMessage(message);
-                break;
             case "friend":
                 self.handleFriendMessage(message);
+                break;
+            case "room":
+                self.handleRoomMessage(message);
                 break;
         }
     });
@@ -1356,7 +1398,8 @@ Util.inherits(Talk, WebRTC);
  */
 
 Talk.prototype.changeName = function(name) {
-    if(name = Util.safeStr(name)) {
+    name = Util.safeStr(name);
+    if(Util.isString(name)) {
         this.username = name;
         this.sendInRoom("setName", name);
         this.logger.log("Name has changed:", name);
@@ -1385,6 +1428,7 @@ Talk.prototype.attachMediaStream = function(options, element) {
 
 Talk.prototype.createRoom = function(username, name, cb) {
     var self = this;
+
     this.roomName = Util.safeStr(name);
     this.connection.emit("createRoom", {
         type: this.config.media.video ? "video" : this.config.media.audio ? "audio" : "data",
@@ -1451,7 +1495,6 @@ Talk.prototype.joinRoom = function(username, name, cb) {
                     id: id
                 });
                 peer.start(self.username || username);
-                self.peers.room.push(peer);
             }
             self.roomName = room.name;
             self.logger.log("Joined successfully to the room:", room.name);
@@ -1468,6 +1511,7 @@ Talk.prototype.joinRoom = function(username, name, cb) {
 
 Talk.prototype.registerUser = function(username, password, cb) {
     var self = this;
+
     this.connection.emit("registerUser", username, Util.sha256(password), function(error) {
         if(!Util.isNone(error)) {
             self.logger.warn("Failed to register:", username, error);
@@ -1489,10 +1533,11 @@ Talk.prototype.registerUser = function(username, password, cb) {
 
 Talk.prototype.loginUser = function(username, password, cb, encrypt) {
     var self = this;
+
     if(Util.isNone(encrypt)) {
         encrypt = true;
     }
-    this.connection.emit("loginUser", username, encrypt ? Util.sha256(password) : password, function(error) {
+    this.connection.emit("loginUser", username, encrypt ? Util.sha256(password) : password, function(error, clients) {
         if(!Util.isNone(error)) {
             self.logger.warn("Failed to login:", username, error);
         }
@@ -1511,57 +1556,11 @@ Talk.prototype.loginUser = function(username, password, cb, encrypt) {
 
 Talk.prototype.logoutUser = function() {
     this.peers.friend.forEach(function(peer) {
-        peer.pc.close();
+        peer.end();
     });
-    this.logger.log("Logged out successfully");
-    this.connection.emit("logoutUser");
-    this.peers.friend = [];
     this.loggedIn = false;
-};
-
-/**
- * Get the current friend list
- * @cb {function}
- */
-
-Talk.prototype.getFriends = function(cb) {
-    var client, peer;
-    var friends = [];
-    var self = this;
-
-    this.connection.emit("getFriends", function(error, online, offline) {
-        if(!Util.isNone(error)) {
-            if(error === "notLoggedIn") {
-                self.loggedIn = false;
-            }
-            self.logger.warn("Failed to get the friends list:", error);
-        }
-        for(var id in online) {
-            if(!self.peers.friend.filter(function(peer) {
-                if(peer.id === id) {
-                    friends.push(peer);
-                    return true;
-                }
-                return false;
-            }).length) {
-                client = online[id];
-                peer = self.createFriendPeer({
-                    username: client.username,
-                    type: "data",
-                    id: id
-                });
-                peer.start(self.username);
-                friends.push(peer);
-            }
-        }
-        self.peers.friend.forEach(function(peer) {
-            if(!Util.find(friends, peer)) {
-                peer.pc.close();
-            }
-        });
-        self.peers.friend = friends;
-        Util.safeCb(cb)(error, online, offline);
-    });
+    this.connection.emit("logoutUser");
+    this.logger.log("Logged out successfully");
 };
 
 /**
@@ -1572,6 +1571,7 @@ Talk.prototype.getFriends = function(cb) {
 
 Talk.prototype.addFriend = function(username, cb) {
     var self = this;
+
     this.connection.emit("addFriend", username, function(error) {
         if(!Util.isNone(error)) {
             if(error === "notLoggedIn") {
@@ -1594,6 +1594,7 @@ Talk.prototype.addFriend = function(username, cb) {
 
 Talk.prototype.delFriend = function(username, cb) {
     var self = this;
+
     this.connection.emit("delFriend", username, function(error) {
         if(!Util.isNone(error)) {
             if(error === "notLoggedIn") {
@@ -1602,6 +1603,7 @@ Talk.prototype.delFriend = function(username, cb) {
             self.logger.warn("Failed to delete a friend:", username, error);
         }
         else {
+            self.getFriendPeer({username: username}).end();
             self.logger.log("Friend deleted successfully");
         }
         Util.safeCb(cb)(error);
@@ -1930,6 +1932,7 @@ WebRTC.prototype.startLocalMedia = function(media, cb) {
 WebRTC.prototype.getRoomPeer = function(args) {
     return this.peers.room.filter(function(peer) {
         return (!Util.find(["audio", "video", "data"], args.type) || peer.type === args.type) &&
+               (Util.isNone(args.username) || peer.username === args.username) &&
                (Util.isNone(args.id) || peer.id === args.id);
     })[0];
 };
@@ -1962,7 +1965,6 @@ WebRTC.prototype.handleRoomMessage = function(message, peer) {
                 type: message.roomType,
                 id: message.from
             });
-            this.peers.room.push(peer);
             peer.handleMessage(message);
         }
     }
@@ -1983,9 +1985,9 @@ WebRTC.prototype.handleFriendMessage = function(message, peer) {
         if(Util.isNone(peer)) {
             peer = this.createFriendPeer({
                 username: message.nameMe,
-                id: message.from
+                id: message.from,
+                type: "data"
             });
-            this.peers.friend.push(peer);
             peer.handleMessage(message);
         }
     }
@@ -2001,7 +2003,9 @@ WebRTC.prototype.handleFriendMessage = function(message, peer) {
 
 WebRTC.prototype.createRoomPeer = function(options) {
     options.parent = this;
-    return new RoomPeer(options);
+    var peer = new RoomPeer(options);
+    this.peers.room.push(peer);
+    return peer;
 };
 
 /**
@@ -2011,7 +2015,9 @@ WebRTC.prototype.createRoomPeer = function(options) {
 
 WebRTC.prototype.createFriendPeer = function(options) {
     options.parent = this;
-    return new FriendPeer(options);
+    var peer = new FriendPeer(options);
+    this.peers.friend.push(peer);
+    return peer;
 };
 
 /**
