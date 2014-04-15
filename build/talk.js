@@ -1356,6 +1356,7 @@ function Talk(options) {
             id: client.id
         });
         peer.start(self.username);
+        self.emit("friendOnline", peer);
         self.logger.log("Server:", "online", client);
     });
     this.connection.on("offline", function(client) {
@@ -1365,6 +1366,7 @@ function Talk(options) {
             id: client.id
         });
         if(Util.isObject(peer)) {
+            self.emit("friendOffline", peer);
             peer.end();
         }
         self.logger.log("Server:", "offline", client);
@@ -1992,6 +1994,7 @@ WebRTC.prototype.handleFriendMessage = function(message, peer) {
                 type: "data"
             });
             peer.handleMessage(message);
+            this.emit("friendOnline", peer);
         }
     }
     if(Util.isObject(peer)) {
