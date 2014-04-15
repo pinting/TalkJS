@@ -1397,12 +1397,12 @@ Util.inherits(Talk, WebRTC);
  * @name {string}
  */
 
-Talk.prototype.changeName = function(name) {
-    name = Util.safeStr(name);
-    if(Util.isString(name)) {
-        this.username = name;
-        this.sendInRoom("setName", name);
-        this.logger.log("Name has changed:", name);
+Talk.prototype.changeName = function(username) {
+    username = Util.safeStr(username);
+    if(Util.isString(username)) {
+        this.username = username;
+        this.sendInRoom("setName", username);
+        this.logger.log('Username has changed to "%s"', username);
     }
 };
 
@@ -1436,10 +1436,10 @@ Talk.prototype.createRoom = function(username, name, cb) {
         name: this.roomName
     }, function(error) {
         if(Util.isNone(error)) {
-            self.logger.log("Room has successfully created:", self.roomName);
+            self.logger.log('Room "%s" has successfully created', self.roomName);
         }
         else {
-            self.logger.warn("Failed to create the room:", self.roomName, error);
+            self.logger.warn('Failed to create room "%s", because an "%s" error occurred', self.roomName, error);
         }
         Util.safeCb(cb)(error);
     });
@@ -1456,7 +1456,7 @@ Talk.prototype.leaveRoom = function(cb) {
         this.peers.room.forEach(function(peer) {
             peer.end();
         });
-        this.logger.log("Room has left", this.roomName);
+        this.logger.log('Room "%s" has left', this.roomName);
         this.peers.room = [];
         this.roomName = null;
         Util.safeCb(cb)(this.roomName);
@@ -1484,7 +1484,7 @@ Talk.prototype.joinRoom = function(username, name, cb) {
 
     this.connection.emit("joinRoom", room, function(error, clients) {
         if(!Util.isNone(error)) {
-            self.logger.warn("Failed to join to the room:", room.name, error);
+            self.logger.warn('Failed to join to room "%s", because an "%s" error occurred', room.name, error);
         }
         else {
             for(var id in clients) {
@@ -1497,7 +1497,7 @@ Talk.prototype.joinRoom = function(username, name, cb) {
                 peer.start(self.username || username);
             }
             self.roomName = room.name;
-            self.logger.log("Joined successfully to the room:", room.name);
+            self.logger.log('Joined successfully to room "%s"', room.name);
         }
         Util.safeCb(cb)(error, clients);
     });
@@ -1514,10 +1514,10 @@ Talk.prototype.registerUser = function(username, password, cb) {
 
     this.connection.emit("registerUser", username, Util.sha256(password), function(error) {
         if(!Util.isNone(error)) {
-            self.logger.warn("Failed to register:", username, error);
+            self.logger.warn('Failed to register as "%s", because an "%s" error occurred', username, error);
         }
         else {
-            self.logger.log("Registered successfully:", username);
+            self.logger.log('Registered successfully as "%s"', username);
         }
         Util.safeCb(cb)(error);
     });
@@ -1537,14 +1537,14 @@ Talk.prototype.loginUser = function(username, password, cb, encrypt) {
     if(Util.isNone(encrypt)) {
         encrypt = true;
     }
-    this.connection.emit("loginUser", username, encrypt ? Util.sha256(password) : password, function(error, clients) {
+    this.connection.emit("loginUser", username, encrypt ? Util.sha256(password) : password, function(error) {
         if(!Util.isNone(error)) {
-            self.logger.warn("Failed to login:", username, error);
+            self.logger.warn('Failed to login as "%s", because an "%s" error occurred', username, error);
         }
         else {
             self.loggedIn = true;
             self.changeName(username);
-            self.logger.log("Logged in successfully:", username);
+            self.logger.log('Logged in successfully as "%s"', username);
         }
         Util.safeCb(cb)(error);
     });
@@ -1577,10 +1577,10 @@ Talk.prototype.addFriend = function(username, cb) {
             if(error === "notLoggedIn") {
                 self.loggedIn = false;
             }
-            self.logger.warn("Failed to add a friend:", username, error);
+            self.logger.warn('Failed to add "%s", because an "%s" error occurred', username, error);
         }
         else {
-            self.logger.log("Friend added successfully");
+            self.logger.log('"%s" added successfully', username);
         }
         Util.safeCb(cb)(error);
     });
@@ -1594,17 +1594,20 @@ Talk.prototype.addFriend = function(username, cb) {
 
 Talk.prototype.delFriend = function(username, cb) {
     var self = this;
+    var peer;
 
     this.connection.emit("delFriend", username, function(error) {
         if(!Util.isNone(error)) {
             if(error === "notLoggedIn") {
                 self.loggedIn = false;
             }
-            self.logger.warn("Failed to delete a friend:", username, error);
+            self.logger.warn('Failed to delete "%s", because an "%s" error occurred', username, error);
         }
         else {
-            self.getFriendPeer({username: username}).end();
-            self.logger.log("Friend deleted successfully");
+            if(Util.isObject(peer = self.getFriendPeer({username: username}))) {
+                peer.end();
+            }
+            self.logger.log('"%s" deleted successfully', username);
         }
         Util.safeCb(cb)(error);
     });
