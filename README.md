@@ -169,20 +169,6 @@ Login a registered user with the given parameters. Local password encryption can
 
 Logout the current user.
 
-### Talk.getFriends
-
-```js
-@cb {function}
-
-function(error, online, offline) {
-    // error: null, if everything went fine
-    // online: an assoc list of users
-    // offline: list of usernames
-}
-```
-
-Get the current friend list.
-
 ### Talk.addFriend
 
 ```js
@@ -314,6 +300,16 @@ Unmute the media element of the peer.
 
 Set volume for the media element of the peer.
 
+### Peer.send
+
+```js
+@type {string}
+@payload {string}
+@username {string} Username of the sender (optional)
+```
+
+Send a message to the peer.
+
 ### Peer.createDataChannel
 
 ```js
@@ -328,14 +324,16 @@ Set volume for the media element of the peer.
 
 Create a data channel for the peer.
 
-### Peer.sendData
+### Peer.sendDirectly
 
 ```js
-@channel {object}
-@message {object}
+@channel {string}
+@type {string}
+@payload {string}
+@username {string} Username of the sender (optional)
 ```
 
-Send data thought the given channel.
+Send a message to the peer through the given data channel.
 
 ## Server responses
 
@@ -432,3 +430,19 @@ function(peer) {}
 ```
 
 A peer has stopped speaking.
+
+### friendOnline
+
+```js
+function(peer) {}
+```
+
+A friend has came online.
+
+### friendOffline
+
+```js
+function(peer) {}
+```
+
+A friend has gone offline.
