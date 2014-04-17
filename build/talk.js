@@ -239,7 +239,6 @@ function RoomPeer(options) {
     this.pc = new PeerConnection(this.parent.config.peerConnectionConfig, this.parent.config.peerConnectionContraints);
     this.pc.on("negotiationNeeded", this.emit.bind(this, "negotiationNeeded"));
     this.pc.on("addStream", this.handleRemoteStreamAdded.bind(this));
-    this.pc.on("addChannel", this.handleDataChannelAdded.bind(this));
     this.pc.on("removeStream", this.handleStreamRemoved.bind(this));
     this.pc.on("ice", this.onIceCandidate.bind(this));
 
@@ -249,11 +248,15 @@ function RoomPeer(options) {
         }
     }
 
-    if(!Util.isObject(this.createDataChannel("default", {reliable: true}))) {
-        this.logger.warn("Failed to create reliable data channel.");
-        if(!Util.isObject(this.createDataChannel("default", {reliable: false, preset: true}))) {
-            this.logger.warn("Failed to create unreliable data channel.");
+    if(RTC.prefix === "webkit") {
+        // Workaround to make FF work
+        if(!Util.isObject(this.createDataChannel("default", {reliable: true}))) {
+            this.logger.warn("Failed to create reliable data channel.");
+            if(!Util.isObject(this.createDataChannel("default", {reliable: false}))) {
+                this.logger.warn("Failed to create unreliable data channel.");
+            }
         }
+        this.pc.on("addChannel", this.handleDataChannelAdded.bind(this));
     }
 
     this.on("*", function() {
@@ -366,8 +369,10 @@ RoomPeer.prototype.createDataChannel = function(name, options) {
 
 /**
  * Send data thought the specific channel
- * @channel {object}
- * @message {object}
+ * @channel {string}
+ * @type {string}
+ * @payload {string}
+ * @username {string} Username of the sender (optional)
  */
 
 RoomPeer.prototype.sendDirectly = function(channel, type, payload, username) {
@@ -1341,13 +1346,15 @@ function Talk(options) {
     this.connection.on("connect", function() {
         self.emit("connectionReady", self.connection.socket.sessionid);
     });
-    this.connection.on("remove", function(peer) {
-        if(peer.id !== self.connection.socket.sessionid) {
-            if(Util.isObject(peer = self.getRoomPeer(peer))) {
+    this.connection.on("remove", function(client) {
+        var peer;
+        if(client.id !== self.connection.socket.sessionid) {
+            peer = self.getRoomPeer(client);
+            if(Util.isObject(peer)) {
                 peer.end();
             }
         }
-        self.logger.log("Server:", "remove", peer);
+        self.logger.log("Server:", "remove", client, peer);
     });
     this.connection.on("online", function(client) {
         peer = self.createFriendPeer({
@@ -1608,6 +1615,7 @@ Talk.prototype.delFriend = function(username, cb) {
         else {
             if(Util.isObject(peer = self.getFriendPeer({username: username}))) {
                 peer.end();
+                self.emit("friendOffline", peer);
             }
             self.logger.log('"%s" deleted successfully', username);
         }
