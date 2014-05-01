@@ -1,7 +1,17 @@
 module.exports = function(grunt) {
     grunt.initConfig({
+        ts: {
+            compile: {
+                src: ["lib/**/*.ts"],
+                options: {
+                    module: "commonjs",
+                    sourceMap: false,
+                    target: "es5"
+                }
+            }
+        },
         browserify: {
-            dist: {
+            bundle: {
                 files: {
                     "build/talk.js": ["lib/talk.js"]
                 },
@@ -12,7 +22,7 @@ module.exports = function(grunt) {
             }
         },
         concat: {
-            dist: {
+            crypto: {
                 src: ["build/talk.js", "lib/crypto/*.js"],
                 dest: "build/talk.js"
             }
@@ -31,30 +41,32 @@ module.exports = function(grunt) {
                 push: false
             }
         },
-        jshint: {
-            all: [
-                "Gruntfile.js",
-                "lib/**/*.js"
-            ],
-            options: {
-                ignores: [
-                    "lib/simplewebrtc/*.js",
-                    "lib/crypto/*.js"
-                ],
-                force: true
+        clean: {
+            build: {
+                src: ["build/*.js"]
+            },
+            js: {
+                src: ["lib/**/*.js", "!lib/crypto/*.js"]
             }
         }
     });
-    grunt.loadNpmTasks("grunt-bump");
-    grunt.loadNpmTasks("grunt-browserify");
-    grunt.loadNpmTasks("grunt-contrib-uglify");
-    grunt.loadNpmTasks("grunt-contrib-jshint");
-    grunt.loadNpmTasks("grunt-contrib-concat");
-    grunt.registerTask("build", function(type) {
-        grunt.task.run("browserify");
-        grunt.task.run("concat");
-        grunt.task.run("uglify");
-        grunt.task.run("bump:" + (type || "build"));
+    [
+        "grunt-contrib-uglify",
+        "grunt-contrib-concat",
+        "grunt-contrib-clean",
+        "grunt-browserify",
+        "grunt-bump",
+        "grunt-ts"
+    ].forEach(function(task) {
+        grunt.loadNpmTasks(task);
     });
-    grunt.registerTask("debug", ["jshint"]);
+    grunt.registerTask("default", [
+        "clean:build",
+        "ts:compile",
+        "browserify:bundle",
+        "concat:crypto",
+        "uglify:build",
+        "clean:js",
+        "bump:build"
+    ]);
 };
