@@ -1,12 +1,12 @@
 /// <reference path="./webrtc/RTCPeerConnection.d.ts" />
 /// <reference path="./crypto/crypto.d.ts" />
 
-interface RTCWindow extends Window {
+interface WebRTCWindow extends Window {
     webkitRTCPeerConnection: RTCPeerConnection;
     mozRTCPeerConnection: RTCPeerConnection;
 }
 
-declare var window: RTCWindow;
+declare var window: WebRTCWindow;
 
 class Util {
     /**
@@ -163,7 +163,6 @@ class Util {
 
     static extend(obj: Object, source: Object): Object {
         obj = obj || {};
-
         if(!this.isEmpty(source)) {
             for(var key in source) {
                 if(source.hasOwnProperty(key)) {
@@ -175,28 +174,18 @@ class Util {
     }
 
     /**
-     * Get browser information
+     * Overwrite an object EXISTING properties, with another object properties
      */
 
-    static browser(): Object {
-        if(window.mozRTCPeerConnection instanceof RTCPeerConnection) {
-            return {
-                version: parseInt((navigator.userAgent.match(/Firefox\/([0-9]+)\./) || 0)[1]),
-                prefix: "moz"
+    static overwrite(obj: Object, source: Object): Object {
+        if(!this.isEmpty(obj) && !this.isEmpty(source)) {
+            for(var key in obj) {
+                if(obj.hasOwnProperty(key) && source.hasOwnProperty(key)) {
+                    obj[key] = source[key];
+                }
             }
         }
-        else if(window.webkitRTCPeerConnection instanceof RTCPeerConnection) {
-            return {
-                version: parseInt((navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./) || 0)[2]),
-                prefix: "webkit"
-            }
-        }
-        else {
-            return {
-                version: 0,
-                prefix: ""
-            };
-        }
+        return obj || {};
     }
 
     /**

@@ -1,5 +1,5 @@
+/// <reference path="./wildemitter/wildemitter.d.ts" />
 /// <reference path="./webrtc/RTCPeerConnection.d.ts" />
-/// <reference path="./wildemitter.d.ts" />
 /// <reference path="./talk.d.ts" />
 
 import WildEmitter = require("wildemitter");
@@ -9,7 +9,7 @@ import Util = require("./util");
 
 class Peer extends WildEmitter {
     public config = {
-        server: {
+        configuration: {
             iceServers: [
                 {"url": "stun:stun.l.google.com:19302"},
                 {"url": "stun:stun1.l.google.com:19302"},
@@ -37,20 +37,21 @@ class Peer extends WildEmitter {
         stream: new Pointer
     };
     private pc: RTCPeerConnection;
+    public id = Util.randNum();
     public warn = Util.noop;
     public log = Util.noop;
     private channels = [];
 
     constructor(options?: Object) {
         super();
-        Util.extend(this.config, options);
+        Util.overwrite(this.config, options);
 
         if(this.config.logger && this.config.logger.log && this.config.logger.warn) {
             this.warn = this.config.logger.warn.bind(this.config.logger);
             this.log = this.config.logger.log.bind(this.config.logger);
         }
 
-        this.pc = new Shims.PeerConnection(this.config.server, this.config.options);
+        this.pc = new Shims.PeerConnection(this.config.configuration, this.config.options);
         this.pc.onnegotiationneeded = this.onNegotiationNeeded.bind(this);
         this.pc.oniceconnectionstatechange = this.onIceChange.bind(this);
         this.pc.ondatachannel = this.onDataChannel.bind(this);

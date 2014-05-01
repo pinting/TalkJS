@@ -16,7 +16,7 @@ var Handler = (function (_super) {
     function Handler(options) {
         _super.call(this);
         this.config = {
-            server: {
+            configuration: {
                 iceServers: [
                     { "url": "stun:stun.l.google.com:19302" },
                     { "url": "stun:stun1.l.google.com:19302" },
@@ -46,7 +46,7 @@ var Handler = (function (_super) {
         this.warn = Util.noop;
         this.log = Util.noop;
         this.peers = [];
-        Util.extend(this.config, options);
+        Util.overwrite(this.config, options);
 
         if (this.config.logger && this.config.logger.log && this.config.logger.warn) {
             this.warn = this.config.logger.warn.bind(this.config.logger);
@@ -63,12 +63,12 @@ var Handler = (function (_super) {
                 }
             });
         });
-        peer.on("*", function () {
+        peer.on("*", function (type) {
             var args = [];
-            for (var _i = 0; _i < (arguments.length - 0); _i++) {
-                args[_i] = arguments[_i + 0];
+            for (var _i = 0; _i < (arguments.length - 1); _i++) {
+                args[_i] = arguments[_i + 1];
             }
-            return _this.emit.apply(_this, args);
+            _this.emit.apply(_this, [type, peer.id].concat(args));
         });
         this.log("Peer added:", peer);
         this.peers.push(peer);
@@ -115,7 +115,7 @@ var Peer = (function (_super) {
     function Peer(options) {
         _super.call(this);
         this.config = {
-            server: {
+            configuration: {
                 iceServers: [
                     { "url": "stun:stun.l.google.com:19302" },
                     { "url": "stun:stun1.l.google.com:19302" },
@@ -142,17 +142,18 @@ var Peer = (function (_super) {
             },
             stream: new Pointer
         };
+        this.id = Util.randNum();
         this.warn = Util.noop;
         this.log = Util.noop;
         this.channels = [];
-        Util.extend(this.config, options);
+        Util.overwrite(this.config, options);
 
         if (this.config.logger && this.config.logger.log && this.config.logger.warn) {
             this.warn = this.config.logger.warn.bind(this.config.logger);
             this.log = this.config.logger.log.bind(this.config.logger);
         }
 
-        this.pc = new Shims.PeerConnection(this.config.server, this.config.options);
+        this.pc = new Shims.PeerConnection(this.config.configuration, this.config.options);
         this.pc.onnegotiationneeded = this.onNegotiationNeeded.bind(this);
         this.pc.oniceconnectionstatechange = this.onIceChange.bind(this);
         this.pc.ondatachannel = this.onDataChannel.bind(this);
@@ -338,7 +339,7 @@ var Talk = (function (_super) {
         _super.call(this);
         this.localStream = new Pointer;
         this.config = {
-            server: {
+            configuration: {
                 iceServers: [
                     { "url": "stun:stun.l.google.com:19302" },
                     { "url": "stun:stun1.l.google.com:19302" },
@@ -363,12 +364,13 @@ var Talk = (function (_super) {
                 warn: Util.noop,
                 log: Util.noop
             },
+            server: "http://localhost:8000",
             stream: this.localStream
         };
         this.warn = Util.noop;
         this.log = Util.noop;
         this.handlers = {};
-        Util.extend(this.config, options);
+        Util.overwrite(this.config, options);
 
         if (this.config.logger && this.config.logger.log && this.config.logger.warn) {
             this.warn = this.config.logger.warn.bind(this.config.logger);
@@ -380,19 +382,19 @@ var Talk = (function (_super) {
             for (var _i = 0; _i < (arguments.length - 0); _i++) {
                 args[_i] = arguments[_i + 0];
             }
-            this.log.apply(this, ["Event:"].concat(args));
+            this.log.apply(this, ["Event: "].concat(args));
         });
     }
     Talk.prototype.create = function (id, H) {
         var _this = this;
         if (!this.handlers[id]) {
             var handler = new (H || Handler)(this.config);
-            handler.on("*", function () {
+            handler.on("*", function (type, peer) {
                 var args = [];
-                for (var _i = 0; _i < (arguments.length - 0); _i++) {
-                    args[_i] = arguments[_i + 0];
+                for (var _i = 0; _i < (arguments.length - 2); _i++) {
+                    args[_i] = arguments[_i + 2];
                 }
-                return _this.emit.apply(_this, args);
+                _this.emit.apply(_this, [type, id, peer].concat(args));
             });
             this.handlers[id] = handler;
             return handler;
@@ -526,7 +528,6 @@ var Util = (function () {
 
     Util.extend = function (obj, source) {
         obj = obj || {};
-
         if (!this.isEmpty(source)) {
             for (var key in source) {
                 if (source.hasOwnProperty(key)) {
@@ -537,23 +538,15 @@ var Util = (function () {
         return obj;
     };
 
-    Util.browser = function () {
-        if (window.mozRTCPeerConnection instanceof RTCPeerConnection) {
-            return {
-                version: parseInt((navigator.userAgent.match(/Firefox\/([0-9]+)\./) || 0)[1]),
-                prefix: "moz"
-            };
-        } else if (window.webkitRTCPeerConnection instanceof RTCPeerConnection) {
-            return {
-                version: parseInt((navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./) || 0)[2]),
-                prefix: "webkit"
-            };
-        } else {
-            return {
-                version: 0,
-                prefix: ""
-            };
+    Util.overwrite = function (obj, source) {
+        if (!this.isEmpty(obj) && !this.isEmpty(source)) {
+            for (var key in obj) {
+                if (obj.hasOwnProperty(key) && source.hasOwnProperty(key)) {
+                    obj[key] = source[key];
+                }
+            }
         }
+        return obj || {};
     };
 
     Util.noop = function () {

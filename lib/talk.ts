@@ -1,7 +1,9 @@
+/// <reference path="./socket.io/socket.io-client.d.ts" />
+/// <reference path="./wildemitter/wildemitter.d.ts" />
 /// <reference path="./webrtc/MediaStream.d.ts" />
-/// <reference path="./wildemitter.d.ts" />
 /// <reference path="./talk.d.ts" />
 
+import SocketIO = require("socket.io-client");
 import WildEmitter = require("wildemitter");
 import Handler = require("./handler");
 import Pointer = require("./pointer");
@@ -12,7 +14,7 @@ import Util = require("./util");
 class Talk extends WildEmitter {
     public localStream = new Pointer;
     public config = {
-        server: {
+        configuration: {
             iceServers: [
                 {"url": "stun:stun.l.google.com:19302"},
                 {"url": "stun:stun1.l.google.com:19302"},
@@ -37,8 +39,10 @@ class Talk extends WildEmitter {
             warn: Util.noop,
             log: Util.noop
         },
+        server: "http://localhost:8000",
         stream: this.localStream
     };
+    public server: SocketIO.Socket;
     public warn = Util.noop;
     public log = Util.noop;
     public handlers = {};
@@ -50,12 +54,19 @@ class Talk extends WildEmitter {
 
     constructor(options?: Object) {
         super();
-        Util.extend(this.config, options);
+        Util.overwrite(this.config, options);
 
         if(this.config.logger && this.config.logger.log && this.config.logger.warn) {
             this.warn = this.config.logger.warn.bind(this.config.logger);
             this.log = this.config.logger.log.bind(this.config.logger);
         }
+
+        /* DISABLED
+        this.server = SocketIO.connect(this.config.server);
+        this.server.on("message", (handler, peer, key, value) => {
+            this.get(handler).get({id: peer}).get(key, value);
+        });
+        */
 
         this.on("*", function(...args: any[]) {
             this.log.apply(this, ["Event: "].concat(args));
@@ -65,7 +76,9 @@ class Talk extends WildEmitter {
     public create(id: string, H?: any): Handler {
         if(!this.handlers[id]) {
             var handler = new (H || Handler)(this.config);
-            handler.on("*", (...args: any[]) => this.emit.apply(this, args));
+            handler.on("*", (type, peer, ...args: any[]) => {
+                this.emit.apply(this, [type, id, peer].concat(args))
+            });
             this.handlers[id] = handler;
             return handler;
         }

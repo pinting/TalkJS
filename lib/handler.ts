@@ -1,4 +1,4 @@
-/// <reference path="./wildemitter.d.ts" />
+/// <reference path="./wildemitter/wildemitter.d.ts" />
 /// <reference path="./talk.d.ts" />
 
 import WildEmitter = require("wildemitter");
@@ -9,7 +9,7 @@ import Peer = require("./peer");
 
 class Handler extends WildEmitter {
     public config = {
-        server: {
+        configuration: {
             iceServers: [
                 {"url": "stun:stun.l.google.com:19302"},
                 {"url": "stun:stun1.l.google.com:19302"},
@@ -42,7 +42,7 @@ class Handler extends WildEmitter {
 
     constructor(options?: Object) {
         super();
-        Util.extend(this.config, options);
+        Util.overwrite(this.config, options);
 
         if(this.config.logger && this.config.logger.log && this.config.logger.warn) {
             this.warn = this.config.logger.warn.bind(this.config.logger);
@@ -59,7 +59,9 @@ class Handler extends WildEmitter {
                 }
             });
         });
-        peer.on("*", (...args: any[]) => this.emit.apply(this, args));
+        peer.on("*", (type, ...args: any[]) => {
+            this.emit.apply(this, [type, peer.id].concat(args))
+        });
         this.log("Peer added:", peer);
         this.peers.push(peer);
         return peer;
