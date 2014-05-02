@@ -34,13 +34,16 @@ class Handler extends WildEmitter {
             warn: Util.noop,
             log: Util.noop
         },
-        stream: new Pointer
+        stream: new Pointer,
+        peer: Peer
     };
     public warn = Util.noop;
     public log = Util.noop;
+    public handlers = [];
+    public id: string;
     public peers = [];
 
-    constructor(options?: Object) {
+    constructor(id: string, options?: Object) {
         super();
         Util.overwrite(this.config, options);
 
@@ -48,42 +51,53 @@ class Handler extends WildEmitter {
             this.warn = this.config.logger.warn.bind(this.config.logger);
             this.log = this.config.logger.log.bind(this.config.logger);
         }
+        this.id = id;
     }
 
-    public add(P?: any): Peer {
-        var peer = <Peer> new (P || Peer)(this.config);
-        peer.on("message", (key, value) => {
-            this.peers.forEach((p) => {
-                if(peer !== p) {
-                    peer.get(key, JSON.stringify(value));
-                }
-            });
+    private addHandler(id: string, H?: any): Handler {
+        var handler = <Handler> new (H || this)(id, this.config);
+        handler.on("*", (...args: any[]) => this.emit.apply(this, args));
+        this.handlers.push(handler);
+        return handler;
+    }
+
+    public h(id, H?: Object): Handler {
+        var result = <any> false;
+        this.handlers.some((handler) => {
+            if(handler.id === id) {
+                result = handler;
+                return true;
+            }
+            return false;
         });
-        peer.on("*", (type, ...args: any[]) => {
-            this.emit.apply(this, [type, peer.id].concat(args))
+        if(!result) {
+            result = this.addHandler(id, H);
+        }
+        return result;
+    }
+
+    public add(id: string): Peer {
+        var peer = <Peer> new this.config.peer(id, this.config);
+        peer.on("message", (type: string, payload: Message) => {
+            payload.handler = [this.id].concat(payload.handler);
+            this.emit(type, payload);
         });
+        peer.on("*", (...args: any[]) => this.emit.apply(this, args));
         this.log("Peer added:", peer);
         this.peers.push(peer);
         return peer;
     }
 
-    public get(args: Object): any {
-        var result = this.peers.filter((peer) => {
-            for(var key in args) {
-                if(args[key] !== peer[key]) {
-                    return false;
-                }
+    public get(id: string): Peer {
+        var result = <any> false;
+        this.peers.some((peer) => {
+            if(peer.id === id) {
+                result = peer;
+                return true;
             }
-            return true;
+            return false;
         });
-        switch(result.length) {
-            case 0:
-                return false;
-            case 1:
-                return result[0];
-            default:
-                return result;
-        }
+        return result;
     }
 }
 

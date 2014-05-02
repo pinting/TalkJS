@@ -1,2 +1,4 @@
-# TalkJS
-## ...in TypeScript
+TalkJS
+------
+
+...in TypeScript

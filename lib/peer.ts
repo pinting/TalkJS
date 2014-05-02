@@ -37,12 +37,12 @@ class Peer extends WildEmitter {
         stream: new Pointer
     };
     private pc: RTCPeerConnection;
-    public id = Util.randNum();
     public warn = Util.noop;
     public log = Util.noop;
     private channels = [];
+    public id: string;
 
-    constructor(options?: Object) {
+    constructor(id: string, options?: Object) {
         super();
         Util.overwrite(this.config, options);
 
@@ -50,6 +50,7 @@ class Peer extends WildEmitter {
             this.warn = this.config.logger.warn.bind(this.config.logger);
             this.log = this.config.logger.log.bind(this.config.logger);
         }
+        this.id = id;
 
         this.pc = new Shims.PeerConnection(this.config.configuration, this.config.options);
         this.pc.onnegotiationneeded = this.onNegotiationNeeded.bind(this);
@@ -66,13 +67,16 @@ class Peer extends WildEmitter {
     }
 
     public send(key: string, value: Object) {
-        this.log("Sending:", key, value);
-        this.emit("message", key, value);
+        var payload = <Message> {
+            peer: this.id,
+            value: value,
+            handler: [],
+            key: key
+        };
+        this.emit("message", payload);
     }
 
-    public get(key: string, value: string) {
-        value = JSON.parse(value);
-        this.log("Getting:", key, value);
+    public parse(key: string, value: Object) {
         switch(key) {
             case "offer":
                 this.answer(value);
