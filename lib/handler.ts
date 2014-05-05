@@ -26,8 +26,8 @@ class Handler extends WildEmitter {
         },
         constraints: {
             mandatory: {
-                OfferToReceiveAudio: true,
-                OfferToReceiveVideo: true
+                OfferToReceiveAudio: false,
+                OfferToReceiveVideo: false
             }
         },
         logger: <Logger> {
@@ -38,25 +38,18 @@ class Handler extends WildEmitter {
         handler: Handler,
         peer: Peer
     };
-    public warn = Util.noop;
-    public log = Util.noop;
+    public warn: Function;
+    public log: Function;
     public handlers = [];
-    public id: string;
     public peers = [];
+    public id: string;
 
     constructor(id: string, options?: Object) {
         super();
         Util.overwrite(this.config, options);
 
-        if(this.config.logger) {
-            if(this.config.logger.warn) {
-                this.warn = this.config.logger.warn.bind(this.config.logger);
-            }
-            if(this.config.logger.log) {
-                this.log = this.config.logger.log.bind(this.config.logger);
-            }
-        }
-
+        this.warn = this.config.logger.warn.bind(this.config.logger);
+        this.log = this.config.logger.log.bind(this.config.logger);
         this.id = id;
     }
 

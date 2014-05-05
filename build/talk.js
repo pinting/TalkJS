@@ -10,34 +10,41 @@ var WildEmitter = _dereq_("wildemitter");
 
 var Connection = (function (_super) {
     __extends(Connection, _super);
-    function Connection(top, host) {
+    function Connection(handler, host) {
         var _this = this;
         _super.call(this);
-        this.top = top;
+
+        this.warn = handler.warn.bind(handler);
+        this.log = handler.log.bind(handler);
+
+        this.handler = handler;
+        this.handler.on("message", this.send.bind(this));
         this.server = SocketIO.connect(host);
         this.server.on("connect", function () {
-            _this.emit("connectionReady", _this.server.socket.sessionid);
+            return _this.emit("connectionReady", _this.server.socket.sessionid);
         });
-        this.server.on("message", function (payload) {
-            top.log("Getting:", payload);
-            if (payload.key && payload.value && payload.peer && payload.handler) {
-                var peer = _this.go(payload.handler).get(payload.peer);
-                if (peer) {
-                    top.log("Peer found!");
-                    peer.parse(payload.key, payload.value);
-                } else {
-                    top.warn("Peer not found!");
-                }
-            }
-        });
-
-        top.on("message", function (payload) {
-            top.log("Sending:", payload);
-            _this.server.emit("message", payload);
-        });
+        this.server.on("message", this.get.bind(this));
     }
-    Connection.prototype.go = function (handler) {
-        var dest = this.top;
+    Connection.prototype.send = function (payload) {
+        this.log("Sending:", payload);
+        this.server.emit("message", payload);
+    };
+
+    Connection.prototype.get = function (payload) {
+        this.log("Getting:", payload);
+        if (payload.key && payload.value && payload.peer && payload.handler) {
+            var peer = this.findHandler(payload.handler).get(payload.peer);
+            if (peer) {
+                this.log("Peer found!");
+                peer.parse(payload.key, payload.value);
+            } else {
+                this.warn("Peer not found!");
+            }
+        }
+    };
+
+    Connection.prototype.findHandler = function (handler) {
+        var dest = this.handler;
         handler.forEach(function (id) {
             dest = dest.h(id);
         });
@@ -48,7 +55,7 @@ var Connection = (function (_super) {
 
 module.exports = Connection;
 
-},{"socket.io-client":9,"wildemitter":10}],2:[function(_dereq_,module,exports){
+},{"socket.io-client":8,"wildemitter":9}],2:[function(_dereq_,module,exports){
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -57,7 +64,7 @@ var __extends = this.__extends || function (d, b) {
 };
 var WildEmitter = _dereq_("wildemitter");
 var Pointer = _dereq_("./pointer");
-
+var Shims = _dereq_("./shims");
 var Util = _dereq_("./util");
 var Peer = _dereq_("./peer");
 
@@ -83,8 +90,8 @@ var Handler = (function (_super) {
             },
             constraints: {
                 mandatory: {
-                    OfferToReceiveAudio: true,
-                    OfferToReceiveVideo: true
+                    OfferToReceiveAudio: false,
+                    OfferToReceiveVideo: false
                 }
             },
             logger: {
@@ -95,24 +102,30 @@ var Handler = (function (_super) {
             handler: Handler,
             peer: Peer
         };
-        this.warn = Util.noop;
-        this.log = Util.noop;
         this.handlers = [];
         this.peers = [];
         Util.overwrite(this.config, options);
 
-        if (this.config.logger) {
-            if (this.config.logger.warn) {
-                this.warn = this.config.logger.warn.bind(this.config.logger);
-            }
-            if (this.config.logger.log) {
-                this.log = this.config.logger.log.bind(this.config.logger);
-            }
-        }
-
+        this.warn = this.config.logger.warn.bind(this.config.logger);
+        this.log = this.config.logger.log.bind(this.config.logger);
         this.id = id;
     }
-    Handler.prototype.addHandler = function (id, H) {
+    Handler.prototype.getUserMedia = function (audio, video) {
+        var _this = this;
+        Shims.getUserMedia({
+            audio: this.config.constraints.mandatory.OfferToReceiveAudio = audio,
+            video: this.config.constraints.mandatory.OfferToReceiveVideo = video
+        }, function (stream) {
+            _this.config.stream.set(stream);
+            _this.emit("localStream", stream);
+        }, function (error) {
+            _this.warn(error);
+            throw Error(error);
+        });
+        return this.config.stream.get();
+    };
+
+    Handler.prototype.createHandler = function (id, H) {
         var _this = this;
         this.config.handler = H || this.config.handler;
         var handler = new this.config.handler(id, this.config);
@@ -148,7 +161,7 @@ var Handler = (function (_super) {
             return false;
         });
         if (!result) {
-            result = this.addHandler(id, H);
+            result = this.createHandler(id, H);
         }
         return result;
     };
@@ -184,26 +197,33 @@ var Handler = (function (_super) {
 
 module.exports = Handler;
 
-},{"./peer":4,"./pointer":5,"./util":8,"wildemitter":10}],3:[function(_dereq_,module,exports){
-var Util = _dereq_("./util");
-var Top = _dereq_("./top");
+},{"./peer":4,"./pointer":5,"./shims":6,"./util":7,"wildemitter":9}],3:[function(_dereq_,module,exports){
+var __extends = this.__extends || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    __.prototype = b.prototype;
+    d.prototype = new __();
+};
+var Connection = _dereq_("./connection");
 var Handler = _dereq_("./handler");
 var Peer = _dereq_("./peer");
-var Connection = _dereq_("./connection");
-var Pointer = _dereq_("./pointer");
+var Util = _dereq_("./util");
 
-var Talk = {
-    "Util": Util,
-    "Top": Top,
-    "Handler": Handler,
-    "Peer": Peer,
-    "Connection": Connection,
-    "Pointer": Pointer
-};
+var Main = (function (_super) {
+    __extends(Main, _super);
+    function Main(options) {
+        _super.call(this, null, options);
+    }
+    Main.Connection = Connection;
+    Main.Handler = Handler;
+    Main.Peer = Peer;
+    Main.Util = Util;
+    return Main;
+})(Handler);
 
-module.exports = Talk;
+module.exports = Main;
 
-},{"./connection":1,"./handler":2,"./peer":4,"./pointer":5,"./top":7,"./util":8}],4:[function(_dereq_,module,exports){
+},{"./connection":1,"./handler":2,"./peer":4,"./util":7}],4:[function(_dereq_,module,exports){
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -237,8 +257,8 @@ var Peer = (function (_super) {
             },
             constraints: {
                 mandatory: {
-                    OfferToReceiveAudio: true,
-                    OfferToReceiveVideo: true
+                    OfferToReceiveAudio: false,
+                    OfferToReceiveVideo: false
                 }
             },
             logger: {
@@ -247,20 +267,11 @@ var Peer = (function (_super) {
             },
             stream: new Pointer
         };
-        this.warn = Util.noop;
-        this.log = Util.noop;
         this.channels = [];
         Util.overwrite(this.config, options);
 
-        if (this.config.logger) {
-            if (this.config.logger.warn) {
-                this.warn = this.config.logger.warn.bind(this.config.logger);
-            }
-            if (this.config.logger.log) {
-                this.log = this.config.logger.log.bind(this.config.logger);
-            }
-        }
-
+        this.warn = this.config.logger.warn.bind(this.config.logger);
+        this.log = this.config.logger.log.bind(this.config.logger);
         this.id = id;
 
         this.pc = new Shims.PeerConnection(this.config.configuration, this.config.options);
@@ -299,6 +310,55 @@ var Peer = (function (_super) {
                 this.handleCandidate(value);
                 break;
         }
+    };
+
+    Peer.prototype.sendData = function (label, payload) {
+        var channel = this.getDataChannel(label);
+        if (channel && channel.readyState === "stable") {
+            channel.send(JSON.stringify(payload));
+            return true;
+        }
+        this.warn("RTCDataChannel named `%s` does not exists or it is not stable!", label);
+        return false;
+    };
+
+    Peer.prototype.getDataChannel = function (label) {
+        var result = {};
+        this.channels.some(function (channel) {
+            if (channel.label === label) {
+                result = channel;
+                return true;
+            }
+            return false;
+        });
+        return result;
+    };
+
+    Peer.prototype.addDataChannel = function (label, options) {
+        var _this = this;
+        var channel = this.pc.createDataChannel(label, options);
+        channel.onclose = function (event) {
+            _this.log("Channel named `%s` has closed", label);
+            _this.emit("channelClosed", event);
+        };
+        channel.onerror = function (event) {
+            _this.warn("Channel error:", event);
+            _this.emit("channelError", event);
+        };
+        channel.onopen = function (event) {
+            _this.log("Channel named `%s` has opened", label);
+            _this.emit("channelOpened", event);
+        };
+        channel.onmessage = function (event) {
+            var payload = JSON.parse(event.data);
+            _this.log("Getting (%s):", label, payload);
+            if (payload.key && payload.value) {
+                _this.parse(payload.key, payload.value);
+            }
+            _this.emit("channelMessage", event);
+        };
+        this.channels.push(channel);
+        return channel;
     };
 
     Peer.prototype.onDataChannel = function (event) {
@@ -361,7 +421,7 @@ var Peer = (function (_super) {
 
     Peer.prototype.answer = function (offer) {
         var _this = this;
-        this.log("Answering an offer");
+        this.log("Answering for an offer");
         this.pc.setRemoteDescription(new Shims.SessionDescription(offer), function () {
             _this.pc.createAnswer(function (answer) {
                 _this.pc.setLocalDescription(answer, function () {
@@ -391,7 +451,7 @@ var Peer = (function (_super) {
 
 module.exports = Peer;
 
-},{"./pointer":5,"./shims":6,"./util":8,"wildemitter":10}],5:[function(_dereq_,module,exports){
+},{"./pointer":5,"./shims":6,"./util":7,"wildemitter":9}],5:[function(_dereq_,module,exports){
 var Util = _dereq_("./util");
 
 var Pointer = (function () {
@@ -416,7 +476,7 @@ var Pointer = (function () {
 
 module.exports = Pointer;
 
-},{"./util":8}],6:[function(_dereq_,module,exports){
+},{"./util":7}],6:[function(_dereq_,module,exports){
 var Shims = (function () {
     function Shims() {
     }
@@ -436,46 +496,6 @@ var Shims = (function () {
 module.exports = Shims;
 
 },{}],7:[function(_dereq_,module,exports){
-var __extends = this.__extends || function (d, b) {
-    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-    function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
-};
-var Handler = _dereq_("./handler");
-var Pointer = _dereq_("./pointer");
-var Shims = _dereq_("./shims");
-var Util = _dereq_("./util");
-
-var Top = (function (_super) {
-    __extends(Top, _super);
-    function Top(options) {
-        _super.call(this, null, options);
-        this.localStream = new Pointer;
-        Util.extend(this.config, {
-            stream: this.localStream
-        });
-    }
-    Top.prototype.getUserMedia = function (audio, video) {
-        var _this = this;
-        Shims.getUserMedia({
-            audio: this.config.constraints.mandatory.OfferToReceiveAudio = audio,
-            video: this.config.constraints.mandatory.OfferToReceiveVideo = video
-        }, function (stream) {
-            _this.localStream.set(stream);
-            _this.emit("localStream", stream);
-        }, function (error) {
-            _this.warn(error);
-            throw Error(error);
-        });
-        return this.localStream.get();
-    };
-    return Top;
-})(Handler);
-
-module.exports = Top;
-
-},{"./handler":2,"./pointer":5,"./shims":6,"./util":8}],8:[function(_dereq_,module,exports){
 
 var Util = (function () {
     function Util() {
@@ -613,7 +633,7 @@ var Util = (function () {
 
 module.exports = Util;
 
-},{}],9:[function(_dereq_,module,exports){
+},{}],8:[function(_dereq_,module,exports){
 /*! Socket.IO.js build:0.9.16, development. Copyright(c) 2011 LearnBoost <dev@learnboost.com> MIT Licensed */
 
 var io = ('undefined' === typeof module ? {} : module.exports);
@@ -4487,7 +4507,7 @@ if (typeof define === "function" && define.amd) {
   define([], function () { return io; });
 }
 })();
-},{}],10:[function(_dereq_,module,exports){
+},{}],9:[function(_dereq_,module,exports){
 /*
 WildEmitter.js is a slim little event emitter by @henrikjoreteg largely based 
 on @visionmedia's Emitter from UI Kit.

@@ -8,6 +8,10 @@ class Main extends Handler {
     static Handler = Handler;
     static Peer = Peer;
     static Util = Util;
+
+    constructor(options?: Object) {
+        super(null, options);
+    }
 }
 
 export = Main;

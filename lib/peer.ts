@@ -26,8 +26,8 @@ class Peer extends WildEmitter {
         },
         constraints: {
             mandatory: {
-                OfferToReceiveAudio: true,
-                OfferToReceiveVideo: true
+                OfferToReceiveAudio: false,
+                OfferToReceiveVideo: false
             }
         },
         logger: <Logger> {
@@ -37,8 +37,8 @@ class Peer extends WildEmitter {
         stream: new Pointer
     };
     private pc: RTCPeerConnection;
-    public warn = Util.noop;
-    public log = Util.noop;
+    public warn: Function;
+    public log: Function;
     private channels = [];
     public id: string;
 
@@ -46,15 +46,8 @@ class Peer extends WildEmitter {
         super();
         Util.overwrite(this.config, options);
 
-        if(this.config.logger) {
-            if(this.config.logger.warn) {
-                this.warn = this.config.logger.warn.bind(this.config.logger);
-            }
-            if(this.config.logger.log) {
-                this.log = this.config.logger.log.bind(this.config.logger);
-            }
-        }
-
+        this.warn = this.config.logger.warn.bind(this.config.logger);
+        this.log = this.config.logger.log.bind(this.config.logger);
         this.id = id;
 
         this.pc = new Shims.PeerConnection(this.config.configuration, this.config.options);
@@ -96,8 +89,61 @@ class Peer extends WildEmitter {
         }
     }
 
+    public sendData(label: string, payload: any): boolean {
+        var channel = this.getDataChannel(label);
+        if(channel && <any> channel.readyState === "stable") {
+            channel.send(JSON.stringify(payload));
+            return true;
+        }
+        this.warn("RTCDataChannel named `%s` does not exists or it is not stable!", label);
+        return false;
+    }
+
+    public getDataChannel(label: string): RTCDataChannel {
+        var result = <RTCDataChannel> {};
+        this.channels.some(function(channel) {
+            if(channel.label === label) {
+                result = channel;
+                return true;
+            }
+            return false;
+        });
+        return result;
+    }
+
+    private configDataChannel(channel: RTCDataChannel) {
+        channel.onclose = (event) => {
+            this.log("Channel named `%s` has closed", channel.label);
+            this.emit("channelClosed", event);
+        };
+        channel.onerror = (event) => {
+            this.warn("Channel error:", event);
+            this.emit("channelError", event);
+        };
+        channel.onopen = (event) => {
+            this.log("Channel named `%s` has opened", channel.label);
+            this.emit("channelOpened", event);
+        };
+        channel.onmessage = (event: any) => {
+            var payload = JSON.parse(event.data);
+            this.log("Getting (%s):", channel.label, payload);
+            if(payload.key && payload.value) {
+                this.parse(payload.key, payload.value);
+            }
+            this.emit("channelMessage", event);
+        };
+    }
+
+    public addDataChannel(label: string, options?: RTCDataChannelInit): RTCDataChannel {
+        var channel = this.pc.createDataChannel(label, options);
+        this.configDataChannel(channel);
+        this.channels.push(channel);
+        return channel;
+    }
+
     private onDataChannel(event: RTCDataChannelEvent) {
         if(event.channel) {
+            this.configDataChannel(event.channel);
             this.channels.push(event.channel);
         }
     }
@@ -162,7 +208,7 @@ class Peer extends WildEmitter {
     }
 
     public answer(offer: RTCSessionDescription) {
-        this.log("Answering an offer");
+        this.log("Answering for an offer");
         this.pc.setRemoteDescription(new Shims.SessionDescription(offer),
             () => {
                 this.pc.createAnswer(

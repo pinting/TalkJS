@@ -4,41 +4,47 @@
 import SocketIO = require("socket.io-client");
 import WildEmitter = require("wildemitter");
 import Handler = require("./handler");
-import Util = require("./util");
 
 class Connection extends WildEmitter {
     public server: SocketIO.Socket;
-    private top: Handler;
+    private handler: Handler;
+    private warn: Function;
+    private log: Function;
 
-    constructor(top: Handler, host: string) {
+    constructor(handler: Handler, host: string) {
         super();
-        this.top = top;
-        this.server = SocketIO.connect(host);
-        this.server.on("connect", () => {
-            this.emit("connectionReady", this.server.socket.sessionid)
-        });
-        this.server.on("message", (payload: Message) => {
-            top.log("Getting:", payload);
-            if(payload.key && payload.value && payload.peer && payload.handler) {
-                var peer = this.go(payload.handler).get(payload.peer);
-                if(peer) {
-                    top.log("Peer found!");
-                    peer.parse(payload.key, payload.value);
-                }
-                else {
-                    top.warn("Peer not found!")
-                }
-            }
-        });
 
-        top.on("message", (payload: Message) => {
-            top.log("Sending:", payload);
-            this.server.emit("message", payload);
-        });
+        this.warn = handler.warn.bind(handler);
+        this.log = handler.log.bind(handler);
+
+        this.handler = handler;
+        this.handler.on("message", this.send.bind(this));
+        this.server = SocketIO.connect(host);
+        this.server.on("connect", () => this.emit("connectionReady", this.server.socket.sessionid));
+        this.server.on("message", this.get.bind(this));
     }
 
-    private go(handler: Handler[]) {
-        var dest = this.top;
+    private send(payload: Message) {
+        this.log("Sending:", payload);
+        this.server.emit("message", payload);
+    }
+
+    private get(payload: Message) {
+        this.log("Getting:", payload);
+        if(payload.key && payload.value && payload.peer && payload.handler) {
+            var peer = this.findHandler(payload.handler).get(payload.peer);
+            if(peer) {
+                this.log("Peer found!");
+                peer.parse(payload.key, payload.value);
+            }
+            else {
+                this.warn("Peer not found!")
+            }
+        }
+    }
+
+    private findHandler(handler: Handler[]) {
+        var dest = this.handler;
         handler.forEach((id) => {
             dest = dest.h(id);
         });

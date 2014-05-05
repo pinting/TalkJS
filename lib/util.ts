@@ -1,4 +1,4 @@
-/// <reference path="./definitions/rtcpeerconnection.d.ts" />
+/// <reference path="./definitions/rtcpeerConnection.d.ts" />
 /// <reference path="./definitions/crypto.d.ts" />
 
 interface WebRTCWindow extends Window {
