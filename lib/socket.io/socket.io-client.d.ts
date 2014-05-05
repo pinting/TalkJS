@@ -29,5 +29,7 @@ declare module "socket.io-client" {
         packet(data: any): Socket;
         flushBuffer(): void;
         disconnect(): Socket;
+        socket: Socket; // Added by Pinting
+        sessionid: string; // Added by Pinting
     }
 }

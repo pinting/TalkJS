@@ -46,10 +46,15 @@ class Peer extends WildEmitter {
         super();
         Util.overwrite(this.config, options);
 
-        if(this.config.logger && this.config.logger.log && this.config.logger.warn) {
-            this.warn = this.config.logger.warn.bind(this.config.logger);
-            this.log = this.config.logger.log.bind(this.config.logger);
+        if(this.config.logger) {
+            if(this.config.logger.warn) {
+                this.warn = this.config.logger.warn.bind(this.config.logger);
+            }
+            if(this.config.logger.log) {
+                this.log = this.config.logger.log.bind(this.config.logger);
+            }
         }
+
         this.id = id;
 
         this.pc = new Shims.PeerConnection(this.config.configuration, this.config.options);
@@ -77,6 +82,7 @@ class Peer extends WildEmitter {
     }
 
     public parse(key: string, value: Object) {
+        this.log("Parsing:", key, value);
         switch(key) {
             case "offer":
                 this.answer(value);
@@ -97,10 +103,11 @@ class Peer extends WildEmitter {
     }
 
     private onIceChange() {
+        this.log("Ice connection state has changed!");
         switch(<any> this.pc.iceConnectionState) {
             case "disconnected":
             case "failed":
-                this.warn("The iceConnectionState is disconnected, closing the peer:", this);
+                this.warn("Ice connection state is disconnected, closing the peer:", this);
                 this.pc.close();
                 break;
             case "completed":
@@ -118,8 +125,8 @@ class Peer extends WildEmitter {
     }
 
     private handleCandidate(ice: RTCIceCandidate) {
+        this.log("Handling received candidate:", ice);
         if(ice.sdpMLineIndex && ice.candidate) {
-            this.log("Handling received candidate:", ice);
             this.pc.addIceCandidate(new Shims.IceCandidate(ice));
         }
     }
@@ -182,6 +189,7 @@ class Peer extends WildEmitter {
     }
 
     private handleAnswer(answer: RTCSessionDescription) {
+        this.log("Handling an answer");
         this.pc.setRemoteDescription(new Shims.SessionDescription(answer),
             () => {
                 this.log("Answer handled successfully");

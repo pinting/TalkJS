@@ -1,4 +1,5 @@
 interface Logger {
+    debug: (...args: any[]) => void;
     warn: (...args: any[]) => void;
     log: (...args: any[]) => void;
 }

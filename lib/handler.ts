@@ -35,6 +35,7 @@ class Handler extends WildEmitter {
             log: Util.noop
         },
         stream: new Pointer,
+        handler: Handler,
         peer: Peer
     };
     public warn = Util.noop;
@@ -47,16 +48,35 @@ class Handler extends WildEmitter {
         super();
         Util.overwrite(this.config, options);
 
-        if(this.config.logger && this.config.logger.log && this.config.logger.warn) {
-            this.warn = this.config.logger.warn.bind(this.config.logger);
-            this.log = this.config.logger.log.bind(this.config.logger);
+        if(this.config.logger) {
+            if(this.config.logger.warn) {
+                this.warn = this.config.logger.warn.bind(this.config.logger);
+            }
+            if(this.config.logger.log) {
+                this.log = this.config.logger.log.bind(this.config.logger);
+            }
         }
+
         this.id = id;
     }
 
-    private addHandler(id: string, H?: any): Handler {
-        var handler = <Handler> new (H || this)(id, this.config);
-        handler.on("*", (...args: any[]) => this.emit.apply(this, args));
+    public addHandler(id: string, H?: any): Handler {
+        this.config.handler = H || this.config.handler;
+        var handler = <Handler> new this.config.handler(id, this.config);
+        handler.on("*", (...args: any[]) => {
+            switch(args[0]) {
+                case "message":
+                    var payload = args[1];
+                    payload = Util.clone(payload);
+                    payload.handler = [handler.id].concat(payload.handler);
+                    this.emit("message", payload);
+                    break;
+                default:
+                    this.emit.apply(this, args);
+                    break;
+            }
+        });
+        this.log("Handler created:", handler);
         this.handlers.push(handler);
         return handler;
     }
@@ -78,10 +98,6 @@ class Handler extends WildEmitter {
 
     public add(id: string): Peer {
         var peer = <Peer> new this.config.peer(id, this.config);
-        peer.on("message", (type: string, payload: Message) => {
-            payload.handler = [this.id].concat(payload.handler);
-            this.emit(type, payload);
-        });
         peer.on("*", (...args: any[]) => this.emit.apply(this, args));
         this.log("Peer added:", peer);
         this.peers.push(peer);

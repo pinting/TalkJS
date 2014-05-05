@@ -189,6 +189,20 @@ class Util {
     }
 
     /**
+     * Clone an object
+     */
+
+    static clone(obj) {
+        if (this.isObject(obj)) {
+            if(Array.isArray(obj)) {
+                return obj.slice(0);
+            }
+            return this.extend({}, obj);
+        }
+        return obj;
+    }
+
+    /**
      * An empty function
      */
 
