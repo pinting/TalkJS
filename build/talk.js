@@ -48,7 +48,7 @@ var Connection = (function (_super) {
 
 module.exports = Connection;
 
-},{"socket.io-client":8,"wildemitter":9}],2:[function(_dereq_,module,exports){
+},{"socket.io-client":9,"wildemitter":10}],2:[function(_dereq_,module,exports){
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -184,7 +184,26 @@ var Handler = (function (_super) {
 
 module.exports = Handler;
 
-},{"./peer":3,"./pointer":4,"./util":7,"wildemitter":9}],3:[function(_dereq_,module,exports){
+},{"./peer":4,"./pointer":5,"./util":8,"wildemitter":10}],3:[function(_dereq_,module,exports){
+var Util = _dereq_("./util");
+var Top = _dereq_("./top");
+var Handler = _dereq_("./handler");
+var Peer = _dereq_("./peer");
+var Connection = _dereq_("./connection");
+var Pointer = _dereq_("./pointer");
+
+var Talk = {
+    "Util": Util,
+    "Top": Top,
+    "Handler": Handler,
+    "Peer": Peer,
+    "Connection": Connection,
+    "Pointer": Pointer
+};
+
+module.exports = Talk;
+
+},{"./connection":1,"./handler":2,"./peer":4,"./pointer":5,"./top":7,"./util":8}],4:[function(_dereq_,module,exports){
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -372,7 +391,7 @@ var Peer = (function (_super) {
 
 module.exports = Peer;
 
-},{"./pointer":4,"./shims":5,"./util":7,"wildemitter":9}],4:[function(_dereq_,module,exports){
+},{"./pointer":5,"./shims":6,"./util":8,"wildemitter":10}],5:[function(_dereq_,module,exports){
 var Util = _dereq_("./util");
 
 var Pointer = (function () {
@@ -397,7 +416,7 @@ var Pointer = (function () {
 
 module.exports = Pointer;
 
-},{"./util":7}],5:[function(_dereq_,module,exports){
+},{"./util":8}],6:[function(_dereq_,module,exports){
 var Shims = (function () {
     function Shims() {
     }
@@ -416,31 +435,28 @@ var Shims = (function () {
 
 module.exports = Shims;
 
-},{}],6:[function(_dereq_,module,exports){
+},{}],7:[function(_dereq_,module,exports){
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
     d.prototype = new __();
 };
-var Connection = _dereq_("./connection");
-
 var Handler = _dereq_("./handler");
 var Pointer = _dereq_("./pointer");
 var Shims = _dereq_("./shims");
-var Peer = _dereq_("./peer");
 var Util = _dereq_("./util");
 
-var Talk = (function (_super) {
-    __extends(Talk, _super);
-    function Talk(options) {
+var Top = (function (_super) {
+    __extends(Top, _super);
+    function Top(options) {
         _super.call(this, null, options);
         this.localStream = new Pointer;
         Util.extend(this.config, {
             stream: this.localStream
         });
     }
-    Talk.prototype.getUserMedia = function (audio, video) {
+    Top.prototype.getUserMedia = function (audio, video) {
         var _this = this;
         Shims.getUserMedia({
             audio: this.config.constraints.mandatory.OfferToReceiveAudio = audio,
@@ -454,17 +470,12 @@ var Talk = (function (_super) {
         });
         return this.localStream.get();
     };
-    Talk.Connection = Connection;
-    Talk.Pointer = Pointer;
-    Talk.Handler = Handler;
-    Talk.Util = Util;
-    Talk.Peer = Peer;
-    return Talk;
+    return Top;
 })(Handler);
 
-module.exports = Talk;
+module.exports = Top;
 
-},{"./connection":1,"./handler":2,"./peer":3,"./pointer":4,"./shims":5,"./util":7}],7:[function(_dereq_,module,exports){
+},{"./handler":2,"./pointer":5,"./shims":6,"./util":8}],8:[function(_dereq_,module,exports){
 
 var Util = (function () {
     function Util() {
@@ -602,7 +613,7 @@ var Util = (function () {
 
 module.exports = Util;
 
-},{}],8:[function(_dereq_,module,exports){
+},{}],9:[function(_dereq_,module,exports){
 /*! Socket.IO.js build:0.9.16, development. Copyright(c) 2011 LearnBoost <dev@learnboost.com> MIT Licensed */
 
 var io = ('undefined' === typeof module ? {} : module.exports);
@@ -4476,7 +4487,7 @@ if (typeof define === "function" && define.amd) {
   define([], function () { return io; });
 }
 })();
-},{}],9:[function(_dereq_,module,exports){
+},{}],10:[function(_dereq_,module,exports){
 /*
 WildEmitter.js is a slim little event emitter by @henrikjoreteg largely based 
 on @visionmedia's Emitter from UI Kit.
@@ -4617,8 +4628,8 @@ WildEmitter.prototype.getWildcardCallbacks = function (eventName) {
     return result;
 };
 
-},{}]},{},[6])
-(6)
+},{}]},{},[3])
+(3)
 });
 /*
 CryptoJS v3.1.2

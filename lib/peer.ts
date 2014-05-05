@@ -1,6 +1,6 @@
-/// <reference path="./wildemitter/wildemitter.d.ts" />
-/// <reference path="./webrtc/RTCPeerConnection.d.ts" />
-/// <reference path="./talk.d.ts" />
+/// <reference path="./definitions/wildemitter.d.ts" />
+/// <reference path="./definitions/RTCPeerConnection.d.ts" />
+/// <reference path="./definitions/talk.d.ts" />
 
 import WildEmitter = require("wildemitter");
 import Pointer = require("./pointer");

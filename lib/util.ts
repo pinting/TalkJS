@@ -1,5 +1,5 @@
-/// <reference path="./webrtc/RTCPeerConnection.d.ts" />
-/// <reference path="./crypto/crypto.d.ts" />
+/// <reference path="./definitions/rtcpeerconnection.d.ts" />
+/// <reference path="./definitions/crypto.d.ts" />
 
 interface WebRTCWindow extends Window {
     webkitRTCPeerConnection: RTCPeerConnection;

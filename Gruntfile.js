@@ -12,9 +12,8 @@ module.exports = function(grunt) {
         },
         browserify: {
             bundle: {
-                files: {
-                    "build/talk.js": ["lib/talk.js"]
-                },
+                src: ["lib/main.js"],
+                dest: "build/talk.js",
                 options: {
                     standalone: "Talk",
                     debug: false

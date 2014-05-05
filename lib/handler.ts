@@ -1,5 +1,5 @@
-/// <reference path="./wildemitter/wildemitter.d.ts" />
-/// <reference path="./talk.d.ts" />
+/// <reference path="./definitions/wildemitter.d.ts" />
+/// <reference path="./definitions/talk.d.ts" />
 
 import WildEmitter = require("wildemitter");
 import Pointer = require("./pointer");
@@ -60,7 +60,25 @@ class Handler extends WildEmitter {
         this.id = id;
     }
 
-    public addHandler(id: string, H?: any): Handler {
+    public getUserMedia(audio: boolean, video: boolean): MediaStream {
+        Shims.getUserMedia(
+            {
+                audio: this.config.constraints.mandatory.OfferToReceiveAudio = audio,
+                video: this.config.constraints.mandatory.OfferToReceiveVideo = video
+            },
+            (stream) => {
+                this.config.stream.set(stream);
+                this.emit("localStream", stream);
+            },
+            (error) => {
+                this.warn(error);
+                throw Error(error);
+            }
+        );
+        return this.config.stream.get();
+    }
+
+    public createHandler(id: string, H?: any): Handler {
         this.config.handler = H || this.config.handler;
         var handler = <Handler> new this.config.handler(id, this.config);
         handler.on("*", (...args: any[]) => {
@@ -91,7 +109,7 @@ class Handler extends WildEmitter {
             return false;
         });
         if(!result) {
-            result = this.addHandler(id, H);
+            result = this.createHandler(id, H);
         }
         return result;
     }

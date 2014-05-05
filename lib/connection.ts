@@ -1,5 +1,5 @@
-/// <reference path="./socket.io/socket.io-client.d.ts" />
-/// <reference path="./talk.d.ts" />
+/// <reference path="./definitions/socket.io-client.d.ts" />
+/// <reference path="./definitions/talk.d.ts" />
 
 import SocketIO = require("socket.io-client");
 import WildEmitter = require("wildemitter");
