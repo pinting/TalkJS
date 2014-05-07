@@ -3,7 +3,6 @@
 
 import WildEmitter = require("wildemitter");
 import Pointer = require("./pointer");
-import Shims = require("./shims");
 import Util = require("./util");
 import Peer = require("./peer");
 
@@ -54,13 +53,13 @@ class Handler extends WildEmitter {
     }
 
     public getUserMedia(audio: boolean, video: boolean): MediaStream {
-        Shims.getUserMedia(
+        Util.getUserMedia(
             {
                 audio: this.config.constraints.mandatory.OfferToReceiveAudio = audio,
                 video: this.config.constraints.mandatory.OfferToReceiveVideo = video
             },
             (stream) => {
-                this.config.stream.set(stream);
+                this.config.stream.value = stream;
                 this.emit("localStream", stream);
             },
             (error) => {
@@ -68,7 +67,7 @@ class Handler extends WildEmitter {
                 throw Error(error);
             }
         );
-        return this.config.stream.get();
+        return this.config.stream.value;
     }
 
     public createHandler(id: string, H?: any): Handler {

@@ -1,14 +1,25 @@
-/// <reference path="./definitions/rtcpeerConnection.d.ts" />
 /// <reference path="./definitions/crypto.d.ts" />
 
-interface WebRTCWindow extends Window {
-    webkitRTCPeerConnection: RTCPeerConnection;
-    mozRTCPeerConnection: RTCPeerConnection;
-}
-
-declare var window: WebRTCWindow;
+declare var navigator: any;
+declare var window: any;
 
 class Util {
+    /**
+     * Get rid of the browser prefixes
+     */
+
+    static SessionDescription = window.RTCSessionDescription || window.webkitRTCSessionDescription || window.mozRTCSessionDescription;
+    static PeerConnection = window.RTCPeerConnection || window.webkitRTCPeerConnection || window.mozRTCPeerConnection;
+    static IceCandidate = window.RTCIceCandidate || window.webkitRTCIceCandidate ||window.mozRTCIceCandidate;
+
+    /**
+     * Get user media
+     */
+
+    static getUserMedia(...args: any[]) {
+        (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia).apply(navigator, args);
+    }
+
     /**
      * Check if input is a function: if it is not, then return an empty function
      */
@@ -50,14 +61,6 @@ class Util {
     }
 
     /**
-     * Check if input is undefined or null - from TokBox
-     */
-
-    static isNone(obj: any): boolean {
-        return obj === undefined || obj === null;
-    }
-
-    /**
      * Check if object is empty - from TokBox
      */
 
@@ -93,6 +96,14 @@ class Util {
     }
 
     /**
+     * Check if object is a number
+     */
+
+    static isNumber(obj: any): boolean {
+        return !isNaN(parseFloat(obj)) && isFinite(obj);
+    }
+
+    /**
      * Create a random number between the minimum and the maximum argument
      */
 
@@ -123,27 +134,11 @@ class Util {
     }
 
     /**
-     * Check if object is a number.
-     */
-
-    static isNumber(obj: any): boolean {
-        return !isNaN(parseFloat(obj)) && isFinite(obj);
-    }
-
-    /**
-     * Check if object is a boolean.
-     */
-
-    static isBool(obj: any): boolean {
-        return typeof obj === "boolean";
-    }
-
-    /**
      * Make an SHA256 hash from a string
      */
 
     static sha256(obj: string): string {
-        if(!this.isEmpty(obj)) {
+        if(!this.isString(obj)) {
             return CryptoJS.SHA256(obj).toString();
         }
         return "";
@@ -200,6 +195,96 @@ class Util {
             return this.extend({}, obj);
         }
         return obj;
+    }
+
+    /**
+     * Check what is supported - from PeerJS
+     */
+
+    static supports(config?: Object) {
+        if (!this.PeerConnection) {
+            return {};
+        }
+
+        config = config || {
+            iceServers: [
+                {"url": "stun:stun.l.google.com:19302"}
+            ]
+        };
+
+        var data = true;
+        var media = true;
+
+        var blob = false;
+        var sctp = false;
+        var negotiation = !!window.webkitRTCPeerConnection;
+
+        var pc, dc;
+
+        try {
+            pc = new this.PeerConnection(config, {optional: [{RtpDataChannels: true}]});
+        }
+        catch (e) {
+            data = false;
+            media = false;
+        }
+
+        if(data) {
+            try {
+                dc = pc.createDataChannel("_test");
+            }
+            catch(e) {
+                data = false;
+            }
+        }
+
+        if(data) {
+            try {
+                dc.binaryType = "blob";
+                blob = true;
+            }
+            catch (e) {
+
+            }
+
+            var reliablePC = new this.PeerConnection(config, {});
+            try {
+                var reliableDC = reliablePC.createDataChannel("_reliableTest", <any> {});
+                sctp = reliableDC.reliable;
+            }
+            catch(e) {
+
+            }
+            reliablePC.close();
+        }
+
+        if(media) {
+            media = !!pc.addStream;
+        }
+
+        if(!negotiation && data) {
+            var negotiationPC = new this.PeerConnection(config, {optional: [{RtpDataChannels: true}]});
+            negotiationPC.onnegotiationneeded = function() {
+                negotiation = true;
+            };
+            var negotiationDC = negotiationPC.createDataChannel('_negotiationTest');
+
+            setTimeout(function() {
+                negotiationPC.close();
+            }, 1000);
+        }
+
+        if(pc) {
+            pc.close();
+        }
+
+        return {
+            negotiation: negotiation,
+            media: media,
+            data: data,
+            blob: blob,
+            sctp: sctp
+        };
     }
 
     /**

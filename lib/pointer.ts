@@ -1,23 +1,27 @@
-import Util = require("./util");
+/// <reference path="./definitions/wildemitter.d.ts" />
 
-class Pointer {
-    private storage = {
+import WildEmitter = require("wildemitter");
+
+class Pointer extends WildEmitter {
+    private memory  = {
         value: null
     };
 
     constructor(value?: any) {
-        if(!Util.isNone(value)) {
-            this.storage.value = value;
+        super();
+
+        if(value) {
+            this.memory.value = value;
         }
     }
 
-    public set(value: any): any {
-        this.storage.value = value;
-        return value;
+    get value(): any {
+        return this.memory.value;
     }
 
-    public get(): any {
-        return this.storage.value;
+    set value(value: any) {
+        this.memory.value = value;
+        this.emit("change", value);
     }
 }
 

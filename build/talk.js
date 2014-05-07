@@ -55,7 +55,7 @@ var Connection = (function (_super) {
 
 module.exports = Connection;
 
-},{"socket.io-client":8,"wildemitter":9}],2:[function(_dereq_,module,exports){
+},{"socket.io-client":7,"wildemitter":8}],2:[function(_dereq_,module,exports){
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -64,7 +64,6 @@ var __extends = this.__extends || function (d, b) {
 };
 var WildEmitter = _dereq_("wildemitter");
 var Pointer = _dereq_("./pointer");
-var Shims = _dereq_("./shims");
 var Util = _dereq_("./util");
 var Peer = _dereq_("./peer");
 
@@ -112,17 +111,17 @@ var Handler = (function (_super) {
     }
     Handler.prototype.getUserMedia = function (audio, video) {
         var _this = this;
-        Shims.getUserMedia({
+        Util.getUserMedia({
             audio: this.config.constraints.mandatory.OfferToReceiveAudio = audio,
             video: this.config.constraints.mandatory.OfferToReceiveVideo = video
         }, function (stream) {
-            _this.config.stream.set(stream);
+            _this.config.stream.value = stream;
             _this.emit("localStream", stream);
         }, function (error) {
             _this.warn(error);
             throw Error(error);
         });
-        return this.config.stream.get();
+        return this.config.stream.value;
     };
 
     Handler.prototype.createHandler = function (id, H) {
@@ -197,7 +196,7 @@ var Handler = (function (_super) {
 
 module.exports = Handler;
 
-},{"./peer":4,"./pointer":5,"./shims":6,"./util":7,"wildemitter":9}],3:[function(_dereq_,module,exports){
+},{"./peer":4,"./pointer":5,"./util":6,"wildemitter":8}],3:[function(_dereq_,module,exports){
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -223,7 +222,7 @@ var Main = (function (_super) {
 
 module.exports = Main;
 
-},{"./connection":1,"./handler":2,"./peer":4,"./util":7}],4:[function(_dereq_,module,exports){
+},{"./connection":1,"./handler":2,"./peer":4,"./util":6}],4:[function(_dereq_,module,exports){
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -232,7 +231,6 @@ var __extends = this.__extends || function (d, b) {
 };
 var WildEmitter = _dereq_("wildemitter");
 var Pointer = _dereq_("./pointer");
-var Shims = _dereq_("./shims");
 var Util = _dereq_("./util");
 
 var Peer = (function (_super) {
@@ -274,17 +272,16 @@ var Peer = (function (_super) {
         this.log = this.config.logger.log.bind(this.config.logger);
         this.id = id;
 
-        this.pc = new Shims.PeerConnection(this.config.configuration, this.config.options);
+        this.pc = new Util.PeerConnection(this.config.configuration, this.config.options);
         this.pc.onnegotiationneeded = this.onNegotiationNeeded.bind(this);
         this.pc.oniceconnectionstatechange = this.onIceChange.bind(this);
         this.pc.ondatachannel = this.onDataChannel.bind(this);
         this.pc.onicecandidate = this.onCandidate.bind(this);
         this.pc.onicechange = this.onIceChange.bind(this);
 
-        var stream = this.config.stream.get();
-        if (stream) {
+        if (this.config.stream.value) {
             this.log("Adding local stream to peer");
-            this.pc.addStream(stream);
+            this.pc.addStream(this.config.stream.value);
         }
     }
     Peer.prototype.send = function (key, value) {
@@ -314,11 +311,11 @@ var Peer = (function (_super) {
 
     Peer.prototype.sendData = function (label, payload) {
         var channel = this.getDataChannel(label);
-        if (channel && channel.readyState === "stable") {
+        if (channel && channel.readyState === "open") {
             channel.send(JSON.stringify(payload));
             return true;
         }
-        this.warn("RTCDataChannel named `%s` does not exists or it is not stable!", label);
+        this.warn("Data channel named `%s` does not exists OR it is not opened (yet)", label);
         return false;
     };
 
@@ -334,11 +331,10 @@ var Peer = (function (_super) {
         return result;
     };
 
-    Peer.prototype.addDataChannel = function (label, options) {
+    Peer.prototype.configDataChannel = function (channel) {
         var _this = this;
-        var channel = this.pc.createDataChannel(label, options);
         channel.onclose = function (event) {
-            _this.log("Channel named `%s` has closed", label);
+            _this.log("Channel named `%s` was closed", channel.label);
             _this.emit("channelClosed", event);
         };
         channel.onerror = function (event) {
@@ -346,29 +342,41 @@ var Peer = (function (_super) {
             _this.emit("channelError", event);
         };
         channel.onopen = function (event) {
-            _this.log("Channel named `%s` has opened", label);
+            _this.log("Channel named `%s` was opened", channel.label);
             _this.emit("channelOpened", event);
         };
         channel.onmessage = function (event) {
-            var payload = JSON.parse(event.data);
-            _this.log("Getting (%s):", label, payload);
-            if (payload.key && payload.value) {
-                _this.parse(payload.key, payload.value);
+            if (event.data) {
+                var payload = JSON.parse(event.data);
+                _this.log("Getting (%s):", channel.label, payload);
+                if (payload.key && payload.value) {
+                    _this.parse(payload.key, payload.value);
+                }
+                _this.emit("channelMessage", event);
             }
-            _this.emit("channelMessage", event);
         };
+    };
+
+    Peer.prototype.addDataChannel = function (label, options) {
+        var channel = this.pc.createDataChannel(label, options);
+        this.configDataChannel(channel);
         this.channels.push(channel);
+        this.log("Data channel was added:", channel);
         return channel;
     };
 
     Peer.prototype.onDataChannel = function (event) {
         if (event.channel) {
+            this.configDataChannel(event.channel);
             this.channels.push(event.channel);
+            this.log("Data channel was added:", event.channel);
+        } else {
+            this.warn("Data channel could not be added", event);
         }
     };
 
     Peer.prototype.onIceChange = function () {
-        this.log("Ice connection state has changed!");
+        this.log("Ice connection state was changed to `%s`", this.pc.iceConnectionState);
         switch (this.pc.iceConnectionState) {
             case "disconnected":
             case "failed":
@@ -376,41 +384,50 @@ var Peer = (function (_super) {
                 this.pc.close();
                 break;
             case "completed":
+            case "closed":
                 this.pc.onicecandidate = Util.noop;
+                break;
+            default:
+                this.pc.onicecandidate = this.onCandidate.bind(this);
                 break;
         }
     };
 
     Peer.prototype.onCandidate = function (event) {
         if (event.candidate) {
-            this.log("Found candidate:", event.candidate);
+            this.log("Candidate was found:", event.candidate);
             this.send("candidate", event.candidate);
             this.pc.onicecandidate = Util.noop;
+        } else {
+            this.log("End of candidates", event);
         }
     };
 
     Peer.prototype.handleCandidate = function (ice) {
-        this.log("Handling received candidate:", ice);
-        if (ice.sdpMLineIndex && ice.candidate) {
-            this.pc.addIceCandidate(new Shims.IceCandidate(ice));
+        if (ice.candidate && ice.sdpMid && Util.isNumber(ice.sdpMLineIndex)) {
+            this.log("Handling received candidate:", ice);
+            this.pc.addIceCandidate(new Util.IceCandidate(ice));
+        } else {
+            this.warn("Candidate could not be handled:", ice);
         }
     };
 
     Peer.prototype.onNegotiationNeeded = function () {
-        this.log("'negotiationneeded' triggered!");
+        this.log("Negotiation is needed");
         if (this.pc.signalingState === "stable") {
             this.offer();
         } else {
-            this.warn("Signaling state is not stable!");
+            this.warn("Signaling state is not stable");
         }
     };
 
     Peer.prototype.offer = function () {
         var _this = this;
-        this.log("Making an offer");
+        this.log("Creating an offer");
         this.pc.createOffer(function (offer) {
             _this.pc.setLocalDescription(offer, function () {
                 _this.send("offer", offer);
+                _this.log("Offer created:", offer);
             }, function (error) {
                 _this.warn(error);
             });
@@ -421,8 +438,8 @@ var Peer = (function (_super) {
 
     Peer.prototype.answer = function (offer) {
         var _this = this;
-        this.log("Answering for an offer");
-        this.pc.setRemoteDescription(new Shims.SessionDescription(offer), function () {
+        this.log("Answering for an offer:", offer);
+        this.pc.setRemoteDescription(new Util.SessionDescription(offer), function () {
             _this.pc.createAnswer(function (answer) {
                 _this.pc.setLocalDescription(answer, function () {
                     _this.send("answer", answer);
@@ -439,9 +456,9 @@ var Peer = (function (_super) {
 
     Peer.prototype.handleAnswer = function (answer) {
         var _this = this;
-        this.log("Handling an answer");
-        this.pc.setRemoteDescription(new Shims.SessionDescription(answer), function () {
-            _this.log("Answer handled successfully");
+        this.log("Handling an answer:", answer);
+        this.pc.setRemoteDescription(new Util.SessionDescription(answer), function () {
+            _this.log("Answer was handled successfully");
         }, function (error) {
             _this.warn(error);
         });
@@ -451,55 +468,57 @@ var Peer = (function (_super) {
 
 module.exports = Peer;
 
-},{"./pointer":5,"./shims":6,"./util":7,"wildemitter":9}],5:[function(_dereq_,module,exports){
-var Util = _dereq_("./util");
+},{"./pointer":5,"./util":6,"wildemitter":8}],5:[function(_dereq_,module,exports){
+var __extends = this.__extends || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    __.prototype = b.prototype;
+    d.prototype = new __();
+};
+var WildEmitter = _dereq_("wildemitter");
 
-var Pointer = (function () {
+var Pointer = (function (_super) {
+    __extends(Pointer, _super);
     function Pointer(value) {
-        this.storage = {
+        _super.call(this);
+        this.memory = {
             value: null
         };
-        if (!Util.isNone(value)) {
-            this.storage.value = value;
+
+        if (value) {
+            this.memory.value = value;
         }
     }
-    Pointer.prototype.set = function (value) {
-        this.storage.value = value;
-        return value;
-    };
+    Object.defineProperty(Pointer.prototype, "value", {
+        get: function () {
+            return this.memory.value;
+        },
+        set: function (value) {
+            this.memory.value = value;
+            this.emit("change", value);
+        },
+        enumerable: true,
+        configurable: true
+    });
 
-    Pointer.prototype.get = function () {
-        return this.storage.value;
-    };
     return Pointer;
-})();
+})(WildEmitter);
 
 module.exports = Pointer;
 
-},{"./util":7}],6:[function(_dereq_,module,exports){
-var Shims = (function () {
-    function Shims() {
+},{"wildemitter":8}],6:[function(_dereq_,module,exports){
+
+var Util = (function () {
+    function Util() {
     }
-    Shims.getUserMedia = function () {
+    Util.getUserMedia = function () {
         var args = [];
         for (var _i = 0; _i < (arguments.length - 0); _i++) {
             args[_i] = arguments[_i + 0];
         }
         (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia).apply(navigator, args);
     };
-    Shims.SessionDescription = window.RTCSessionDescription || window.webkitRTCSessionDescription || window.mozRTCSessionDescription;
-    Shims.PeerConnection = window.RTCPeerConnection || window.webkitRTCPeerConnection || window.mozRTCPeerConnection;
-    Shims.IceCandidate = window.RTCIceCandidate || window.webkitRTCIceCandidate || window.mozRTCIceCandidate;
-    return Shims;
-})();
 
-module.exports = Shims;
-
-},{}],7:[function(_dereq_,module,exports){
-
-var Util = (function () {
-    function Util() {
-    }
     Util.safeCb = function (obj) {
         if (typeof obj === "function") {
             return obj;
@@ -520,10 +539,6 @@ var Util = (function () {
             return obj.replace(/"/g, "&quot;").replace(/'/g, "&apos;").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         }
         return "";
-    };
-
-    Util.isNone = function (obj) {
-        return obj === undefined || obj === null;
     };
 
     Util.isEmpty = function (obj) {
@@ -549,6 +564,10 @@ var Util = (function () {
         return obj === Object(obj);
     };
 
+    Util.isNumber = function (obj) {
+        return !isNaN(parseFloat(obj)) && isFinite(obj);
+    };
+
     Util.randNum = function (min, max) {
         max = max || Math.pow(10, 16);
         min = min || 0;
@@ -570,16 +589,8 @@ var Util = (function () {
         return word;
     };
 
-    Util.isNumber = function (obj) {
-        return !isNaN(parseFloat(obj)) && isFinite(obj);
-    };
-
-    Util.isBool = function (obj) {
-        return typeof obj === "boolean";
-    };
-
     Util.sha256 = function (obj) {
-        if (!this.isEmpty(obj)) {
+        if (!this.isString(obj)) {
             return CryptoJS.SHA256(obj).toString();
         }
         return "";
@@ -622,18 +633,101 @@ var Util = (function () {
         return obj;
     };
 
+    Util.supports = function (config) {
+        if (!this.PeerConnection) {
+            return {};
+        }
+
+        config = config || {
+            iceServers: [
+                { "url": "stun:stun.l.google.com:19302" }
+            ]
+        };
+
+        var data = true;
+        var media = true;
+
+        var blob = false;
+        var sctp = false;
+        var negotiation = !!window.webkitRTCPeerConnection;
+
+        var pc, dc;
+
+        try  {
+            pc = new this.PeerConnection(config, { optional: [{ RtpDataChannels: true }] });
+        } catch (e) {
+            data = false;
+            media = false;
+        }
+
+        if (data) {
+            try  {
+                dc = pc.createDataChannel("_test");
+            } catch (e) {
+                data = false;
+            }
+        }
+
+        if (data) {
+            try  {
+                dc.binaryType = "blob";
+                blob = true;
+            } catch (e) {
+            }
+
+            var reliablePC = new this.PeerConnection(config, {});
+            try  {
+                var reliableDC = reliablePC.createDataChannel("_reliableTest", {});
+                sctp = reliableDC.reliable;
+            } catch (e) {
+            }
+            reliablePC.close();
+        }
+
+        if (media) {
+            media = !!pc.addStream;
+        }
+
+        if (!negotiation && data) {
+            var negotiationPC = new this.PeerConnection(config, { optional: [{ RtpDataChannels: true }] });
+            negotiationPC.onnegotiationneeded = function () {
+                negotiation = true;
+            };
+            var negotiationDC = negotiationPC.createDataChannel('_negotiationTest');
+
+            setTimeout(function () {
+                negotiationPC.close();
+            }, 1000);
+        }
+
+        if (pc) {
+            pc.close();
+        }
+
+        return {
+            negotiation: negotiation,
+            media: media,
+            data: data,
+            blob: blob,
+            sctp: sctp
+        };
+    };
+
     Util.noop = function () {
         var args = [];
         for (var _i = 0; _i < (arguments.length - 0); _i++) {
             args[_i] = arguments[_i + 0];
         }
     };
+    Util.SessionDescription = window.RTCSessionDescription || window.webkitRTCSessionDescription || window.mozRTCSessionDescription;
+    Util.PeerConnection = window.RTCPeerConnection || window.webkitRTCPeerConnection || window.mozRTCPeerConnection;
+    Util.IceCandidate = window.RTCIceCandidate || window.webkitRTCIceCandidate || window.mozRTCIceCandidate;
     return Util;
 })();
 
 module.exports = Util;
 
-},{}],8:[function(_dereq_,module,exports){
+},{}],7:[function(_dereq_,module,exports){
 /*! Socket.IO.js build:0.9.16, development. Copyright(c) 2011 LearnBoost <dev@learnboost.com> MIT Licensed */
 
 var io = ('undefined' === typeof module ? {} : module.exports);
@@ -4507,7 +4601,7 @@ if (typeof define === "function" && define.amd) {
   define([], function () { return io; });
 }
 })();
-},{}],9:[function(_dereq_,module,exports){
+},{}],8:[function(_dereq_,module,exports){
 /*
 WildEmitter.js is a slim little event emitter by @henrikjoreteg largely based 
 on @visionmedia's Emitter from UI Kit.

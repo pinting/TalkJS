@@ -4,7 +4,6 @@
 
 import WildEmitter = require("wildemitter");
 import Pointer = require("./pointer");
-import Shims = require("./shims");
 import Util = require("./util");
 
 class Peer extends WildEmitter {
@@ -50,17 +49,16 @@ class Peer extends WildEmitter {
         this.log = this.config.logger.log.bind(this.config.logger);
         this.id = id;
 
-        this.pc = new Shims.PeerConnection(this.config.configuration, this.config.options);
+        this.pc = new Util.PeerConnection(this.config.configuration, this.config.options);
         this.pc.onnegotiationneeded = this.onNegotiationNeeded.bind(this);
         this.pc.oniceconnectionstatechange = this.onIceChange.bind(this);
         this.pc.ondatachannel = this.onDataChannel.bind(this);
         this.pc.onicecandidate = this.onCandidate.bind(this);
         this.pc.onicechange = this.onIceChange.bind(this);
 
-        var stream = this.config.stream.get();
-        if(stream) {
+        if(this.config.stream.value) {
             this.log("Adding local stream to peer");
-            this.pc.addStream(stream);
+            this.pc.addStream(this.config.stream.value);
         }
     }
 
@@ -91,11 +89,11 @@ class Peer extends WildEmitter {
 
     public sendData(label: string, payload: any): boolean {
         var channel = this.getDataChannel(label);
-        if(channel && <any> channel.readyState === "stable") {
+        if(channel && <any> channel.readyState === "open") {
             channel.send(JSON.stringify(payload));
             return true;
         }
-        this.warn("RTCDataChannel named `%s` does not exists or it is not stable!", label);
+        this.warn("Data channel named `%s` does not exists OR it is not opened (yet)", label);
         return false;
     }
 
@@ -113,7 +111,7 @@ class Peer extends WildEmitter {
 
     private configDataChannel(channel: RTCDataChannel) {
         channel.onclose = (event) => {
-            this.log("Channel named `%s` has closed", channel.label);
+            this.log("Channel named `%s` was closed", channel.label);
             this.emit("channelClosed", event);
         };
         channel.onerror = (event) => {
@@ -121,16 +119,18 @@ class Peer extends WildEmitter {
             this.emit("channelError", event);
         };
         channel.onopen = (event) => {
-            this.log("Channel named `%s` has opened", channel.label);
+            this.log("Channel named `%s` was opened", channel.label);
             this.emit("channelOpened", event);
         };
         channel.onmessage = (event: any) => {
-            var payload = JSON.parse(event.data);
-            this.log("Getting (%s):", channel.label, payload);
-            if(payload.key && payload.value) {
-                this.parse(payload.key, payload.value);
+            if(event.data) {
+                var payload = JSON.parse(event.data);
+                this.log("Getting (%s):", channel.label, payload);
+                if(payload.key && payload.value) {
+                    this.parse(payload.key, payload.value);
+                }
+                this.emit("channelMessage", event);
             }
-            this.emit("channelMessage", event);
         };
     }
 
@@ -138,6 +138,7 @@ class Peer extends WildEmitter {
         var channel = this.pc.createDataChannel(label, options);
         this.configDataChannel(channel);
         this.channels.push(channel);
+        this.log("Data channel was added:", channel);
         return channel;
     }
 
@@ -145,11 +146,15 @@ class Peer extends WildEmitter {
         if(event.channel) {
             this.configDataChannel(event.channel);
             this.channels.push(event.channel);
+            this.log("Data channel was added:", event.channel)
+        }
+        else {
+            this.warn("Data channel could not be added", event);
         }
     }
 
     private onIceChange() {
-        this.log("Ice connection state has changed!");
+        this.log("Ice connection state was changed to `%s`", this.pc.iceConnectionState);
         switch(<any> this.pc.iceConnectionState) {
             case "disconnected":
             case "failed":
@@ -157,43 +162,54 @@ class Peer extends WildEmitter {
                 this.pc.close();
                 break;
             case "completed":
+            case "closed":
                 this.pc.onicecandidate = Util.noop;
+                break;
+            default:
+                this.pc.onicecandidate = this.onCandidate.bind(this);
                 break;
         }
     }
 
     private onCandidate(event: RTCIceCandidateEvent) {
         if(event.candidate) {
-            this.log("Found candidate:", event.candidate);
+            this.log("Candidate was found:", event.candidate);
             this.send("candidate", event.candidate);
             this.pc.onicecandidate = Util.noop;
+        }
+        else {
+            this.log("End of candidates", event);
         }
     }
 
     private handleCandidate(ice: RTCIceCandidate) {
-        this.log("Handling received candidate:", ice);
-        if(ice.sdpMLineIndex && ice.candidate) {
-            this.pc.addIceCandidate(new Shims.IceCandidate(ice));
+        if(ice.candidate && ice.sdpMid && Util.isNumber(ice.sdpMLineIndex)) {
+            this.log("Handling received candidate:", ice);
+            this.pc.addIceCandidate(new Util.IceCandidate(ice));
+        }
+        else {
+            this.warn("Candidate could not be handled:", ice)
         }
     }
 
     private onNegotiationNeeded() {
-        this.log("'negotiationneeded' triggered!");
+        this.log("Negotiation is needed");
         if(<any> this.pc.signalingState === "stable") {
             this.offer();
         }
         else {
-            this.warn("Signaling state is not stable!");
+            this.warn("Signaling state is not stable");
         }
     }
 
     public offer() {
-        this.log("Making an offer");
+        this.log("Creating an offer");
         this.pc.createOffer(
             (offer) => {
                 this.pc.setLocalDescription(offer,
                     () => {
                         this.send("offer", offer);
+                        this.log("Offer created:", offer);
                     },
                     (error) => {
                         this.warn(error);
@@ -208,8 +224,8 @@ class Peer extends WildEmitter {
     }
 
     public answer(offer: RTCSessionDescription) {
-        this.log("Answering for an offer");
-        this.pc.setRemoteDescription(new Shims.SessionDescription(offer),
+        this.log("Answering for an offer:", offer);
+        this.pc.setRemoteDescription(new Util.SessionDescription(offer),
             () => {
                 this.pc.createAnswer(
                     (answer) => {
@@ -235,10 +251,10 @@ class Peer extends WildEmitter {
     }
 
     private handleAnswer(answer: RTCSessionDescription) {
-        this.log("Handling an answer");
-        this.pc.setRemoteDescription(new Shims.SessionDescription(answer),
+        this.log("Handling an answer:", answer);
+        this.pc.setRemoteDescription(new Util.SessionDescription(answer),
             () => {
-                this.log("Answer handled successfully");
+                this.log("Answer was handled successfully");
             },
             (error) => {
                 this.warn(error);
