@@ -1,6 +1,6 @@
 {
     "name": "TalkJS",
-    "version": "1.0.0-185",
+    "version": "1.0.0-188",
     "description": "WebRTC powered IM library",
     "repository": {
         "url": "https://github.com/pinting/TalkJS",

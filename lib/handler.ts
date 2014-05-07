@@ -1,3 +1,4 @@
+/// <reference path="./definitions/mediastream.d.ts" />
 /// <reference path="./definitions/wildemitter.d.ts" />
 /// <reference path="./definitions/talk.d.ts" />
 
@@ -27,7 +28,7 @@ class Handler extends WildEmitter {
             warn: Util.noop,
             log: Util.noop
         },
-        stream: new Pointer,
+        localStream: new Pointer,
         handler: Handler,
         peer: Peer
     };
@@ -53,7 +54,7 @@ class Handler extends WildEmitter {
                 video: this.config.media.mandatory.OfferToReceiveVideo = video
             },
             (stream) => {
-                this.config.stream.value = stream;
+                this.config.localStream.value = stream;
                 this.emit("localStream", stream);
             },
             (error) => {
@@ -61,7 +62,7 @@ class Handler extends WildEmitter {
                 throw Error(error);
             }
         );
-        return this.config.stream.value;
+        return this.config.localStream.value;
     }
 
     public createHandler(id: string, H?: any): Handler {

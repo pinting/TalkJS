@@ -91,7 +91,7 @@ var Handler = (function (_super) {
                 warn: Util.noop,
                 log: Util.noop
             },
-            stream: new Pointer,
+            localStream: new Pointer,
             handler: Handler,
             peer: Peer
         };
@@ -109,13 +109,13 @@ var Handler = (function (_super) {
             audio: this.config.media.mandatory.OfferToReceiveAudio = audio,
             video: this.config.media.mandatory.OfferToReceiveVideo = video
         }, function (stream) {
-            _this.config.stream.value = stream;
+            _this.config.localStream.value = stream;
             _this.emit("localStream", stream);
         }, function (error) {
             _this.warn(error);
             throw Error(error);
         });
-        return this.config.stream.value;
+        return this.config.localStream.value;
     };
 
     Handler.prototype.createHandler = function (id, H) {
@@ -230,6 +230,7 @@ var Util = _dereq_("./util");
 var Peer = (function (_super) {
     __extends(Peer, _super);
     function Peer(id, options) {
+        var _this = this;
         _super.call(this);
         this.config = {
             options: {
@@ -251,7 +252,7 @@ var Peer = (function (_super) {
                 warn: Util.noop,
                 log: Util.noop
             },
-            stream: new Pointer
+            localStream: new Pointer
         };
         this.supports = Util.supports();
         this.channels = [];
@@ -269,9 +270,19 @@ var Peer = (function (_super) {
         });
         this.pc.onnegotiationneeded = this.onNegotiationNeeded.bind(this);
         this.pc.oniceconnectionstatechange = this.onIceChange.bind(this);
+        this.pc.onremovestream = this.onRemoveStream.bind(this);
         this.pc.ondatachannel = this.onDataChannel.bind(this);
         this.pc.onicecandidate = this.onCandidate.bind(this);
+        this.pc.onaddstream = this.onAddStream.bind(this);
         this.pc.onicechange = this.onIceChange.bind(this);
+
+        if (this.config.localStream.value) {
+            this.addStream(this.config.localStream.value);
+        } else {
+            this.config.localStream.once("change", function (stream) {
+                _this.addStream(stream);
+            });
+        }
     }
     Peer.prototype.send = function (key, value) {
         var payload = {
@@ -296,6 +307,30 @@ var Peer = (function (_super) {
                 this.handleCandidate(value);
                 break;
         }
+    };
+
+    Peer.prototype.addStream = function (stream) {
+        this.pc.addStream(stream, this.config.media);
+        this.log("Stream was added:", stream);
+        if (!this.supports.negotiation) {
+            this.onNegotiationNeeded();
+        }
+    };
+
+    Peer.prototype.onAddStream = function (event) {
+        if (event.stream) {
+            this.log("Remote stream was added:", event.stream);
+            this.stream = event.stream;
+            this.emit("streamAdded", this);
+        } else {
+            this.warn("Remote stream could not be added:", event);
+        }
+    };
+
+    Peer.prototype.onRemoveStream = function (event) {
+        this.stream = {};
+        this.emit("streamRemoved", this);
+        this.log("Remote stream was removed from peer:", event);
     };
 
     Peer.prototype.sendData = function (label, payload) {
@@ -324,15 +359,15 @@ var Peer = (function (_super) {
         var _this = this;
         channel.onclose = function (event) {
             _this.log("Channel named `%s` was closed", channel.label);
-            _this.emit("channelClosed", event);
+            _this.emit("channelClosed", _this, event);
         };
         channel.onerror = function (event) {
             _this.warn("Channel error:", event);
-            _this.emit("channelError", event);
+            _this.emit("channelError", _this, event);
         };
         channel.onopen = function (event) {
             _this.log("Channel named `%s` was opened", channel.label);
-            _this.emit("channelOpened", event);
+            _this.emit("channelOpened", _this, event);
         };
         channel.onmessage = function (event) {
             if (event.data) {
@@ -341,7 +376,7 @@ var Peer = (function (_super) {
                 if (payload.key && payload.value) {
                     _this.parse(payload.key, payload.value);
                 }
-                _this.emit("channelMessage", payload);
+                _this.emit("channelMessage", _this, payload);
             }
         };
     };
@@ -372,7 +407,7 @@ var Peer = (function (_super) {
         switch (this.pc.iceConnectionState) {
             case "disconnected":
             case "failed":
-                this.warn("Ice connection state is disconnected, closing the peer:", this);
+                this.warn("Ice connection state is disconnected, closing the peer");
                 this.pc.close();
                 break;
             case "completed":

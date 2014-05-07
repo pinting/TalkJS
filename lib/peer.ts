@@ -1,5 +1,5 @@
+/// <reference path="./definitions/rtcpeerconnection.d.ts" />
 /// <reference path="./definitions/wildemitter.d.ts" />
-/// <reference path="./definitions/RTCPeerConnection.d.ts" />
 /// <reference path="./definitions/talk.d.ts" />
 
 import WildEmitter = require("wildemitter");
@@ -27,13 +27,14 @@ class Peer extends WildEmitter {
             warn: Util.noop,
             log: Util.noop
         },
-        stream: new Pointer
+        localStream: new Pointer
     };
     private supports = Util.supports();
     private pc: RTCPeerConnection;
+    public stream: MediaStream;
+    private channels = [];
     public warn: Function;
     public log: Function;
-    private channels = [];
     public id: string;
 
     constructor(id: string, options?: Object) {
@@ -52,9 +53,20 @@ class Peer extends WildEmitter {
         });
         this.pc.onnegotiationneeded = this.onNegotiationNeeded.bind(this);
         this.pc.oniceconnectionstatechange = this.onIceChange.bind(this);
+        this.pc.onremovestream = this.onRemoveStream.bind(this);
         this.pc.ondatachannel = this.onDataChannel.bind(this);
         this.pc.onicecandidate = this.onCandidate.bind(this);
+        this.pc.onaddstream = this.onAddStream.bind(this);
         this.pc.onicechange = this.onIceChange.bind(this);
+
+        if(this.config.localStream.value) {
+            this.addStream(this.config.localStream.value);
+        }
+        else {
+            this.config.localStream.once("change", (stream) => {
+                this.addStream(stream);
+            });
+        }
     }
 
     private send(key: string, value: Object) {
@@ -82,6 +94,31 @@ class Peer extends WildEmitter {
         }
     }
 
+    public addStream(stream: MediaStream) {
+        this.pc.addStream(stream, this.config.media);
+        this.log("Stream was added:", stream);
+        if(!this.supports.negotiation) {
+            this.onNegotiationNeeded();
+        }
+    }
+
+    private onAddStream(event: RTCMediaStreamEvent) {
+        if(event.stream) {
+            this.log("Remote stream was added:", event.stream);
+            this.stream = event.stream;
+            this.emit("streamAdded", this);
+        }
+        else {
+            this.warn("Remote stream could not be added:", event);
+        }
+    }
+
+    private onRemoveStream(event: RTCMediaStreamEvent) {
+        this.stream = <MediaStream> {};
+        this.emit("streamRemoved", this);
+        this.log("Remote stream was removed from peer:", event);
+    }
+
     public sendData(label: string, payload: any): boolean {
         var channel = this.getDataChannel(label);
         if(channel && <any> channel.readyState === "open") {
@@ -92,7 +129,7 @@ class Peer extends WildEmitter {
         return false;
     }
 
-    public getDataChannel(label: string): RTCDataChannel {
+    private getDataChannel(label: string): RTCDataChannel {
         var result = <RTCDataChannel> {};
         this.channels.some(function(channel) {
             if(channel.label === label) {
@@ -107,15 +144,15 @@ class Peer extends WildEmitter {
     private configDataChannel(channel: RTCDataChannel) {
         channel.onclose = (event) => {
             this.log("Channel named `%s` was closed", channel.label);
-            this.emit("channelClosed", event);
+            this.emit("channelClosed", this, event);
         };
         channel.onerror = (event) => {
             this.warn("Channel error:", event);
-            this.emit("channelError", event);
+            this.emit("channelError", this, event);
         };
         channel.onopen = (event) => {
             this.log("Channel named `%s` was opened", channel.label);
-            this.emit("channelOpened", event);
+            this.emit("channelOpened", this, event);
         };
         channel.onmessage = (event: any) => {
             if(event.data) {
@@ -124,7 +161,7 @@ class Peer extends WildEmitter {
                 if(payload.key && payload.value) {
                     this.parse(payload.key, payload.value);
                 }
-                this.emit("channelMessage", payload);
+                this.emit("channelMessage", this, payload);
             }
         };
     }
@@ -156,7 +193,7 @@ class Peer extends WildEmitter {
         switch(<any> this.pc.iceConnectionState) {
             case "disconnected":
             case "failed":
-                this.warn("Ice connection state is disconnected, closing the peer:", this);
+                this.warn("Ice connection state is disconnected, closing the peer");
                 this.pc.close();
                 break;
             case "completed":
