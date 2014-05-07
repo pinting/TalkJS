@@ -1,3 +1,4 @@
+/// <reference path="./definitions/mediastream.d.ts" />
 /// <reference path="./definitions/crypto.d.ts" />
 
 declare var navigator: any;
@@ -18,6 +19,21 @@ class Util {
 
     static getUserMedia(...args: any[]): void {
         (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia).apply(navigator, args);
+    }
+
+    /**
+     * Attach stream to an element
+     */
+
+    static attachMediaStream(element: HTMLVideoElement, stream: MediaStream): HTMLVideoElement {
+        if(window.URL) {
+            element.src = window.URL.createObjectURL(stream);
+        }
+        else {
+            element.src = <any> stream;
+        }
+        element.autoplay = true;
+        return element;
     }
 
     /**

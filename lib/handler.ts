@@ -9,15 +9,6 @@ import Peer = require("./peer");
 
 class Handler extends WildEmitter {
     public config = {
-        options: {
-            iceServers: [
-                {"url": "stun:stun.l.google.com:19302"},
-                {"url": "stun:stun1.l.google.com:19302"},
-                {"url": "stun:stun2.l.google.com:19302"},
-                {"url": "stun:stun3.l.google.com:19302"},
-                {"url": "stun:stun4.l.google.com:19302"}
-            ]
-        },
         media: {
             mandatory: {
                 OfferToReceiveAudio: false,
@@ -41,7 +32,7 @@ class Handler extends WildEmitter {
 
     constructor(id: string, options?: Object) {
         super();
-        Util.overwrite(this.config, options);
+        Util.extend(this.config, options);
 
         this.config.supports = this.config.supports || Util.supports();
         this.warn = this.config.logger.warn.bind(this.config.logger);
@@ -60,6 +51,7 @@ class Handler extends WildEmitter {
                 video: this.config.media.mandatory.OfferToReceiveVideo = video
             },
             (stream: MediaStream) => {
+                this.log("User media request was successful");
                 this.config.localStream.value = stream;
                 this.emit("localStream", stream);
             },

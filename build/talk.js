@@ -72,15 +72,6 @@ var Handler = (function (_super) {
     function Handler(id, options) {
         _super.call(this);
         this.config = {
-            options: {
-                iceServers: [
-                    { "url": "stun:stun.l.google.com:19302" },
-                    { "url": "stun:stun1.l.google.com:19302" },
-                    { "url": "stun:stun2.l.google.com:19302" },
-                    { "url": "stun:stun3.l.google.com:19302" },
-                    { "url": "stun:stun4.l.google.com:19302" }
-                ]
-            },
             media: {
                 mandatory: {
                     OfferToReceiveAudio: false,
@@ -98,7 +89,7 @@ var Handler = (function (_super) {
         };
         this.handlers = [];
         this.peers = [];
-        Util.overwrite(this.config, options);
+        Util.extend(this.config, options);
 
         this.config.supports = this.config.supports || Util.supports();
         this.warn = this.config.logger.warn.bind(this.config.logger);
@@ -111,6 +102,7 @@ var Handler = (function (_super) {
             audio: this.config.media.mandatory.OfferToReceiveAudio = audio,
             video: this.config.media.mandatory.OfferToReceiveVideo = video
         }, function (stream) {
+            _this.log("User media request was successful");
             _this.config.localStream.value = stream;
             _this.emit("localStream", stream);
         }, function (error) {
@@ -273,11 +265,11 @@ var Peer = (function (_super) {
             ]
         });
         this.pc.oniceconnectionstatechange = this.onConnectionChange.bind(this);
-        this.pc.onremovestream = this.onRemoveStream.bind(this);
         this.pc.onicechange = this.onConnectionChange.bind(this);
-        this.pc.onicecandidate = this.handleCandidate.bind(this);
         this.pc.onnegotiationneeded = this.negotiate.bind(this);
+        this.pc.onremovestream = this.onRemoveStream.bind(this);
         this.pc.ondatachannel = this.onDataChannel.bind(this);
+        this.pc.onicecandidate = this.onCandidate.bind(this);
         this.pc.onaddstream = this.onAddStream.bind(this);
 
         if (this.config.localStream.value) {
@@ -547,6 +539,16 @@ var Util = (function () {
             args[_i] = arguments[_i + 0];
         }
         (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia).apply(navigator, args);
+    };
+
+    Util.attachMediaStream = function (element, stream) {
+        if (window.URL) {
+            element.src = window.URL.createObjectURL(stream);
+        } else {
+            element.src = stream;
+        }
+        element.autoplay = true;
+        return element;
     };
 
     Util.safeCb = function (obj) {

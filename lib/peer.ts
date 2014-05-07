@@ -55,11 +55,11 @@ class Peer extends WildEmitter {
             ]
         });
         this.pc.oniceconnectionstatechange = this.onConnectionChange.bind(this);
-        this.pc.onremovestream = this.onRemoveStream.bind(this);
         this.pc.onicechange = this.onConnectionChange.bind(this);
-        this.pc.onicecandidate = this.handleCandidate.bind(this);
         this.pc.onnegotiationneeded = this.negotiate.bind(this);
+        this.pc.onremovestream = this.onRemoveStream.bind(this);
         this.pc.ondatachannel = this.onDataChannel.bind(this);
+        this.pc.onicecandidate = this.onCandidate.bind(this);
         this.pc.onaddstream = this.onAddStream.bind(this);
 
         // Add local stream to the peer if it is initialized
