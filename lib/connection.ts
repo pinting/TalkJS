@@ -24,18 +24,26 @@ class Connection extends WildEmitter {
         this.server.on("message", this.get.bind(this));
     }
 
-    private send(payload: Message) {
+    /**
+     * Send a message of a peer
+     */
+
+    private send(payload: Message): void {
         this.log("Sending:", payload);
         this.server.emit("message", payload);
     }
 
-    private get(payload: Message) {
+    /**
+     * Get a message, then find its peer and parse it
+     */
+
+    private get(payload: Message): void {
         this.log("Getting:", payload);
         if(payload.key && payload.value && payload.peer && payload.handler) {
             var peer = this.findHandler(payload.handler).get(payload.peer);
             if(peer) {
                 this.log("Peer found!");
-                peer.parse(payload.key, payload.value);
+                peer.parseMessage(payload.key, payload.value);
             }
             else {
                 this.warn("Peer not found!")
@@ -43,8 +51,12 @@ class Connection extends WildEmitter {
         }
     }
 
-    private findHandler(handler: Handler[]) {
-        var dest = this.handler;
+    /**
+     * Find a handler by a hierarchy list
+     */
+
+    private findHandler(handler: Handler[]): Handler {
+        var dest = <Handler> this.handler;
         handler.forEach((id) => {
             dest = dest.h(id);
         });

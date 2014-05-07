@@ -1,6 +1,7 @@
 // Type definitions for WebRTC
 // Project: http://dev.w3.org/2011/webrtc/
 // Definitions by: Ken Smith <https://github.com/smithkl42/>
+// Edited by: Tornyi Dénes <https://github/pinting>
 // Definitions: https://github.com/borisyankov/DefinitelyTyped
 
 // Definitions taken from http://dev.w3.org/2011/webrtc/editor/webrtc.html
@@ -183,7 +184,7 @@ interface RTCPeerConnection {
     onaddstream: (event: RTCMediaStreamEvent)=> void;
     onremovestream: (event: RTCMediaStreamEvent)=> void;
     onstatechange: (event: Event)=> void;
-    oniceconnectionstatechange: (event: Event)=> void; // Added by Pinting
+    oniceconnectionstatechange: (event: Event)=> void;
     onicechange: (event: Event)=> void;
     onicecandidate: (event: RTCIceCandidateEvent)=> void;
     onidentityresult: (event: Event)=> void;

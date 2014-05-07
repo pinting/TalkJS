@@ -1,6 +1,7 @@
 // Type definitions for socket.io nodejs client
 // Project: http://socket.io/
 // Definitions by: Maido Kaara <https://github.com/v3rm0n>
+// Edited by: Tornyi Dénes <https://github/pinting>
 // Definitions: https://github.com/borisyankov/DefinitelyTyped
 
 declare module "socket.io-client" {
@@ -29,7 +30,7 @@ declare module "socket.io-client" {
         packet(data: any): Socket;
         flushBuffer(): void;
         disconnect(): Socket;
-        socket: Socket; // Added by Pinting
-        sessionid: string; // Added by Pinting
+        socket: Socket;
+        sessionid: string;
     }
 }

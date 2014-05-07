@@ -36,7 +36,7 @@ var Connection = (function (_super) {
             var peer = this.findHandler(payload.handler).get(payload.peer);
             if (peer) {
                 this.log("Peer found!");
-                peer.parse(payload.key, payload.value);
+                peer.parseMessage(payload.key, payload.value);
             } else {
                 this.warn("Peer not found!");
             }
@@ -93,12 +93,14 @@ var Handler = (function (_super) {
             },
             localStream: new Pointer,
             handler: Handler,
+            supports: null,
             peer: Peer
         };
         this.handlers = [];
         this.peers = [];
         Util.overwrite(this.config, options);
 
+        this.config.supports = this.config.supports || Util.supports();
         this.warn = this.config.logger.warn.bind(this.config.logger);
         this.log = this.config.logger.log.bind(this.config.logger);
         this.id = id;
@@ -252,14 +254,16 @@ var Peer = (function (_super) {
                 warn: Util.noop,
                 log: Util.noop
             },
-            localStream: new Pointer
+            supports: null,
+            localStream: new Pointer,
+            negotiation: true
         };
-        this.supports = Util.supports();
         this.channels = [];
         Util.overwrite(this.config, options);
 
         this.warn = this.config.logger.warn.bind(this.config.logger);
         this.log = this.config.logger.log.bind(this.config.logger);
+        this.supports = this.config.supports || Util.supports();
         this.id = id;
 
         this.pc = new Util.PeerConnection(this.config.options, {
@@ -268,13 +272,13 @@ var Peer = (function (_super) {
                 { DtlsSrtpKeyAgreement: true }
             ]
         });
-        this.pc.onnegotiationneeded = this.onNegotiationNeeded.bind(this);
-        this.pc.oniceconnectionstatechange = this.onIceChange.bind(this);
+        this.pc.oniceconnectionstatechange = this.onConnectionChange.bind(this);
         this.pc.onremovestream = this.onRemoveStream.bind(this);
+        this.pc.onicechange = this.onConnectionChange.bind(this);
+        this.pc.onicecandidate = this.handleCandidate.bind(this);
+        this.pc.onnegotiationneeded = this.negotiate.bind(this);
         this.pc.ondatachannel = this.onDataChannel.bind(this);
-        this.pc.onicecandidate = this.onCandidate.bind(this);
         this.pc.onaddstream = this.onAddStream.bind(this);
-        this.pc.onicechange = this.onIceChange.bind(this);
 
         if (this.config.localStream.value) {
             this.addStream(this.config.localStream.value);
@@ -284,7 +288,7 @@ var Peer = (function (_super) {
             });
         }
     }
-    Peer.prototype.send = function (key, value) {
+    Peer.prototype.sendMessage = function (key, value) {
         var payload = {
             peer: this.id,
             value: value,
@@ -294,7 +298,7 @@ var Peer = (function (_super) {
         this.emit("message", payload);
     };
 
-    Peer.prototype.parse = function (key, value) {
+    Peer.prototype.parseMessage = function (key, value) {
         this.log("Parsing:", key, value);
         switch (key) {
             case "offer":
@@ -306,14 +310,17 @@ var Peer = (function (_super) {
             case "candidate":
                 this.handleCandidate(value);
                 break;
+            default:
+                return false;
         }
+        return true;
     };
 
     Peer.prototype.addStream = function (stream) {
         this.pc.addStream(stream, this.config.media);
         this.log("Stream was added:", stream);
         if (!this.supports.negotiation) {
-            this.onNegotiationNeeded();
+            this.negotiate();
         }
     };
 
@@ -333,7 +340,7 @@ var Peer = (function (_super) {
         this.log("Remote stream was removed from peer:", event);
     };
 
-    Peer.prototype.sendData = function (label, payload) {
+    Peer.prototype.send = function (label, payload) {
         var channel = this.getDataChannel(label);
         if (channel && channel.readyState === "open") {
             channel.send(JSON.stringify(payload));
@@ -344,7 +351,7 @@ var Peer = (function (_super) {
     };
 
     Peer.prototype.getDataChannel = function (label) {
-        var result = {};
+        var result = false;
         this.channels.some(function (channel) {
             if (channel.label === label) {
                 result = channel;
@@ -373,9 +380,6 @@ var Peer = (function (_super) {
             if (event.data) {
                 var payload = JSON.parse(event.data);
                 _this.log("Getting (%s):", channel.label, payload);
-                if (payload.key && payload.value) {
-                    _this.parse(payload.key, payload.value);
-                }
                 _this.emit("channelMessage", _this, payload);
             }
         };
@@ -387,7 +391,7 @@ var Peer = (function (_super) {
         this.channels.push(channel);
         this.log("Data channel was added:", channel);
         if (!this.supports.negotiation) {
-            this.onNegotiationNeeded();
+            this.negotiate();
         }
         return channel;
     };
@@ -402,7 +406,7 @@ var Peer = (function (_super) {
         }
     };
 
-    Peer.prototype.onIceChange = function () {
+    Peer.prototype.onConnectionChange = function () {
         this.log("Ice connection state was changed to `%s`", this.pc.iceConnectionState);
         switch (this.pc.iceConnectionState) {
             case "disconnected":
@@ -423,7 +427,7 @@ var Peer = (function (_super) {
     Peer.prototype.onCandidate = function (event) {
         if (event.candidate) {
             this.log("Candidate was found:", event.candidate);
-            this.send("candidate", event.candidate);
+            this.sendMessage("candidate", event.candidate);
             this.pc.onicecandidate = Util.noop;
         } else {
             this.log("End of candidates", event);
@@ -439,12 +443,14 @@ var Peer = (function (_super) {
         }
     };
 
-    Peer.prototype.onNegotiationNeeded = function () {
+    Peer.prototype.negotiate = function () {
         this.log("Negotiation is needed");
-        if (this.pc.signalingState === "stable") {
-            this.offer();
-        } else {
-            this.warn("Signaling state is not stable");
+        if (this.config.negotiation) {
+            if (this.pc.signalingState === "stable") {
+                this.offer();
+            } else {
+                this.warn("Signaling state is not stable");
+            }
         }
     };
 
@@ -453,7 +459,7 @@ var Peer = (function (_super) {
         this.log("Creating an offer");
         this.pc.createOffer(function (offer) {
             _this.pc.setLocalDescription(offer, function () {
-                _this.send("offer", offer);
+                _this.sendMessage("offer", offer);
                 _this.log("Offer created:", offer);
             }, function (error) {
                 _this.warn(error);
@@ -469,7 +475,7 @@ var Peer = (function (_super) {
         this.pc.setRemoteDescription(new Util.SessionDescription(offer), function () {
             _this.pc.createAnswer(function (answer) {
                 _this.pc.setLocalDescription(answer, function () {
-                    _this.send("answer", answer);
+                    _this.sendMessage("answer", answer);
                 }, function (error) {
                     _this.warn(error);
                 });
@@ -511,10 +517,7 @@ var Pointer = (function (_super) {
         this.memory = {
             value: null
         };
-
-        if (value) {
-            this.memory.value = value;
-        }
+        this.memory.value = value || null;
     }
     Object.defineProperty(Pointer.prototype, "value", {
         get: function () {
@@ -665,20 +668,19 @@ var Util = (function () {
             return {};
         }
 
+        var negotiation = !!window.webkitRTCPeerConnection;
+        var media = true;
+        var blob = false;
+        var sctp = false;
+        var data = true;
+        var pc;
+        var dc;
+
         config = config || {
             iceServers: [
                 { "url": "stun:stun.l.google.com:19302" }
             ]
         };
-
-        var data = true;
-        var media = true;
-
-        var blob = false;
-        var sctp = false;
-        var negotiation = !!window.webkitRTCPeerConnection;
-
-        var pc, dc;
 
         try  {
             pc = new this.PeerConnection(config, { optional: [{ RtpDataChannels: true }] });
@@ -720,7 +722,7 @@ var Util = (function () {
             negotiationPC.onnegotiationneeded = function () {
                 negotiation = true;
             };
-            var negotiationDC = negotiationPC.createDataChannel('_negotiationTest');
+            negotiationPC.createDataChannel("_negotiationTest");
 
             setTimeout(function () {
                 negotiationPC.close();
@@ -734,9 +736,9 @@ var Util = (function () {
         return {
             negotiation: negotiation,
             media: media,
-            data: data,
             blob: blob,
-            sctp: sctp
+            sctp: sctp,
+            data: data
         };
     };
 

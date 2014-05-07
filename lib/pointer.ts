@@ -4,15 +4,12 @@ import WildEmitter = require("wildemitter");
 
 class Pointer extends WildEmitter {
     private memory  = {
-        value: null
+        value: <any> null
     };
 
     constructor(value?: any) {
         super();
-
-        if(value) {
-            this.memory.value = value;
-        }
+        this.memory.value = value || null;
     }
 
     get value(): any {

@@ -16,7 +16,7 @@ class Util {
      * Get user media
      */
 
-    static getUserMedia(...args: any[]) {
+    static getUserMedia(...args: any[]): void {
         (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia).apply(navigator, args);
     }
 
@@ -187,8 +187,8 @@ class Util {
      * Clone an object
      */
 
-    static clone(obj) {
-        if (this.isObject(obj)) {
+    static clone(obj: any): any {
+        if(this.isObject(obj)) {
             if(Array.isArray(obj)) {
                 return obj.slice(0);
             }
@@ -201,10 +201,18 @@ class Util {
      * Check what is supported - from PeerJS
      */
 
-    static supports(config?: Object): any {
-        if (!this.PeerConnection) {
-            return {};
+    static supports(config?: Object): Supports {
+        if(!this.PeerConnection) {
+            return <Supports> {};
         }
+
+        var negotiation = !!window.webkitRTCPeerConnection;
+        var media = true;
+        var blob = false;
+        var sctp = false;
+        var data = true;
+        var pc;
+        var dc;
 
         config = config || {
             iceServers: [
@@ -212,19 +220,10 @@ class Util {
             ]
         };
 
-        var data = true;
-        var media = true;
-
-        var blob = false;
-        var sctp = false;
-        var negotiation = !!window.webkitRTCPeerConnection;
-
-        var pc, dc;
-
         try {
             pc = new this.PeerConnection(config, {optional: [{RtpDataChannels: true}]});
         }
-        catch (e) {
+        catch(e) {
             data = false;
             media = false;
         }
@@ -243,13 +242,13 @@ class Util {
                 dc.binaryType = "blob";
                 blob = true;
             }
-            catch (e) {
+            catch(e) {
 
             }
 
             var reliablePC = new this.PeerConnection(config, {});
             try {
-                var reliableDC = reliablePC.createDataChannel("_reliableTest", <any> {});
+                var reliableDC = reliablePC.createDataChannel("_reliableTest", <RTCDataChannelInit> {});
                 sctp = reliableDC.reliable;
             }
             catch(e) {
@@ -267,7 +266,7 @@ class Util {
             negotiationPC.onnegotiationneeded = function() {
                 negotiation = true;
             };
-            var negotiationDC = negotiationPC.createDataChannel('_negotiationTest');
+            negotiationPC.createDataChannel("_negotiationTest");
 
             setTimeout(function() {
                 negotiationPC.close();
@@ -281,9 +280,9 @@ class Util {
         return {
             negotiation: negotiation,
             media: media,
-            data: data,
             blob: blob,
-            sctp: sctp
+            sctp: sctp,
+            data: data
         };
     }
 
@@ -291,7 +290,7 @@ class Util {
      * An empty function
      */
 
-    static noop(...args: any[]) {
+    static noop(...args: any[]): void {
 
     }
 }

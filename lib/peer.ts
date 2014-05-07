@@ -27,11 +27,13 @@ class Peer extends WildEmitter {
             warn: Util.noop,
             log: Util.noop
         },
-        localStream: new Pointer
+        supports: <Supports> null,
+        localStream: new Pointer,
+        negotiation: true
     };
-    private supports = Util.supports();
     private pc: RTCPeerConnection;
     public stream: MediaStream;
+    private supports: Supports;
     private channels = [];
     public warn: Function;
     public log: Function;
@@ -43,6 +45,7 @@ class Peer extends WildEmitter {
 
         this.warn = this.config.logger.warn.bind(this.config.logger);
         this.log = this.config.logger.log.bind(this.config.logger);
+        this.supports = this.config.supports || Util.supports();
         this.id = id;
 
         this.pc = new Util.PeerConnection(this.config.options, {
@@ -51,13 +54,15 @@ class Peer extends WildEmitter {
                 {DtlsSrtpKeyAgreement: true}
             ]
         });
-        this.pc.onnegotiationneeded = this.onNegotiationNeeded.bind(this);
-        this.pc.oniceconnectionstatechange = this.onIceChange.bind(this);
+        this.pc.oniceconnectionstatechange = this.onConnectionChange.bind(this);
         this.pc.onremovestream = this.onRemoveStream.bind(this);
+        this.pc.onicechange = this.onConnectionChange.bind(this);
+        this.pc.onicecandidate = this.handleCandidate.bind(this);
+        this.pc.onnegotiationneeded = this.negotiate.bind(this);
         this.pc.ondatachannel = this.onDataChannel.bind(this);
-        this.pc.onicecandidate = this.onCandidate.bind(this);
         this.pc.onaddstream = this.onAddStream.bind(this);
-        this.pc.onicechange = this.onIceChange.bind(this);
+
+        // Add local stream to the peer if it is initialized
 
         if(this.config.localStream.value) {
             this.addStream(this.config.localStream.value);
@@ -69,7 +74,11 @@ class Peer extends WildEmitter {
         }
     }
 
-    private send(key: string, value: Object) {
+    /**
+     * Send message to the peer
+     */
+
+    private sendMessage(key: string, value: Object): void {
         var payload = <Message> {
             peer: this.id,
             value: value,
@@ -79,7 +88,11 @@ class Peer extends WildEmitter {
         this.emit("message", payload);
     }
 
-    public parse(key: string, value: Object) {
+    /**
+     * Parse message from the peer
+     */
+
+    public parseMessage(key: string, value: Object): boolean {
         this.log("Parsing:", key, value);
         switch(key) {
             case "offer":
@@ -91,18 +104,29 @@ class Peer extends WildEmitter {
             case "candidate":
                 this.handleCandidate(value);
                 break;
+            default:
+                return false;
         }
+        return true;
     }
 
-    public addStream(stream: MediaStream) {
+    /**
+     * Add our stream to the peer
+     */
+
+    public addStream(stream: MediaStream): void {
         this.pc.addStream(stream, this.config.media);
         this.log("Stream was added:", stream);
         if(!this.supports.negotiation) {
-            this.onNegotiationNeeded();
+            this.negotiate();
         }
     }
 
-    private onAddStream(event: RTCMediaStreamEvent) {
+    /**
+     * When the peer adds its stream to us
+     */
+
+    private onAddStream(event: RTCMediaStreamEvent): void {
         if(event.stream) {
             this.log("Remote stream was added:", event.stream);
             this.stream = event.stream;
@@ -113,13 +137,21 @@ class Peer extends WildEmitter {
         }
     }
 
-    private onRemoveStream(event: RTCMediaStreamEvent) {
+    /**
+     * When the added stream is removed
+     */
+
+    private onRemoveStream(event: RTCMediaStreamEvent): void {
         this.stream = <MediaStream> {};
         this.emit("streamRemoved", this);
         this.log("Remote stream was removed from peer:", event);
     }
 
-    public sendData(label: string, payload: any): boolean {
+    /**
+     * Send data directly to the peer
+     */
+
+    public send(label: string, payload: any): boolean {
         var channel = this.getDataChannel(label);
         if(channel && <any> channel.readyState === "open") {
             channel.send(JSON.stringify(payload));
@@ -129,9 +161,13 @@ class Peer extends WildEmitter {
         return false;
     }
 
+    /**
+     * Get a data channel
+     */
+
     private getDataChannel(label: string): RTCDataChannel {
-        var result = <RTCDataChannel> {};
-        this.channels.some(function(channel) {
+        var result = <any> false;
+        this.channels.some(function(channel: RTCDataChannel) {
             if(channel.label === label) {
                 result = channel;
                 return true;
@@ -141,7 +177,11 @@ class Peer extends WildEmitter {
         return result;
     }
 
-    private configDataChannel(channel: RTCDataChannel) {
+    /**
+     * Configuration a newly created data channel
+     */
+
+    private configDataChannel(channel: RTCDataChannel): void {
         channel.onclose = (event) => {
             this.log("Channel named `%s` was closed", channel.label);
             this.emit("channelClosed", this, event);
@@ -158,13 +198,14 @@ class Peer extends WildEmitter {
             if(event.data) {
                 var payload = JSON.parse(event.data);
                 this.log("Getting (%s):", channel.label, payload);
-                if(payload.key && payload.value) {
-                    this.parse(payload.key, payload.value);
-                }
                 this.emit("channelMessage", this, payload);
             }
         };
     }
+
+    /**
+     * Add a data channel
+     */
 
     public addDataChannel(label: string, options?: RTCDataChannelInit): RTCDataChannel {
         var channel = this.pc.createDataChannel(label, options);
@@ -172,12 +213,16 @@ class Peer extends WildEmitter {
         this.channels.push(channel);
         this.log("Data channel was added:", channel);
         if(!this.supports.negotiation) {
-            this.onNegotiationNeeded();
+            this.negotiate();
         }
         return channel;
     }
 
-    private onDataChannel(event: RTCDataChannelEvent) {
+    /**
+     * When the peer has added a data channel between us
+     */
+
+    private onDataChannel(event: RTCDataChannelEvent): void {
         if(event.channel) {
             this.configDataChannel(event.channel);
             this.channels.push(event.channel);
@@ -188,7 +233,11 @@ class Peer extends WildEmitter {
         }
     }
 
-    private onIceChange() {
+    /**
+     * When the connection state has changed
+     */
+
+    private onConnectionChange(): void {
         this.log("Ice connection state was changed to `%s`", this.pc.iceConnectionState);
         switch(<any> this.pc.iceConnectionState) {
             case "disconnected":
@@ -206,10 +255,14 @@ class Peer extends WildEmitter {
         }
     }
 
-    private onCandidate(event: RTCIceCandidateEvent) {
+    /**
+     * When we found an ice candidate
+     */
+
+    private onCandidate(event: RTCIceCandidateEvent): void {
         if(event.candidate) {
             this.log("Candidate was found:", event.candidate);
-            this.send("candidate", event.candidate);
+            this.sendMessage("candidate", event.candidate);
             this.pc.onicecandidate = Util.noop;
         }
         else {
@@ -217,7 +270,11 @@ class Peer extends WildEmitter {
         }
     }
 
-    private handleCandidate(ice: RTCIceCandidate) {
+    /**
+     * Handle a received ice candidate, through a message
+     */
+
+    private handleCandidate(ice: RTCIceCandidate): void {
         if(ice.candidate && ice.sdpMid && Util.isNumber(ice.sdpMLineIndex)) {
             this.log("Handling received candidate:", ice);
             this.pc.addIceCandidate(new Util.IceCandidate(ice));
@@ -227,71 +284,89 @@ class Peer extends WildEmitter {
         }
     }
 
-    private onNegotiationNeeded() {
+    /**
+     * Negotiate with the peer
+     */
+
+    private negotiate(): void {
         this.log("Negotiation is needed");
-        if(<any> this.pc.signalingState === "stable") {
-            this.offer();
-        }
-        else {
-            this.warn("Signaling state is not stable");
+        if(this.config.negotiation) {
+            if(<any> this.pc.signalingState === "stable") {
+                this.offer();
+            }
+            else {
+                this.warn("Signaling state is not stable");
+            }
         }
     }
 
-    private offer() {
+    /**
+     * Create an offer towards the peer
+     */
+
+    public offer(): void {
         this.log("Creating an offer");
         this.pc.createOffer(
-            (offer) => {
+            (offer: RTCSessionDescription) => {
                 this.pc.setLocalDescription(offer,
                     () => {
-                        this.send("offer", offer);
+                        this.sendMessage("offer", offer);
                         this.log("Offer created:", offer);
                     },
-                    (error) => {
+                    (error: string) => {
                         this.warn(error);
                     }
                 );
             },
-            (error) => {
+            (error: string) => {
                 this.warn(error);
             },
             this.config.media
         );
     }
 
-    private answer(offer: RTCSessionDescription) {
+    /**
+     * Answer for a offer of the peer
+     */
+
+    private answer(offer: RTCSessionDescription): void {
         this.log("Answering for an offer:", offer);
         this.pc.setRemoteDescription(new Util.SessionDescription(offer),
             () => {
                 this.pc.createAnswer(
-                    (answer) => {
+                    (answer: RTCSessionDescription) => {
                         this.pc.setLocalDescription(answer,
                             () => {
-                                this.send("answer", answer);
+                                this.sendMessage("answer", answer);
                             },
-                            (error) => {
+                            (error: string) => {
                                 this.warn(error);
                             }
                         );
                     },
-                    (error) => {
+                    (error: string) => {
                         this.warn(error);
                     },
                     this.config.media
                 );
             },
-            (error) => {
+            (error: string) => {
                 this.warn(error);
             }
         );
     }
 
-    private handleAnswer(answer: RTCSessionDescription) {
+    /**
+     * Handle the answer of the peer
+     */
+
+    private handleAnswer(answer: RTCSessionDescription): void {
         this.log("Handling an answer:", answer);
         this.pc.setRemoteDescription(new Util.SessionDescription(answer),
             () => {
                 this.log("Answer was handled successfully");
             },
-            (error) => {
+            (error: string) => {
                 this.warn(error);
             }
         );

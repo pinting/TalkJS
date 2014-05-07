@@ -1,7 +1,8 @@
 {
     "name": "TalkJS",
-    "version": "1.0.0-188",
-    "description": "WebRTC powered IM library",
+    "author": "Tornyi Dénes",
+    "version": "1.0.0-191",
+    "description": "WebRTC simplier library",
     "repository": {
         "url": "https://github.com/pinting/TalkJS",
         "type": "git"
