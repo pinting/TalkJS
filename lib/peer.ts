@@ -8,7 +8,7 @@ import Util = require("./util");
 
 class Peer extends WildEmitter {
     public config = {
-        configuration: {
+        options: {
             iceServers: [
                 {"url": "stun:stun.l.google.com:19302"},
                 {"url": "stun:stun1.l.google.com:19302"},
@@ -17,13 +17,7 @@ class Peer extends WildEmitter {
                 {"url": "stun:stun4.l.google.com:19302"}
             ]
         },
-        options: {
-            optional: [
-                {DtlsSrtpKeyAgreement: true},
-                {RtpDataChannels: true}
-            ]
-        },
-        constraints: {
+        media: {
             mandatory: {
                 OfferToReceiveAudio: false,
                 OfferToReceiveVideo: false
@@ -35,6 +29,7 @@ class Peer extends WildEmitter {
         },
         stream: new Pointer
     };
+    private supports = Util.supports();
     private pc: RTCPeerConnection;
     public warn: Function;
     public log: Function;
@@ -49,20 +44,20 @@ class Peer extends WildEmitter {
         this.log = this.config.logger.log.bind(this.config.logger);
         this.id = id;
 
-        this.pc = new Util.PeerConnection(this.config.configuration, this.config.options);
+        this.pc = new Util.PeerConnection(this.config.options, {
+            optional: [
+                {RtpDataChannels: !this.supports.sctp},
+                {DtlsSrtpKeyAgreement: true}
+            ]
+        });
         this.pc.onnegotiationneeded = this.onNegotiationNeeded.bind(this);
         this.pc.oniceconnectionstatechange = this.onIceChange.bind(this);
         this.pc.ondatachannel = this.onDataChannel.bind(this);
         this.pc.onicecandidate = this.onCandidate.bind(this);
         this.pc.onicechange = this.onIceChange.bind(this);
-
-        if(this.config.stream.value) {
-            this.log("Adding local stream to peer");
-            this.pc.addStream(this.config.stream.value);
-        }
     }
 
-    public send(key: string, value: Object) {
+    private send(key: string, value: Object) {
         var payload = <Message> {
             peer: this.id,
             value: value,
@@ -93,7 +88,7 @@ class Peer extends WildEmitter {
             channel.send(JSON.stringify(payload));
             return true;
         }
-        this.warn("Data channel named `%s` does not exists OR it is not opened (yet)", label);
+        this.warn("Data channel named `%s` does not exists or it is not opened", label);
         return false;
     }
 
@@ -129,7 +124,7 @@ class Peer extends WildEmitter {
                 if(payload.key && payload.value) {
                     this.parse(payload.key, payload.value);
                 }
-                this.emit("channelMessage", event);
+                this.emit("channelMessage", payload);
             }
         };
     }
@@ -139,6 +134,9 @@ class Peer extends WildEmitter {
         this.configDataChannel(channel);
         this.channels.push(channel);
         this.log("Data channel was added:", channel);
+        if(!this.supports.negotiation) {
+            this.onNegotiationNeeded();
+        }
         return channel;
     }
 
@@ -202,7 +200,7 @@ class Peer extends WildEmitter {
         }
     }
 
-    public offer() {
+    private offer() {
         this.log("Creating an offer");
         this.pc.createOffer(
             (offer) => {
@@ -219,11 +217,11 @@ class Peer extends WildEmitter {
             (error) => {
                 this.warn(error);
             },
-            this.config.constraints
+            this.config.media
         );
     }
 
-    public answer(offer: RTCSessionDescription) {
+    private answer(offer: RTCSessionDescription) {
         this.log("Answering for an offer:", offer);
         this.pc.setRemoteDescription(new Util.SessionDescription(offer),
             () => {
@@ -241,7 +239,7 @@ class Peer extends WildEmitter {
                     (error) => {
                         this.warn(error);
                     },
-                    this.config.constraints
+                    this.config.media
                 );
             },
             (error) => {

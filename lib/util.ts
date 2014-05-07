@@ -201,7 +201,7 @@ class Util {
      * Check what is supported - from PeerJS
      */
 
-    static supports(config?: Object) {
+    static supports(config?: Object): any {
         if (!this.PeerConnection) {
             return {};
         }

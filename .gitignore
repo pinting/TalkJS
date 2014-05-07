@@ -1,4 +1,5 @@
 lib-cov
+tscommand*
 *.seed
 *.log
 *.csv

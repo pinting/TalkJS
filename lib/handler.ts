@@ -8,7 +8,7 @@ import Peer = require("./peer");
 
 class Handler extends WildEmitter {
     public config = {
-        configuration: {
+        options: {
             iceServers: [
                 {"url": "stun:stun.l.google.com:19302"},
                 {"url": "stun:stun1.l.google.com:19302"},
@@ -17,13 +17,7 @@ class Handler extends WildEmitter {
                 {"url": "stun:stun4.l.google.com:19302"}
             ]
         },
-        options: {
-            optional: [
-                {DtlsSrtpKeyAgreement: true},
-                {RtpDataChannels: true}
-            ]
-        },
-        constraints: {
+        media: {
             mandatory: {
                 OfferToReceiveAudio: false,
                 OfferToReceiveVideo: false
@@ -55,8 +49,8 @@ class Handler extends WildEmitter {
     public getUserMedia(audio: boolean, video: boolean): MediaStream {
         Util.getUserMedia(
             {
-                audio: this.config.constraints.mandatory.OfferToReceiveAudio = audio,
-                video: this.config.constraints.mandatory.OfferToReceiveVideo = video
+                audio: this.config.media.mandatory.OfferToReceiveAudio = audio,
+                video: this.config.media.mandatory.OfferToReceiveVideo = video
             },
             (stream) => {
                 this.config.stream.value = stream;

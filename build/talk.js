@@ -72,7 +72,7 @@ var Handler = (function (_super) {
     function Handler(id, options) {
         _super.call(this);
         this.config = {
-            configuration: {
+            options: {
                 iceServers: [
                     { "url": "stun:stun.l.google.com:19302" },
                     { "url": "stun:stun1.l.google.com:19302" },
@@ -81,13 +81,7 @@ var Handler = (function (_super) {
                     { "url": "stun:stun4.l.google.com:19302" }
                 ]
             },
-            options: {
-                optional: [
-                    { DtlsSrtpKeyAgreement: true },
-                    { RtpDataChannels: true }
-                ]
-            },
-            constraints: {
+            media: {
                 mandatory: {
                     OfferToReceiveAudio: false,
                     OfferToReceiveVideo: false
@@ -112,8 +106,8 @@ var Handler = (function (_super) {
     Handler.prototype.getUserMedia = function (audio, video) {
         var _this = this;
         Util.getUserMedia({
-            audio: this.config.constraints.mandatory.OfferToReceiveAudio = audio,
-            video: this.config.constraints.mandatory.OfferToReceiveVideo = video
+            audio: this.config.media.mandatory.OfferToReceiveAudio = audio,
+            video: this.config.media.mandatory.OfferToReceiveVideo = video
         }, function (stream) {
             _this.config.stream.value = stream;
             _this.emit("localStream", stream);
@@ -238,7 +232,7 @@ var Peer = (function (_super) {
     function Peer(id, options) {
         _super.call(this);
         this.config = {
-            configuration: {
+            options: {
                 iceServers: [
                     { "url": "stun:stun.l.google.com:19302" },
                     { "url": "stun:stun1.l.google.com:19302" },
@@ -247,13 +241,7 @@ var Peer = (function (_super) {
                     { "url": "stun:stun4.l.google.com:19302" }
                 ]
             },
-            options: {
-                optional: [
-                    { DtlsSrtpKeyAgreement: true },
-                    { RtpDataChannels: true }
-                ]
-            },
-            constraints: {
+            media: {
                 mandatory: {
                     OfferToReceiveAudio: false,
                     OfferToReceiveVideo: false
@@ -265,6 +253,7 @@ var Peer = (function (_super) {
             },
             stream: new Pointer
         };
+        this.supports = Util.supports();
         this.channels = [];
         Util.overwrite(this.config, options);
 
@@ -272,17 +261,17 @@ var Peer = (function (_super) {
         this.log = this.config.logger.log.bind(this.config.logger);
         this.id = id;
 
-        this.pc = new Util.PeerConnection(this.config.configuration, this.config.options);
+        this.pc = new Util.PeerConnection(this.config.options, {
+            optional: [
+                { RtpDataChannels: !this.supports.sctp },
+                { DtlsSrtpKeyAgreement: true }
+            ]
+        });
         this.pc.onnegotiationneeded = this.onNegotiationNeeded.bind(this);
         this.pc.oniceconnectionstatechange = this.onIceChange.bind(this);
         this.pc.ondatachannel = this.onDataChannel.bind(this);
         this.pc.onicecandidate = this.onCandidate.bind(this);
         this.pc.onicechange = this.onIceChange.bind(this);
-
-        if (this.config.stream.value) {
-            this.log("Adding local stream to peer");
-            this.pc.addStream(this.config.stream.value);
-        }
     }
     Peer.prototype.send = function (key, value) {
         var payload = {
@@ -315,7 +304,7 @@ var Peer = (function (_super) {
             channel.send(JSON.stringify(payload));
             return true;
         }
-        this.warn("Data channel named `%s` does not exists OR it is not opened (yet)", label);
+        this.warn("Data channel named `%s` does not exists or it is not opened", label);
         return false;
     };
 
@@ -352,7 +341,7 @@ var Peer = (function (_super) {
                 if (payload.key && payload.value) {
                     _this.parse(payload.key, payload.value);
                 }
-                _this.emit("channelMessage", event);
+                _this.emit("channelMessage", payload);
             }
         };
     };
@@ -362,6 +351,9 @@ var Peer = (function (_super) {
         this.configDataChannel(channel);
         this.channels.push(channel);
         this.log("Data channel was added:", channel);
+        if (!this.supports.negotiation) {
+            this.onNegotiationNeeded();
+        }
         return channel;
     };
 
@@ -433,7 +425,7 @@ var Peer = (function (_super) {
             });
         }, function (error) {
             _this.warn(error);
-        }, this.config.constraints);
+        }, this.config.media);
     };
 
     Peer.prototype.answer = function (offer) {
@@ -448,7 +440,7 @@ var Peer = (function (_super) {
                 });
             }, function (error) {
                 _this.warn(error);
-            }, _this.config.constraints);
+            }, _this.config.media);
         }, function (error) {
             _this.warn(error);
         });
