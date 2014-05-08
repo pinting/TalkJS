@@ -70,6 +70,7 @@ var Peer = _dereq_("./peer");
 var Handler = (function (_super) {
     __extends(Handler, _super);
     function Handler(id, options) {
+        var _this = this;
         _super.call(this);
         this.config = {
             media: {
@@ -95,21 +96,27 @@ var Handler = (function (_super) {
         this.warn = this.config.logger.warn.bind(this.config.logger);
         this.log = this.config.logger.log.bind(this.config.logger);
         this.id = id;
+
+        this.config.localStream.on("change", function (stream) {
+            _this.localStream = stream;
+        });
     }
     Handler.prototype.getUserMedia = function (audio, video) {
         var _this = this;
-        Util.getUserMedia({
-            audio: this.config.media.mandatory.OfferToReceiveAudio = audio,
-            video: this.config.media.mandatory.OfferToReceiveVideo = video
-        }, function (stream) {
-            _this.log("User media request was successful");
-            _this.config.localStream.value = stream;
-            _this.emit("localStream", stream);
-        }, function (error) {
-            _this.warn(error);
-            throw Error(error);
-        });
-        return this.config.localStream.value;
+        if (!this.localStream || this.localStream.ended) {
+            Util.getUserMedia({
+                audio: this.config.media.mandatory.OfferToReceiveAudio = Util.isBool(audio) ? audio : true,
+                video: this.config.media.mandatory.OfferToReceiveVideo = Util.isBool(video) ? video : true
+            }, function (stream) {
+                _this.log("User media request was successful");
+                _this.config.localStream.value = stream;
+                _this.emit("localStream", stream);
+            }, function (error) {
+                _this.warn(error);
+                throw Error(error);
+            });
+        }
+        return this.localStream;
     };
 
     Handler.prototype.createHandler = function (id, H) {
@@ -179,6 +186,28 @@ var Handler = (function (_super) {
         });
         return result;
     };
+
+    Handler.prototype.filter = function (args, cb) {
+        var result;
+        if (Util.isObject(args)) {
+            result = this.peers.filter(function (peer) {
+                return Util.comp(args, peer);
+            });
+        } else {
+            result = this.peers;
+            cb = args;
+        }
+        switch (typeof cb) {
+            case "function":
+                result.forEach(cb);
+                break;
+            case "string":
+                result.forEach(function (peer) {
+                    peer[cb]();
+                });
+        }
+        return result;
+    };
     return Handler;
 })(WildEmitter);
 
@@ -218,13 +247,11 @@ var __extends = this.__extends || function (d, b) {
     d.prototype = new __();
 };
 var WildEmitter = _dereq_("wildemitter");
-var Pointer = _dereq_("./pointer");
 var Util = _dereq_("./util");
 
 var Peer = (function (_super) {
     __extends(Peer, _super);
     function Peer(id, options) {
-        var _this = this;
         _super.call(this);
         this.config = {
             options: {
@@ -247,7 +274,6 @@ var Peer = (function (_super) {
                 log: Util.noop
             },
             supports: null,
-            localStream: new Pointer,
             negotiation: true
         };
         this.channels = [];
@@ -271,14 +297,6 @@ var Peer = (function (_super) {
         this.pc.ondatachannel = this.onDataChannel.bind(this);
         this.pc.onicecandidate = this.onCandidate.bind(this);
         this.pc.onaddstream = this.onAddStream.bind(this);
-
-        if (this.config.localStream.value) {
-            this.addStream(this.config.localStream.value);
-        } else {
-            this.config.localStream.once("change", function (stream) {
-                _this.addStream(stream);
-            });
-        }
     }
     Peer.prototype.sendMessage = function (key, value) {
         var payload = {
@@ -309,8 +327,9 @@ var Peer = (function (_super) {
     };
 
     Peer.prototype.addStream = function (stream) {
-        this.pc.addStream(stream, this.config.media);
-        this.log("Stream was added:", stream);
+        this.localStream = new Util.MediaStream(stream);
+        this.pc.addStream(this.localStream, this.config.media);
+        this.log("Stream was added:", this.localStream);
         if (!this.supports.negotiation) {
             this.negotiate();
         }
@@ -319,7 +338,7 @@ var Peer = (function (_super) {
     Peer.prototype.onAddStream = function (event) {
         if (event.stream) {
             this.log("Remote stream was added:", event.stream);
-            this.stream = event.stream;
+            this.remoteStream = event.stream;
             this.emit("streamAdded", this);
         } else {
             this.warn("Remote stream could not be added:", event);
@@ -327,7 +346,7 @@ var Peer = (function (_super) {
     };
 
     Peer.prototype.onRemoveStream = function (event) {
-        this.stream = {};
+        this.remoteStream = {};
         this.emit("streamRemoved", this);
         this.log("Remote stream was removed from peer:", event);
     };
@@ -488,12 +507,68 @@ var Peer = (function (_super) {
             _this.warn(error);
         });
     };
+
+    Peer.prototype.mute = function () {
+        this.remoteStream.getAudioTracks().forEach(function (track) {
+            track.enabled = false;
+        });
+        this.log("Peer audio was muted:", this);
+    };
+
+    Peer.prototype.unmute = function () {
+        this.remoteStream.getAudioTracks().forEach(function (track) {
+            track.enabled = true;
+        });
+        this.log("Peer audio was unmuted:", this);
+    };
+
+    Peer.prototype.pause = function () {
+        this.remoteStream.getVideoTracks().forEach(function (track) {
+            track.enabled = false;
+        });
+        this.log("Peer video was paused:", this);
+    };
+
+    Peer.prototype.resume = function () {
+        this.remoteStream.getVideoTracks().forEach(function (track) {
+            track.enabled = true;
+        });
+        this.log("Peer video was resumed:", this);
+    };
+
+    Peer.prototype.muteLocal = function () {
+        this.localStream.getAudioTracks().forEach(function (track) {
+            track.enabled = false;
+        });
+        this.log("Local audio for the peer was muted:", this);
+    };
+
+    Peer.prototype.unmuteLocal = function () {
+        this.localStream.getAudioTracks().forEach(function (track) {
+            track.enabled = true;
+        });
+        this.log("Local audio for the peer was unmuted:", this);
+    };
+
+    Peer.prototype.pauseLocal = function () {
+        this.localStream.getVideoTracks().forEach(function (track) {
+            track.enabled = false;
+        });
+        this.log("Local video for the peer was paused:", this);
+    };
+
+    Peer.prototype.resumeLocal = function () {
+        this.localStream.getVideoTracks().forEach(function (track) {
+            track.enabled = true;
+        });
+        this.log("Local video for the peer was resumed:", this);
+    };
     return Peer;
 })(WildEmitter);
 
 module.exports = Peer;
 
-},{"./pointer":5,"./util":6,"wildemitter":8}],5:[function(_dereq_,module,exports){
+},{"./util":6,"wildemitter":8}],5:[function(_dereq_,module,exports){
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -571,6 +646,10 @@ var Util = (function () {
             return obj.replace(/"/g, "&quot;").replace(/'/g, "&apos;").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         }
         return "";
+    };
+
+    Util.isBool = function (obj) {
+        return typeof obj === "boolean";
     };
 
     Util.isEmpty = function (obj) {
@@ -665,6 +744,17 @@ var Util = (function () {
         return obj;
     };
 
+    Util.comp = function (obj1, obj2) {
+        for (var key in obj1) {
+            if (this.isObject(obj1[key]) && this.isObject(obj2[key]) && !this.comp(obj1[key], obj2[key])) {
+                return false;
+            } else if (obj1[key] !== obj2[key]) {
+                return false;
+            }
+        }
+        return true;
+    };
+
     Util.supports = function (config) {
         if (!this.PeerConnection) {
             return {};
@@ -750,9 +840,10 @@ var Util = (function () {
             args[_i] = arguments[_i + 0];
         }
     };
-    Util.SessionDescription = window.RTCSessionDescription || window.webkitRTCSessionDescription || window.mozRTCSessionDescription;
     Util.PeerConnection = window.RTCPeerConnection || window.webkitRTCPeerConnection || window.mozRTCPeerConnection;
-    Util.IceCandidate = window.RTCIceCandidate || window.webkitRTCIceCandidate || window.mozRTCIceCandidate;
+    Util.SessionDescription = window.RTCSessionDescription || window.mozRTCSessionDescription;
+    Util.IceCandidate = window.RTCIceCandidate || window.mozRTCIceCandidate;
+    Util.MediaStream = window.MediaStream || window.webkitMediaStream;
     return Util;
 })();
 

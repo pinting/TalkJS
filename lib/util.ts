@@ -9,9 +9,10 @@ class Util {
      * Get rid of the browser prefixes
      */
 
-    static SessionDescription = window.RTCSessionDescription || window.webkitRTCSessionDescription || window.mozRTCSessionDescription;
     static PeerConnection = window.RTCPeerConnection || window.webkitRTCPeerConnection || window.mozRTCPeerConnection;
-    static IceCandidate = window.RTCIceCandidate || window.webkitRTCIceCandidate ||window.mozRTCIceCandidate;
+    static SessionDescription = window.RTCSessionDescription || window.mozRTCSessionDescription;
+    static IceCandidate = window.RTCIceCandidate || window.mozRTCIceCandidate;
+    static MediaStream = window.MediaStream || window.webkitMediaStream;
 
     /**
      * Get user media
@@ -74,6 +75,14 @@ class Util {
                 .replace(/>/g, "&gt;");
         }
         return "";
+    }
+
+    /**
+     * Check if object is a boolean
+     */
+
+    static isBool(obj): boolean {
+        return typeof obj === "boolean";
     }
 
     /**
@@ -211,6 +220,22 @@ class Util {
             return this.extend({}, obj);
         }
         return obj;
+    }
+
+    /**
+     * Compare objects
+     */
+
+    static comp(obj1: Object, obj2: Object): boolean {
+        for(var key in obj1) {
+            if(this.isObject(obj1[key]) && this.isObject(obj2[key]) && !this.comp(obj1[key], obj2[key])) {
+                return false;
+            }
+            else if(obj1[key] !== obj2[key]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

@@ -24,6 +24,7 @@ class Handler extends WildEmitter {
         supports: null,
         peer: Peer
     };
+    public localStream: MediaStream;
     public warn: Function;
     public log: Function;
     public handlers = [];
@@ -38,29 +39,35 @@ class Handler extends WildEmitter {
         this.warn = this.config.logger.warn.bind(this.config.logger);
         this.log = this.config.logger.log.bind(this.config.logger);
         this.id = id;
+
+        this.config.localStream.on("change", (stream) => {
+            this.localStream = stream;
+        });
     }
 
     /**
      * Get user media
      */
 
-    public getUserMedia(audio: boolean, video: boolean): MediaStream {
-        Util.getUserMedia(
-            {
-                audio: this.config.media.mandatory.OfferToReceiveAudio = audio,
-                video: this.config.media.mandatory.OfferToReceiveVideo = video
-            },
-            (stream: MediaStream) => {
-                this.log("User media request was successful");
-                this.config.localStream.value = stream;
-                this.emit("localStream", stream);
-            },
-            (error: string) => {
-                this.warn(error);
-                throw Error(error);
-            }
-        );
-        return this.config.localStream.value;
+    public getUserMedia(audio?: boolean, video?: boolean): MediaStream {
+        if(!this.localStream || this.localStream.ended) {
+            Util.getUserMedia(
+                {
+                    audio: this.config.media.mandatory.OfferToReceiveAudio = Util.isBool(audio) ? audio : true,
+                    video: this.config.media.mandatory.OfferToReceiveVideo = Util.isBool(video) ? video : true
+                },
+                (stream: MediaStream) => {
+                    this.log("User media request was successful");
+                    this.config.localStream.value = stream;
+                    this.emit("localStream", stream);
+                },
+                (error: string) => {
+                    this.warn(error);
+                    throw Error(error);
+                }
+            );
+        }
+        return this.localStream;
     }
 
     /**
@@ -120,7 +127,7 @@ class Handler extends WildEmitter {
     }
 
     /**
-     * Get an EXISTING peer
+     * Get an EXISTING peer by its ID
      */
 
     public get(id: string): Peer {
@@ -132,6 +139,33 @@ class Handler extends WildEmitter {
             }
             return false;
         });
+        return result;
+    }
+
+    /**
+     * Get a list of peers by their parameters and optionally use their methods
+     */
+
+    public filter(args?: any, cb?: any): Peer[] {
+        var result;
+        if(Util.isObject(args)) {
+            result = this.peers.filter((peer) => {
+                return Util.comp(args, peer);
+            });
+        }
+        else {
+            result = this.peers;
+            cb = args;
+        }
+        switch(typeof cb) {
+            case "function":
+                result.forEach(cb);
+                break;
+            case "string":
+                result.forEach((peer) => {
+                    peer[cb]();
+                });
+        }
         return result;
     }
 }

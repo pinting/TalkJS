@@ -3,7 +3,6 @@
 /// <reference path="./definitions/talk.d.ts" />
 
 import WildEmitter = require("wildemitter");
-import Pointer = require("./pointer");
 import Util = require("./util");
 
 class Peer extends WildEmitter {
@@ -28,11 +27,11 @@ class Peer extends WildEmitter {
             log: Util.noop
         },
         supports: <Supports> null,
-        localStream: new Pointer,
         negotiation: true
     };
     private pc: RTCPeerConnection;
-    public stream: MediaStream;
+    public remoteStream: MediaStream;
+    public localStream: MediaStream;
     private supports: Supports;
     private channels = [];
     public warn: Function;
@@ -61,17 +60,6 @@ class Peer extends WildEmitter {
         this.pc.ondatachannel = this.onDataChannel.bind(this);
         this.pc.onicecandidate = this.onCandidate.bind(this);
         this.pc.onaddstream = this.onAddStream.bind(this);
-
-        // Add local stream to the peer if it is initialized
-
-        if(this.config.localStream.value) {
-            this.addStream(this.config.localStream.value);
-        }
-        else {
-            this.config.localStream.once("change", (stream) => {
-                this.addStream(stream);
-            });
-        }
     }
 
     /**
@@ -115,8 +103,9 @@ class Peer extends WildEmitter {
      */
 
     public addStream(stream: MediaStream): void {
-        this.pc.addStream(stream, this.config.media);
-        this.log("Stream was added:", stream);
+        this.localStream = new Util.MediaStream(stream);
+        this.pc.addStream(this.localStream, this.config.media);
+        this.log("Stream was added:", this.localStream);
         if(!this.supports.negotiation) {
             this.negotiate();
         }
@@ -129,7 +118,7 @@ class Peer extends WildEmitter {
     private onAddStream(event: RTCMediaStreamEvent): void {
         if(event.stream) {
             this.log("Remote stream was added:", event.stream);
-            this.stream = event.stream;
+            this.remoteStream = event.stream;
             this.emit("streamAdded", this);
         }
         else {
@@ -142,7 +131,7 @@ class Peer extends WildEmitter {
      */
 
     private onRemoveStream(event: RTCMediaStreamEvent): void {
-        this.stream = <MediaStream> {};
+        this.remoteStream = <MediaStream> {};
         this.emit("streamRemoved", this);
         this.log("Remote stream was removed from peer:", event);
     }
@@ -370,6 +359,94 @@ class Peer extends WildEmitter {
                 this.warn(error);
             }
         );
+    }
+
+    /**
+     * Mute the peer audio stream
+     */
+
+    public mute(): void {
+        this.remoteStream.getAudioTracks().forEach((track: MediaStreamTrack) => {
+            track.enabled = false;
+        });
+        this.log("Peer audio was muted:", this)
+    }
+
+    /**
+     * Unmute the peer audio stream
+     */
+
+    public unmute(): void {
+        this.remoteStream.getAudioTracks().forEach((track: MediaStreamTrack) => {
+            track.enabled = true;
+        });
+        this.log("Peer audio was unmuted:", this)
+    }
+
+    /**
+     * Pause peer video stream
+     */
+
+    public pause(): void {
+        this.remoteStream.getVideoTracks().forEach((track: MediaStreamTrack) => {
+            track.enabled = false;
+        });
+        this.log("Peer video was paused:", this)
+    }
+
+    /**
+     * Resume peer video stream
+     */
+
+    public resume(): void {
+        this.remoteStream.getVideoTracks().forEach((track: MediaStreamTrack) => {
+            track.enabled = true;
+        });
+        this.log("Peer video was resumed:", this)
+    }
+
+    /**
+     * Mute the local audio stream for the peer
+     */
+
+    public muteLocal(): void {
+        this.localStream.getAudioTracks().forEach((track: MediaStreamTrack) => {
+            track.enabled = false;
+        });
+        this.log("Local audio for the peer was muted:", this)
+    }
+
+    /**
+     * Unmute the local audio stream for the peer
+     */
+
+    public unmuteLocal(): void {
+        this.localStream.getAudioTracks().forEach((track: MediaStreamTrack) => {
+            track.enabled = true;
+        });
+        this.log("Local audio for the peer was unmuted:", this)
+    }
+
+    /**
+     * Pause the local video stream for the peer
+     */
+
+    public pauseLocal(): void {
+        this.localStream.getVideoTracks().forEach((track: MediaStreamTrack) => {
+            track.enabled = false;
+        });
+        this.log("Local video for the peer was paused:", this)
+    }
+
+    /**
+     * Resume the local video stream for the peer
+     */
+
+    public resumeLocal(): void {
+        this.localStream.getVideoTracks().forEach((track: MediaStreamTrack) => {
+            track.enabled = true;
+        });
+        this.log("Local video for the peer was resumed:", this)
     }
 }
 
