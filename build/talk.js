@@ -746,9 +746,10 @@ var Util = (function () {
 
     Util.comp = function (obj1, obj2) {
         for (var key in obj1) {
-            if (this.isObject(obj1[key]) && this.isObject(obj2[key]) && !this.comp(obj1[key], obj2[key])) {
-                return false;
-            } else if (obj1[key] !== obj2[key]) {
+            if (this.isObject(obj1[key]) && this.isObject(obj2[key]) && this.comp(obj1[key], obj2[key])) {
+                continue;
+            }
+            if (obj1[key] !== obj2[key]) {
                 return false;
             }
         }

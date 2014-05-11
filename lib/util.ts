@@ -223,15 +223,15 @@ class Util {
     }
 
     /**
-     * Compare objects
+     * Compare objects by the first one
      */
 
     static comp(obj1: Object, obj2: Object): boolean {
         for(var key in obj1) {
-            if(this.isObject(obj1[key]) && this.isObject(obj2[key]) && !this.comp(obj1[key], obj2[key])) {
-                return false;
+            if(this.isObject(obj1[key]) && this.isObject(obj2[key]) && this.comp(obj1[key], obj2[key])) {
+                continue;
             }
-            else if(obj1[key] !== obj2[key]) {
+            if(obj1[key] !== obj2[key]) {
                 return false;
             }
         }
