@@ -28,7 +28,7 @@ class Handler extends WildEmitter {
     public warn: Function;
     public log: Function;
     public handlers = [];
-    public peers = [];
+    public _peers = [];
     public id: string;
 
     constructor(id: string, options?: Object) {
@@ -49,12 +49,12 @@ class Handler extends WildEmitter {
      * Get user media
      */
 
-    public getUserMedia(audio?: boolean, video?: boolean): MediaStream {
+    public getUserMedia(audio = true, video = true): MediaStream {
         if(!this.localStream || this.localStream.ended) {
             Util.getUserMedia(
                 {
-                    audio: this.config.media.mandatory.OfferToReceiveAudio = Util.isBool(audio) ? audio : true,
-                    video: this.config.media.mandatory.OfferToReceiveVideo = Util.isBool(video) ? video : true
+                    audio: this.config.media.mandatory.OfferToReceiveAudio = audio,
+                    video: this.config.media.mandatory.OfferToReceiveVideo = video
                 },
                 (stream: MediaStream) => {
                     this.log("User media request was successful");
@@ -122,7 +122,7 @@ class Handler extends WildEmitter {
         var peer = <Peer> new this.config.peer(id, this.config);
         peer.on("*", (...args: any[]) => this.emit.apply(this, args));
         this.log("Peer added:", peer);
-        this.peers.push(peer);
+        this._peers.push(peer);
         return peer;
     }
 
@@ -132,7 +132,7 @@ class Handler extends WildEmitter {
 
     public get(id: string): Peer {
         var result = <any> false;
-        this.peers.some((peer: Peer) => {
+        this._peers.some((peer: Peer) => {
             if(peer.id === id) {
                 result = peer;
                 return true;
@@ -146,15 +146,15 @@ class Handler extends WildEmitter {
      * Get a list of peers by their parameters and optionally use their methods
      */
 
-    public filter(args?: any, cb?: any): Peer[] {
+    public peers(args?: any, cb?: any): Peer[] {
         var result;
         if(Util.isObject(args)) {
-            result = this.peers.filter((peer) => {
+            result = this._peers.filter((peer) => {
                 return Util.comp(args, peer);
             });
         }
         else {
-            result = this.peers;
+            result = this._peers;
             cb = args;
         }
         switch(typeof cb) {

@@ -55,10 +55,7 @@ class Util {
      */
 
     static safeStr(obj: any): string {
-        if(this.isString(obj)) {
-            return obj.replace(/\s/g, "-").replace(/[^A-Za-z0-9_\-]/g, "").toString();
-        }
-        return "";
+        return obj.replace(/\s/g, "-").replace(/[^A-Za-z0-9_\-]/g, "").toString();
     }
 
     /**
@@ -66,23 +63,12 @@ class Util {
      */
 
     static safeText(obj: any): string {
-        if(this.isString(obj)) {
-            return obj
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&apos;")
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;");
-        }
-        return "";
-    }
-
-    /**
-     * Check if object is a boolean
-     */
-
-    static isBool(obj): boolean {
-        return typeof obj === "boolean";
+        return obj
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&apos;")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
     }
 
     /**
@@ -132,10 +118,7 @@ class Util {
      * Create a random number between the minimum and the maximum argument
      */
 
-    static randNum(min?: number, max?: number): number {
-        max = max || Math.pow(10, 16);
-        min = min || 0;
-
+    static randNum(min = 0, max = Math.pow(10, 16)): number {
         return Math.floor(Math.random() * (max - min + 1) + min);
     }
 
@@ -143,10 +126,8 @@ class Util {
      * Create a random word
      */
 
-    static randWord(length?: number): string {
-        length = length || 8;
+    static randWord(length = 8): string {
         var word = "";
-
         for(;length > 0; length--) {
             if(Math.floor(length / 2) === (length / 2)) {
                 word += "bcdfghjklmnpqrstvwxyz"[this.randNum(0, 20)];
@@ -163,10 +144,7 @@ class Util {
      */
 
     static sha256(obj: string): string {
-        if(!this.isString(obj)) {
-            return CryptoJS.SHA256(obj).toString();
-        }
-        return "";
+        return CryptoJS.SHA256(obj).toString();
     }
 
     /**
@@ -182,12 +160,9 @@ class Util {
      */
 
     static extend(obj: Object, source: Object): Object {
-        obj = obj || {};
-        if(!this.isEmpty(source)) {
-            for(var key in source) {
-                if(source.hasOwnProperty(key)) {
-                    obj[key] = source[key];
-                }
+        for(var key in source) {
+            if(source.hasOwnProperty(key)) {
+                obj[key] = source[key];
             }
         }
         return obj;
@@ -198,11 +173,9 @@ class Util {
      */
 
     static overwrite(obj: Object, source: Object): Object {
-        if(!this.isEmpty(obj) && !this.isEmpty(source)) {
-            for(var key in obj) {
-                if(obj.hasOwnProperty(key) && source.hasOwnProperty(key)) {
-                    obj[key] = source[key];
-                }
+        for(var key in obj) {
+            if(obj.hasOwnProperty(key) && source.hasOwnProperty(key)) {
+                obj[key] = source[key];
             }
         }
         return obj || {};

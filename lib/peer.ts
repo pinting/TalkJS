@@ -232,7 +232,7 @@ class Peer extends WildEmitter {
             case "disconnected":
             case "failed":
                 this.warn("Ice connection state is disconnected, closing the peer");
-                this.pc.close();
+                this.close();
                 break;
             case "completed":
             case "closed":
@@ -359,6 +359,15 @@ class Peer extends WildEmitter {
                 this.warn(error);
             }
         );
+    }
+
+    /**
+     * Close the peer
+     */
+
+    public close() {
+        this.pc.close();
+        this.emit("peerClosed", this);
     }
 
     /**

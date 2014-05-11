@@ -11,6 +11,7 @@ var WildEmitter = _dereq_("wildemitter");
 var Connection = (function (_super) {
     __extends(Connection, _super);
     function Connection(handler, host) {
+        if (typeof host === "undefined") { host = "http://localhost:8000"; }
         var _this = this;
         _super.call(this);
 
@@ -21,7 +22,8 @@ var Connection = (function (_super) {
         this.handler.on("message", this.send.bind(this));
         this.server = SocketIO.connect(host);
         this.server.on("connect", function () {
-            return _this.emit("connectionReady", _this.server.socket.sessionid);
+            _this.id = _this.server.socket.sessionid;
+            _this.emit("connectionReady", _this.id);
         });
         this.server.on("message", this.get.bind(this));
     }
@@ -89,7 +91,7 @@ var Handler = (function (_super) {
             peer: Peer
         };
         this.handlers = [];
-        this.peers = [];
+        this._peers = [];
         Util.extend(this.config, options);
 
         this.config.supports = this.config.supports || Util.supports();
@@ -103,10 +105,12 @@ var Handler = (function (_super) {
     }
     Handler.prototype.getUserMedia = function (audio, video) {
         var _this = this;
+        if (typeof audio === "undefined") { audio = true; }
+        if (typeof video === "undefined") { video = true; }
         if (!this.localStream || this.localStream.ended) {
             Util.getUserMedia({
-                audio: this.config.media.mandatory.OfferToReceiveAudio = Util.isBool(audio) ? audio : true,
-                video: this.config.media.mandatory.OfferToReceiveVideo = Util.isBool(video) ? video : true
+                audio: this.config.media.mandatory.OfferToReceiveAudio = audio,
+                video: this.config.media.mandatory.OfferToReceiveVideo = video
             }, function (stream) {
                 _this.log("User media request was successful");
                 _this.config.localStream.value = stream;
@@ -171,13 +175,13 @@ var Handler = (function (_super) {
             return _this.emit.apply(_this, args);
         });
         this.log("Peer added:", peer);
-        this.peers.push(peer);
+        this._peers.push(peer);
         return peer;
     };
 
     Handler.prototype.get = function (id) {
         var result = false;
-        this.peers.some(function (peer) {
+        this._peers.some(function (peer) {
             if (peer.id === id) {
                 result = peer;
                 return true;
@@ -187,14 +191,14 @@ var Handler = (function (_super) {
         return result;
     };
 
-    Handler.prototype.filter = function (args, cb) {
+    Handler.prototype.peers = function (args, cb) {
         var result;
         if (Util.isObject(args)) {
-            result = this.peers.filter(function (peer) {
+            result = this._peers.filter(function (peer) {
                 return Util.comp(args, peer);
             });
         } else {
-            result = this.peers;
+            result = this._peers;
             cb = args;
         }
         switch (typeof cb) {
@@ -423,7 +427,7 @@ var Peer = (function (_super) {
             case "disconnected":
             case "failed":
                 this.warn("Ice connection state is disconnected, closing the peer");
-                this.pc.close();
+                this.close();
                 break;
             case "completed":
             case "closed":
@@ -506,6 +510,11 @@ var Peer = (function (_super) {
         }, function (error) {
             _this.warn(error);
         });
+    };
+
+    Peer.prototype.close = function () {
+        this.pc.close();
+        this.emit("peerClosed", this);
     };
 
     Peer.prototype.mute = function () {
@@ -635,21 +644,11 @@ var Util = (function () {
     };
 
     Util.safeStr = function (obj) {
-        if (this.isString(obj)) {
-            return obj.replace(/\s/g, "-").replace(/[^A-Za-z0-9_\-]/g, "").toString();
-        }
-        return "";
+        return obj.replace(/\s/g, "-").replace(/[^A-Za-z0-9_\-]/g, "").toString();
     };
 
     Util.safeText = function (obj) {
-        if (this.isString(obj)) {
-            return obj.replace(/"/g, "&quot;").replace(/'/g, "&apos;").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        }
-        return "";
-    };
-
-    Util.isBool = function (obj) {
-        return typeof obj === "boolean";
+        return obj.replace(/"/g, "&quot;").replace(/'/g, "&apos;").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     };
 
     Util.isEmpty = function (obj) {
@@ -680,16 +679,14 @@ var Util = (function () {
     };
 
     Util.randNum = function (min, max) {
-        max = max || Math.pow(10, 16);
-        min = min || 0;
-
+        if (typeof min === "undefined") { min = 0; }
+        if (typeof max === "undefined") { max = Math.pow(10, 16); }
         return Math.floor(Math.random() * (max - min + 1) + min);
     };
 
     Util.randWord = function (length) {
-        length = length || 8;
+        if (typeof length === "undefined") { length = 8; }
         var word = "";
-
         for (; length > 0; length--) {
             if (Math.floor(length / 2) === (length / 2)) {
                 word += "bcdfghjklmnpqrstvwxyz"[this.randNum(0, 20)];
@@ -701,10 +698,7 @@ var Util = (function () {
     };
 
     Util.sha256 = function (obj) {
-        if (!this.isString(obj)) {
-            return CryptoJS.SHA256(obj).toString();
-        }
-        return "";
+        return CryptoJS.SHA256(obj).toString();
     };
 
     Util.find = function (list, obj) {
@@ -712,23 +706,18 @@ var Util = (function () {
     };
 
     Util.extend = function (obj, source) {
-        obj = obj || {};
-        if (!this.isEmpty(source)) {
-            for (var key in source) {
-                if (source.hasOwnProperty(key)) {
-                    obj[key] = source[key];
-                }
+        for (var key in source) {
+            if (source.hasOwnProperty(key)) {
+                obj[key] = source[key];
             }
         }
         return obj;
     };
 
     Util.overwrite = function (obj, source) {
-        if (!this.isEmpty(obj) && !this.isEmpty(source)) {
-            for (var key in obj) {
-                if (obj.hasOwnProperty(key) && source.hasOwnProperty(key)) {
-                    obj[key] = source[key];
-                }
+        for (var key in obj) {
+            if (obj.hasOwnProperty(key) && source.hasOwnProperty(key)) {
+                obj[key] = source[key];
             }
         }
         return obj || {};

@@ -7,11 +7,12 @@ import Handler = require("./handler");
 
 class Connection extends WildEmitter {
     public server: SocketIO.Socket;
-    private handler: Handler;
-    private warn: Function;
-    private log: Function;
+    public handler: Handler;
+    public warn: Function;
+    public log: Function;
+    public id: string;
 
-    constructor(handler: Handler, host: string) {
+    constructor(handler: Handler, host = "http://localhost:8000") {
         super();
 
         this.warn = handler.warn.bind(handler);
@@ -20,7 +21,10 @@ class Connection extends WildEmitter {
         this.handler = handler;
         this.handler.on("message", this.send.bind(this));
         this.server = SocketIO.connect(host);
-        this.server.on("connect", () => this.emit("connectionReady", this.server.socket.sessionid));
+        this.server.on("connect", () => {
+            this.id = this.server.socket.sessionid;
+            this.emit("connectionReady", this.id);
+        });
         this.server.on("message", this.get.bind(this));
     }
 
