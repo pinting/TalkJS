@@ -4,6 +4,7 @@
 import SocketIO = require("socket.io-client");
 import WildEmitter = require("wildemitter");
 import Handler = require("./handler");
+import Util = require("./util");
 
 class Connection extends WildEmitter {
     public server: SocketIO.Socket;
@@ -32,7 +33,7 @@ class Connection extends WildEmitter {
      * Send a message of a peer
      */
 
-    private send(payload: Message): void {
+    public send(payload: Message): void {
         this.log("Sending:", payload);
         this.server.emit("message", payload);
     }
@@ -41,7 +42,7 @@ class Connection extends WildEmitter {
      * Get a message, then find its peer and parse it
      */
 
-    private get(payload: Message): void {
+    public get(payload: Message): void {
         this.log("Getting:", payload);
         if(payload.key && payload.value && payload.peer && payload.handler) {
             var peer = this.findHandler(payload.handler).get(payload.peer);

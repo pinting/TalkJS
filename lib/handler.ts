@@ -120,7 +120,18 @@ class Handler extends WildEmitter {
 
     public add(id: string): Peer {
         var peer = <Peer> new this.config.peer(id, this.config);
-        peer.on("*", (...args: any[]) => this.emit.apply(this, args));
+        peer.on("*", (...args: any[]) => {
+            switch(args[0]) {
+                case "peerClosed":
+                    var i = this._peers.indexOf(peer);
+                    if(i >= 0) {
+                        this._peers.splice(i, 1);
+                    }
+                default:
+                    this.emit.apply(this, args);
+                    break;
+            }
+        });
         this.log("Peer added:", peer);
         this._peers.push(peer);
         return peer;

@@ -27,7 +27,7 @@ class Peer extends WildEmitter {
             log: Util.noop
         },
         supports: <Supports> null,
-        negotiation: true
+        negotiate: false
     };
     private pc: RTCPeerConnection;
     public remoteStream: MediaStream;
@@ -231,7 +231,6 @@ class Peer extends WildEmitter {
         switch(<any> this.pc.iceConnectionState) {
             case "disconnected":
             case "failed":
-                this.warn("Ice connection state is disconnected, closing the peer");
                 this.close();
                 break;
             case "completed":
@@ -279,7 +278,7 @@ class Peer extends WildEmitter {
 
     private negotiate(): void {
         this.log("Negotiation is needed");
-        if(this.config.negotiation) {
+        if(this.config.negotiate) {
             if(<any> this.pc.signalingState === "stable") {
                 this.offer();
             }
@@ -368,6 +367,7 @@ class Peer extends WildEmitter {
     public close() {
         this.pc.close();
         this.emit("peerClosed", this);
+        this.log("Peer closed:", this);
     }
 
     /**

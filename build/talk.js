@@ -57,7 +57,7 @@ var Connection = (function (_super) {
 
 module.exports = Connection;
 
-},{"socket.io-client":7,"wildemitter":8}],2:[function(_dereq_,module,exports){
+},{"socket.io-client":8,"wildemitter":9}],2:[function(_dereq_,module,exports){
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -172,7 +172,16 @@ var Handler = (function (_super) {
             for (var _i = 0; _i < (arguments.length - 0); _i++) {
                 args[_i] = arguments[_i + 0];
             }
-            return _this.emit.apply(_this, args);
+            switch (args[0]) {
+                case "peerClosed":
+                    var i = _this._peers.indexOf(peer);
+                    if (i >= 0) {
+                        _this._peers.splice(i, 1);
+                    }
+                default:
+                    _this.emit.apply(_this, args);
+                    break;
+            }
         });
         this.log("Peer added:", peer);
         this._peers.push(peer);
@@ -217,7 +226,7 @@ var Handler = (function (_super) {
 
 module.exports = Handler;
 
-},{"./peer":4,"./pointer":5,"./util":6,"wildemitter":8}],3:[function(_dereq_,module,exports){
+},{"./peer":4,"./pointer":5,"./util":7,"wildemitter":9}],3:[function(_dereq_,module,exports){
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -226,6 +235,7 @@ var __extends = this.__extends || function (d, b) {
 };
 var Connection = _dereq_("./connection");
 var Handler = _dereq_("./handler");
+var Room = _dereq_("./room");
 var Peer = _dereq_("./peer");
 var Util = _dereq_("./util");
 
@@ -236,6 +246,7 @@ var Main = (function (_super) {
     }
     Main.Connection = Connection;
     Main.Handler = Handler;
+    Main.Room = Room;
     Main.Peer = Peer;
     Main.Util = Util;
     return Main;
@@ -243,7 +254,7 @@ var Main = (function (_super) {
 
 module.exports = Main;
 
-},{"./connection":1,"./handler":2,"./peer":4,"./util":6}],4:[function(_dereq_,module,exports){
+},{"./connection":1,"./handler":2,"./peer":4,"./room":6,"./util":7}],4:[function(_dereq_,module,exports){
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -278,7 +289,7 @@ var Peer = (function (_super) {
                 log: Util.noop
             },
             supports: null,
-            negotiation: true
+            negotiate: false
         };
         this.channels = [];
         Util.overwrite(this.config, options);
@@ -426,7 +437,6 @@ var Peer = (function (_super) {
         switch (this.pc.iceConnectionState) {
             case "disconnected":
             case "failed":
-                this.warn("Ice connection state is disconnected, closing the peer");
                 this.close();
                 break;
             case "completed":
@@ -460,7 +470,7 @@ var Peer = (function (_super) {
 
     Peer.prototype.negotiate = function () {
         this.log("Negotiation is needed");
-        if (this.config.negotiation) {
+        if (this.config.negotiate) {
             if (this.pc.signalingState === "stable") {
                 this.offer();
             } else {
@@ -515,6 +525,7 @@ var Peer = (function (_super) {
     Peer.prototype.close = function () {
         this.pc.close();
         this.emit("peerClosed", this);
+        this.log("Peer closed:", this);
     };
 
     Peer.prototype.mute = function () {
@@ -577,7 +588,7 @@ var Peer = (function (_super) {
 
 module.exports = Peer;
 
-},{"./util":6,"wildemitter":8}],5:[function(_dereq_,module,exports){
+},{"./util":7,"wildemitter":9}],5:[function(_dereq_,module,exports){
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -612,7 +623,90 @@ var Pointer = (function (_super) {
 
 module.exports = Pointer;
 
-},{"wildemitter":8}],6:[function(_dereq_,module,exports){
+},{"wildemitter":9}],6:[function(_dereq_,module,exports){
+var __extends = this.__extends || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    __.prototype = b.prototype;
+    d.prototype = new __();
+};
+var Connection = _dereq_("./connection");
+
+var Util = _dereq_("./util");
+
+var Room = (function (_super) {
+    __extends(Room, _super);
+    function Room(handler, host, onOffer, onAnswer) {
+        if (typeof host === "undefined") { host = "http://localhost:8000"; }
+        if (typeof onOffer === "undefined") { onOffer = Util.noop; }
+        _super.call(this, handler, host);
+
+        if (!onAnswer) {
+            this.onAnswer = onOffer;
+        } else {
+            this.onAnswer = onAnswer;
+        }
+        this.onOffer = onOffer;
+        this.server.on("remove", this.remove.bind(this));
+    }
+    Room.prototype.get = function (payload) {
+        this.log("Getting:", payload);
+        if (payload.key && payload.value && payload.peer) {
+            var peer = this.handler.get(payload.peer);
+            if (!peer && payload.key === "offer") {
+                peer = this.handler.add(payload.peer);
+                this.onAnswer(peer);
+            }
+            if (peer) {
+                this.log("Peer found!");
+                peer.parseMessage(payload.key, payload.value);
+            } else {
+                this.warn("Peer not found!");
+            }
+        }
+    };
+
+    Room.prototype.join = function (room, type, cb) {
+        var _this = this;
+        this.server.emit("join", room, type, function (error, clients) {
+            _this.log("Joined to room `%s`", room);
+            if (error) {
+                _this.warn(error);
+            }
+            clients.forEach(function (client) {
+                var peer = _this.handler.add(client.id);
+                _this.onOffer(peer);
+                peer.offer();
+            });
+            _this.room = room;
+            _this.type = type;
+            Util.safeCb(cb)(error, clients);
+        });
+    };
+
+    Room.prototype.leave = function () {
+        this.log("Room `%s` was left", this.room);
+        this.server.emit("leave");
+        this.handler.peers("close");
+        this.room = null;
+        this.type = null;
+    };
+
+    Room.prototype.remove = function (id) {
+        this.log("Removing a peer:", id);
+        var peer = this.handler.get(id);
+        if (peer) {
+            peer.close();
+            return true;
+        }
+        return false;
+    };
+    return Room;
+})(Connection);
+
+module.exports = Room;
+
+},{"./connection":1,"./util":7}],7:[function(_dereq_,module,exports){
 
 var Util = (function () {
     function Util() {
@@ -839,7 +933,7 @@ var Util = (function () {
 
 module.exports = Util;
 
-},{}],7:[function(_dereq_,module,exports){
+},{}],8:[function(_dereq_,module,exports){
 /*! Socket.IO.js build:0.9.16, development. Copyright(c) 2011 LearnBoost <dev@learnboost.com> MIT Licensed */
 
 var io = ('undefined' === typeof module ? {} : module.exports);
@@ -4713,7 +4807,7 @@ if (typeof define === "function" && define.amd) {
   define([], function () { return io; });
 }
 })();
-},{}],8:[function(_dereq_,module,exports){
+},{}],9:[function(_dereq_,module,exports){
 /*
 WildEmitter.js is a slim little event emitter by @henrikjoreteg largely based 
 on @visionmedia's Emitter from UI Kit.
