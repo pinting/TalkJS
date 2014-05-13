@@ -2,7 +2,7 @@ module.exports = function(grunt) {
     grunt.initConfig({
         ts: {
             compile: {
-                src: ["lib/**/*.ts"],
+                src: ["src/**/*.ts"],
                 options: {
                     module: "commonjs",
                     sourceMap: false,
@@ -12,8 +12,8 @@ module.exports = function(grunt) {
         },
         browserify: {
             bundle: {
-                src: ["lib/main.js"],
-                dest: "build/talk.js",
+                src: ["src/main.js"],
+                dest: "dist/talk.js",
                 options: {
                     standalone: "Talk",
                     debug: false
@@ -22,14 +22,14 @@ module.exports = function(grunt) {
         },
         concat: {
             crypto: {
-                src: ["build/talk.js", "lib/crypto/*.js"],
-                dest: "build/talk.js"
+                src: ["dist/talk.js", "src/crypto/*.js"],
+                dest: "dist/talk.js"
             }
         },
         uglify: {
             build: {
-                src: "build/talk.js",
-                dest: "build/talk.min.js"
+                src: "dist/talk.js",
+                dest: "dist/talk.min.js"
             }
         },
         bump: {
@@ -42,10 +42,10 @@ module.exports = function(grunt) {
         },
         clean: {
             build: {
-                src: ["build/*.js"]
+                src: ["dist/*.js"]
             },
             js: {
-                src: ["lib/**/*.js", "!lib/crypto/*.js"]
+                src: ["src/**/*.js", "!src/crypto/*.js"]
             }
         }
     });
