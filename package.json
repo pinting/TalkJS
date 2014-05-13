@@ -1,7 +1,7 @@
 {
     "name": "TalkJS",
     "author": "Tornyi Dénes",
-    "version": "1.0.0-261",
+    "version": "1.0.0-265",
     "description": "WebRTC simplier library",
     "repository": {
         "url": "https://github.com/pinting/TalkJS",
