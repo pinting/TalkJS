@@ -3,7 +3,7 @@ module.exports = function(grunt) {
         ts: {
             compile: {
                 reference: "./src/talk.ts",
-                out: "./dist/talk.bare.js",
+                out: "./dist/talk-bare.js",
                 src: ["./src/**/*.ts"],
                 options: {
                     module: "commonjs",
@@ -17,7 +17,7 @@ module.exports = function(grunt) {
             module: {
                 src: [
                     "./build/import.js",
-                    "./dist/talk.bare.js",
+                    "./dist/talk-bare.js",
                     "./build/export.js"
                 ],
                 dest: "./dist/talk.js"
@@ -25,13 +25,13 @@ module.exports = function(grunt) {
         },
         uglify: {
             bare: {
-                src: "./dist/talk.bare.js",
-                dest: "./dist/talk.bare.min.js"
+                src: "./dist/talk-bare.js",
+                dest: "./dist/talk-bare.min.js"
             }
         },
         dpacker: {
             bundle: {
-                src: "./dist/talk.bare.d.ts",
+                src: "./dist/talk-bare.d.ts",
                 dest: "./dist/talk.d.ts"
             }
         },
