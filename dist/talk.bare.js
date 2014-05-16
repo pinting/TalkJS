@@ -1,7 +1,3 @@
-var WildEmitter = require("wildemitter");
-var io = require("socket.io-client");
-var CryptoJS = require("crypto-js");
-
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -872,5 +868,3 @@ var Talk;
     })();
     Talk.Util = Util;
 })(Talk || (Talk = {}));
-
-module.exports = Talk;

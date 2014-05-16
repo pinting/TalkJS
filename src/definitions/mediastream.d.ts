@@ -1,7 +1,6 @@
 // Type definitions for WebRTC
 // Project: http://dev.w3.org/2011/webrtc/
-// Definitions by: Ken Smith <https://github.com/smithkl42/>
-// Edited by: Tornyi Dénes
+// Definitions by: Ken Smith <https://github.com/smithkl42/> & Tornyi Dénes
 // Definitions: https://github.com/borisyankov/DefinitelyTyped
 
 // Taken from http://dev.w3.org/2011/webrtc/editor/getusermedia.html

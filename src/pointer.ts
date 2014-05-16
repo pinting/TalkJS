@@ -1,25 +1,23 @@
-/// <reference path="./definitions/wildemitter.d.ts" />
+/// <reference path="./definitions/wildemitter" />
 
-import WildEmitter = require("wildemitter");
+module Talk {
+    export class Pointer extends WildEmitter {
+        private memory  = {
+            value: <any> null
+        };
 
-class Pointer extends WildEmitter {
-    private memory  = {
-        value: <any> null
-    };
+        constructor(value?: any) {
+            super();
+            this.memory.value = value || null;
+        }
 
-    constructor(value?: any) {
-        super();
-        this.memory.value = value || null;
-    }
+        get value(): any {
+            return this.memory.value;
+        }
 
-    get value(): any {
-        return this.memory.value;
-    }
-
-    set value(value: any) {
-        this.memory.value = value;
-        this.emit("change", value);
+        set value(value: any) {
+            this.memory.value = value;
+            this.emit("change", value);
+        }
     }
 }
-
-export = Pointer;

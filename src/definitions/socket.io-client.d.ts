@@ -1,11 +1,9 @@
 // Type definitions for socket.io nodejs client
 // Project: http://socket.io/
-// Definitions by: Maido Kaara <https://github.com/v3rm0n>
-// Edited by: Tornyi Dénes <https://github/pinting>
+// Definitions by: Maido Kaara <https://github.com/v3rm0n> & Tornyi Dénes
 // Definitions: https://github.com/borisyankov/DefinitelyTyped
 
-declare module "socket.io-client" {
-
+declare module io {
     export function connect(host: string, details?: any): Socket;
 
     interface EventEmitter {

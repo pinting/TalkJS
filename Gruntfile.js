@@ -2,34 +2,37 @@ module.exports = function(grunt) {
     grunt.initConfig({
         ts: {
             compile: {
+                reference: "./src/talk.ts",
+                out: "./dist/talk.bare.js",
                 src: ["./src/**/*.ts"],
                 options: {
                     module: "commonjs",
+                    declaration: true,
                     sourceMap: false,
                     target: "es5"
                 }
             }
         },
-        browserify: {
-            bundle: {
-                src: ["./src/main.js"],
-                dest: "./dist/talk.js",
-                options: {
-                    standalone: "Talk",
-                    debug: false
-                }
-            }
-        },
         concat: {
-            crypto: {
-                src: ["./dist/talk.js", "./src/crypto/*.js"],
+            module: {
+                src: [
+                    "./build/import.js",
+                    "./dist/talk.bare.js",
+                    "./build/export.js"
+                ],
                 dest: "./dist/talk.js"
             }
         },
         uglify: {
-            build: {
-                src: "./dist/talk.js",
-                dest: "./dist/talk.min.js"
+            bare: {
+                src: "./dist/talk.bare.js",
+                dest: "./dist/talk.bare.min.js"
+            }
+        },
+        dpacker: {
+            bundle: {
+                src: "./dist/talk.bare.d.ts",
+                dest: "./dist/talk.d.ts"
             }
         },
         bump: {
@@ -39,33 +42,21 @@ module.exports = function(grunt) {
                 commit: false,
                 push: false
             }
-        },
-        clean: {
-            build: {
-                src: ["./dist/*.js"]
-            },
-            js: {
-                src: ["./src/**/*.js", "!./src/crypto/*.js"]
-            }
         }
     });
-    [
-        "grunt-contrib-uglify",
-        "grunt-contrib-concat",
-        "grunt-contrib-clean",
-        "grunt-browserify",
-        "grunt-bump",
-        "grunt-ts"
-    ].forEach(function(task) {
-        grunt.loadNpmTasks(task);
-    });
-    grunt.registerTask("default", [
-        "clean:build",
+    require("./build/dpacker")(grunt);
+    grunt.loadNpmTasks("grunt-contrib-uglify");
+    grunt.loadNpmTasks("grunt-contrib-concat");
+    grunt.loadNpmTasks("grunt-bump");
+    grunt.loadNpmTasks("grunt-ts");
+    grunt.registerTask("bare", [
         "ts:compile",
-        "browserify:bundle",
-        "concat:crypto",
-        "uglify:build",
-        "clean:js",
-        "bump:build"
+        "uglify:bare",
+        "bump:patch"
+    ]);
+    grunt.registerTask("default", [
+        "bare",
+        "concat:module",
+        "dpacker:bundle"
     ]);
 };
