@@ -5,7 +5,7 @@ module Talk {
         public type: string;
         public room: string;
 
-        constructor(handler: Handler, host = "http://localhost:8000", onOffer = Util.noop, onAnswer?: any) {
+        constructor(handler: Handler, host = "http://localhost:8000", onOffer = noop, onAnswer?: any) {
             super(handler, host);
 
             if(!onAnswer) {
@@ -23,7 +23,7 @@ module Talk {
          */
 
         public get(payload: Message): void {
-            this.log("Getting:", payload);
+            log("Getting:", payload);
             if(payload.key && payload.value && payload.peer) {
                 var peer = this.handler.get(payload.peer);
                 if(!peer && payload.key === "offer") {
@@ -31,11 +31,11 @@ module Talk {
                     this.onAnswer(peer);
                 }
                 if(peer) {
-                    this.log("Peer found!");
+                    log("Peer found!");
                     peer.parseMessage(payload.key, payload.value);
                 }
                 else {
-                    this.warn("Peer not found!")
+                    warn("Peer not found!")
                 }
             }
         }
@@ -44,11 +44,11 @@ module Talk {
          * Join to a room
          */
 
-        public join(room: string, type: string, cb: (error: any, clients: any[]) => void) {
+        public join(room: string, type: string, cb?: (error: any, clients: any[]) => void) {
             this.server.emit("join", room, type, (error, clients) => {
-                this.log("Joined to room `%s`", room);
+                log("Joined to room `%s`", room);
                 if(error) {
-                    this.warn(error);
+                    warn(error);
                 }
                 clients.forEach((client) => {
                     var peer = this.handler.add(client.id);
@@ -57,7 +57,7 @@ module Talk {
                 });
                 this.room = room;
                 this.type = type;
-                Util.safeCb(cb)(error, clients);
+                safeCb(cb)(error, clients);
             });
         }
 
@@ -66,9 +66,9 @@ module Talk {
          */
 
         public leave() {
-            this.log("Room `%s` was left", this.room);
+            log("Room `%s` was left", this.room);
             this.server.emit("leave");
-            this.handler.peers("close");
+            this.handler.find("close");
             this.room = null;
             this.type = null;
         }
@@ -78,7 +78,7 @@ module Talk {
          */
 
         public remove(id): boolean {
-            this.log("Removing a peer:", id);
+            log("Removing a peer:", id);
             var peer = this.handler.get(id);
             if(peer) {
                 peer.close();

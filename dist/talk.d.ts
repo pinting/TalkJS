@@ -879,8 +879,6 @@ declare module Talk {
     class Connection extends WildEmitter {
         public server: io.Socket;
         public handler: Handler;
-        public warn: Function;
-        public log: Function;
         public id: string;
         constructor(handler: Handler, host?: string);
         public send(payload: Message): void;
@@ -897,26 +895,64 @@ declare module Talk {
                     OfferToReceiveVideo: boolean;
                 };
             };
-            logger: Logger;
-            localStream: Pointer;
             handler: typeof Handler;
-            supports: any;
             peer: typeof Peer;
         };
-        public localStream: MediaStream;
-        public warn: Function;
-        public log: Function;
         public handlers: any[];
-        public _peers: any[];
+        public peers: any[];
         public id: string;
         constructor(id?: any, options?: Object);
-        public getUserMedia(audio?: boolean, video?: boolean): MediaStream;
         private createHandler(id, H?);
         public h(id: any, H?: Object): Handler;
         public add(id: string): Peer;
         public get(id: string): Peer;
-        public peers(args?: any, cb?: any): Peer[];
+        public find(args?: any, cb?: any): Peer[];
     }
+}
+declare module Talk {
+    interface Message {
+        handler: any[];
+        peer: string;
+        key: string;
+        value: any;
+    }
+    interface Supports {
+        negotiation: boolean;
+        media: boolean;
+        blob: boolean;
+        sctp: boolean;
+        data: boolean;
+    }
+    interface Logger {
+        warn: (...args: any[]) => void;
+        log: (...args: any[]) => void;
+    }
+    var PeerConnection: any;
+    var SessionDescription: any;
+    var IceCandidate: any;
+    var MediaStream: any;
+    var log: typeof noop;
+    var warn: typeof noop;
+    var userMedia: any;
+    var supports: Supports;
+    function logger(obj: Logger): void;
+    function getUserMedia(audio?: boolean, video?: boolean, cb?: (stream: MediaStream) => void): MediaStream;
+    function attachMediaStream(element: HTMLVideoElement, stream: MediaStream): HTMLVideoElement;
+    function safeCb(obj: any): any;
+    function safeStr(obj: any): string;
+    function safeText(obj: any): string;
+    function isEmpty(obj: any): boolean;
+    function isStr(obj: any): boolean;
+    function isObj(obj: any): boolean;
+    function isNum(obj: any): boolean;
+    function randNum(min?: number, max?: number): number;
+    function randWord(length?: number): string;
+    function sha256(obj: string): string;
+    function find(list: any[], obj: any): boolean;
+    function extend(obj: Object, source: Object): Object;
+    function clone(obj: any): any;
+    function comp(obj1: Object, obj2: Object): boolean;
+    function noop(...args: any[]): void;
 }
 declare module Talk {
     class Peer extends WildEmitter {
@@ -932,17 +968,12 @@ declare module Talk {
                     OfferToReceiveVideo: boolean;
                 };
             };
-            logger: Logger;
-            supports: Supports;
             negotiate: boolean;
         };
-        private pc;
         public remoteStream: MediaStream;
         public localStream: MediaStream;
-        private supports;
+        private pc;
         private channels;
-        public warn: Function;
-        public log: Function;
         public id: string;
         constructor(id: string, options?: Object);
         private sendMessage(key, value);
@@ -972,16 +1003,6 @@ declare module Talk {
         public pauseLocal(): void;
         public resumeLocal(): void;
     }
-    interface Logger {
-        warn: (...args: any[]) => void;
-        log: (...args: any[]) => void;
-    }
-    interface Message {
-        handler: any[];
-        peer: string;
-        key: string;
-        value: any;
-    }
 }
 declare module Talk {
     class Pointer extends WildEmitter {
@@ -996,44 +1017,10 @@ declare module Talk {
         public onOffer: (peer: Peer) => void;
         public type: string;
         public room: string;
-        constructor(handler: Handler, host?: string, onOffer?: (...args: any[]) => void, onAnswer?: any);
+        constructor(handler: Handler, host?: string, onOffer?: typeof noop, onAnswer?: any);
         public get(payload: Message): void;
-        public join(room: string, type: string, cb: (error: any, clients: any[]) => void): void;
+        public join(room: string, type: string, cb?: (error: any, clients: any[]) => void): void;
         public leave(): void;
         public remove(id: any): boolean;
-    }
-}
-declare module Talk {
-    class Util {
-        static PeerConnection: any;
-        static SessionDescription: any;
-        static IceCandidate: any;
-        static MediaStream: any;
-        static getUserMedia(...args: any[]): void;
-        static attachMediaStream(element: HTMLVideoElement, stream: MediaStream): HTMLVideoElement;
-        static safeCb(obj: any): Function;
-        static safeStr(obj: any): string;
-        static safeText(obj: any): string;
-        static isEmpty(obj: any): boolean;
-        static isString(obj: any): boolean;
-        static isObject(obj: any): boolean;
-        static isNumber(obj: any): boolean;
-        static randNum(min?: number, max?: number): number;
-        static randWord(length?: number): string;
-        static sha256(obj: string): string;
-        static find(list: any[], obj: any): boolean;
-        static extend(obj: Object, source: Object): Object;
-        static overwrite(obj: Object, source: Object): Object;
-        static clone(obj: any): any;
-        static comp(obj1: Object, obj2: Object): boolean;
-        static supports(config?: Object): Supports;
-        static noop(...args: any[]): void;
-    }
-    interface Supports {
-        negotiation: boolean;
-        media: boolean;
-        blob: boolean;
-        sctp: boolean;
-        data: boolean;
     }
 }

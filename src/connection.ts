@@ -5,15 +5,10 @@ module Talk {
     export class Connection extends WildEmitter {
         public server: io.Socket;
         public handler: Handler;
-        public warn: Function;
-        public log: Function;
         public id: string;
 
         constructor(handler: Handler, host = "http://localhost:8000") {
             super();
-
-            this.warn = handler.warn.bind(handler);
-            this.log = handler.log.bind(handler);
 
             this.handler = handler;
             this.handler.on("message", this.send.bind(this));
@@ -30,7 +25,7 @@ module Talk {
          */
 
         public send(payload: Message): void {
-            this.log("Sending:", payload);
+            log("Sending:", payload);
             this.server.emit("message", payload);
         }
 
@@ -39,15 +34,15 @@ module Talk {
          */
 
         public get(payload: Message): void {
-            this.log("Getting:", payload);
+            log("Getting:", payload);
             if(payload.key && payload.value && payload.peer && payload.handler) {
                 var peer = this.findHandler(payload.handler).get(payload.peer);
                 if(peer) {
-                    this.log("Peer found!");
+                    log("Peer found!");
                     peer.parseMessage(payload.key, payload.value);
                 }
                 else {
-                    this.warn("Peer not found!")
+                    warn("Peer not found!")
                 }
             }
         }

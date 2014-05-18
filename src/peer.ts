@@ -19,34 +19,23 @@ module Talk {
                     OfferToReceiveVideo: false
                 }
             },
-            logger: <Logger> {
-                warn: Util.noop,
-                log: Util.noop
-            },
-            supports: <Supports> null,
             negotiate: false
         };
-        private pc: RTCPeerConnection;
         public remoteStream: MediaStream;
         public localStream: MediaStream;
-        private supports: Supports;
+        private pc: RTCPeerConnection;
         private channels = [];
-        public warn: Function;
-        public log: Function;
         public id: string;
 
         constructor(id: string, options?: Object) {
             super();
-            Util.overwrite(this.config, options);
 
-            this.warn = this.config.logger.warn.bind(this.config.logger);
-            this.log = this.config.logger.log.bind(this.config.logger);
-            this.supports = this.config.supports || Util.supports();
+            extend(this.config, options);
             this.id = id;
 
-            this.pc = new Util.PeerConnection(this.config.options, {
+            this.pc = new PeerConnection(this.config.options, {
                 optional: [
-                    {RtpDataChannels: !this.supports.sctp},
+                    {RtpDataChannels: !supports.sctp},
                     {DtlsSrtpKeyAgreement: true}
                 ]
             });
@@ -78,7 +67,7 @@ module Talk {
          */
 
         public parseMessage(key: string, value: Object): boolean {
-            this.log("Parsing:", key, value);
+            log("Parsing:", key, value);
             switch(key) {
                 case "offer":
                     this.answer(value);
@@ -100,10 +89,10 @@ module Talk {
          */
 
         public addStream(stream: MediaStream): void {
-            this.localStream = new Util.MediaStream(stream);
+            this.localStream = new Talk.MediaStream(stream);
             this.pc.addStream(this.localStream, this.config.media);
-            this.log("Stream was added:", this.localStream);
-            if(!this.supports.negotiation) {
+            log("Stream was added:", this.localStream);
+            if(!supports.negotiation) {
                 this.negotiate();
             }
         }
@@ -114,12 +103,12 @@ module Talk {
 
         private onAddStream(event: RTCMediaStreamEvent): void {
             if(event.stream) {
-                this.log("Remote stream was added:", event.stream);
+                log("Remote stream was added:", event.stream);
                 this.remoteStream = event.stream;
                 this.emit("streamAdded", this);
             }
             else {
-                this.warn("Remote stream could not be added:", event);
+                warn("Remote stream could not be added:", event);
             }
         }
 
@@ -130,7 +119,7 @@ module Talk {
         private onRemoveStream(event: RTCMediaStreamEvent): void {
             this.remoteStream = <MediaStream> {};
             this.emit("streamRemoved", this);
-            this.log("Remote stream was removed from peer:", event);
+            log("Remote stream was removed from peer:", event);
         }
 
         /**
@@ -143,7 +132,7 @@ module Talk {
                 channel.send(JSON.stringify(payload));
                 return true;
             }
-            this.warn("Data channel named `%s` does not exists or it is not opened", label);
+            warn("Data channel named `%s` does not exists or it is not opened", label);
             return false;
         }
 
@@ -169,21 +158,21 @@ module Talk {
 
         private configDataChannel(channel: RTCDataChannel): void {
             channel.onclose = (event) => {
-                this.log("Channel named `%s` was closed", channel.label);
+                log("Channel named `%s` was closed", channel.label);
                 this.emit("channelClosed", this, event);
             };
             channel.onerror = (event) => {
-                this.warn("Channel error:", event);
+                warn("Channel error:", event);
                 this.emit("channelError", this, event);
             };
             channel.onopen = (event) => {
-                this.log("Channel named `%s` was opened", channel.label);
+                log("Channel named `%s` was opened", channel.label);
                 this.emit("channelOpened", this, event);
             };
             channel.onmessage = (event: any) => {
                 if(event.data) {
                     var payload = JSON.parse(event.data);
-                    this.log("Getting (%s):", channel.label, payload);
+                    log("Getting (%s):", channel.label, payload);
                     this.emit("channelMessage", this, payload);
                 }
             };
@@ -197,8 +186,8 @@ module Talk {
             var channel = this.pc.createDataChannel(label, options);
             this.configDataChannel(channel);
             this.channels.push(channel);
-            this.log("Data channel was added:", channel);
-            if(!this.supports.negotiation) {
+            log("Data channel was added:", channel);
+            if(!supports.negotiation) {
                 this.negotiate();
             }
             return channel;
@@ -212,10 +201,10 @@ module Talk {
             if(event.channel) {
                 this.configDataChannel(event.channel);
                 this.channels.push(event.channel);
-                this.log("Data channel was added:", event.channel)
+                log("Data channel was added:", event.channel)
             }
             else {
-                this.warn("Data channel could not be added", event);
+                warn("Data channel could not be added", event);
             }
         }
 
@@ -224,7 +213,7 @@ module Talk {
          */
 
         private onConnectionChange(): void {
-            this.log("Ice connection state was changed to `%s`", this.pc.iceConnectionState);
+            log("Ice connection state was changed to `%s`", this.pc.iceConnectionState);
             switch(<any> this.pc.iceConnectionState) {
                 case "disconnected":
                 case "failed":
@@ -232,7 +221,7 @@ module Talk {
                     break;
                 case "completed":
                 case "closed":
-                    this.pc.onicecandidate = Util.noop;
+                    this.pc.onicecandidate = noop;
                     break;
                 default:
                     this.pc.onicecandidate = this.onCandidate.bind(this);
@@ -246,12 +235,12 @@ module Talk {
 
         private onCandidate(event: RTCIceCandidateEvent): void {
             if(event.candidate) {
-                this.log("Candidate was found:", event.candidate);
+                log("Candidate was found:", event.candidate);
                 this.sendMessage("candidate", event.candidate);
-                this.pc.onicecandidate = Util.noop;
+                this.pc.onicecandidate = noop;
             }
             else {
-                this.log("End of candidates", event);
+                log("End of candidates", event);
             }
         }
 
@@ -260,12 +249,12 @@ module Talk {
          */
 
         private handleCandidate(ice: RTCIceCandidate): void {
-            if(ice.candidate && ice.sdpMid && Util.isNumber(ice.sdpMLineIndex)) {
-                this.log("Handling received candidate:", ice);
-                this.pc.addIceCandidate(new Util.IceCandidate(ice));
+            if(ice.candidate && ice.sdpMid && isNum(ice.sdpMLineIndex)) {
+                log("Handling received candidate:", ice);
+                this.pc.addIceCandidate(new IceCandidate(ice));
             }
             else {
-                this.warn("Candidate could not be handled:", ice)
+                warn("Candidate could not be handled:", ice)
             }
         }
 
@@ -274,13 +263,13 @@ module Talk {
          */
 
         private negotiate(): void {
-            this.log("Negotiation is needed");
+            log("Negotiation is needed");
             if(this.config.negotiate) {
                 if(<any> this.pc.signalingState === "stable") {
                     this.offer();
                 }
                 else {
-                    this.warn("Signaling state is not stable");
+                    warn("Signaling state is not stable");
                 }
             }
         }
@@ -290,21 +279,21 @@ module Talk {
          */
 
         public offer(): void {
-            this.log("Creating an offer");
+            log("Creating an offer");
             this.pc.createOffer(
                 (offer: RTCSessionDescription) => {
                     this.pc.setLocalDescription(offer,
                         () => {
                             this.sendMessage("offer", offer);
-                            this.log("Offer created:", offer);
+                            log("Offer created:", offer);
                         },
                         (error: string) => {
-                            this.warn(error);
+                            warn(error);
                         }
                     );
                 },
                 (error: string) => {
-                    this.warn(error);
+                    warn(error);
                 },
                 this.config.media
             );
@@ -315,8 +304,8 @@ module Talk {
          */
 
         private answer(offer: RTCSessionDescription): void {
-            this.log("Answering for an offer:", offer);
-            this.pc.setRemoteDescription(new Util.SessionDescription(offer),
+            log("Answering for an offer:", offer);
+            this.pc.setRemoteDescription(new SessionDescription(offer),
                 () => {
                     this.pc.createAnswer(
                         (answer: RTCSessionDescription) => {
@@ -325,18 +314,18 @@ module Talk {
                                     this.sendMessage("answer", answer);
                                 },
                                 (error: string) => {
-                                    this.warn(error);
+                                    warn(error);
                                 }
                             );
                         },
                         (error: string) => {
-                            this.warn(error);
+                            warn(error);
                         },
                         this.config.media
                     );
                 },
                 (error: string) => {
-                    this.warn(error);
+                    warn(error);
                 }
             );
         }
@@ -346,13 +335,13 @@ module Talk {
          */
 
         private handleAnswer(answer: RTCSessionDescription): void {
-            this.log("Handling an answer:", answer);
-            this.pc.setRemoteDescription(new Util.SessionDescription(answer),
+            log("Handling an answer:", answer);
+            this.pc.setRemoteDescription(new SessionDescription(answer),
                 () => {
-                    this.log("Answer was handled successfully");
+                    log("Answer was handled successfully");
                 },
                 (error: string) => {
-                    this.warn(error);
+                    warn(error);
                 }
             );
         }
@@ -364,7 +353,7 @@ module Talk {
         public close() {
             this.pc.close();
             this.emit("peerClosed", this);
-            this.log("Peer closed:", this);
+            log("Peer closed:", this);
         }
 
         /**
@@ -375,7 +364,7 @@ module Talk {
             this.remoteStream.getAudioTracks().forEach((track: MediaStreamTrack) => {
                 track.enabled = false;
             });
-            this.log("Peer audio was muted:", this)
+            log("Peer audio was muted:", this)
         }
 
         /**
@@ -386,7 +375,7 @@ module Talk {
             this.remoteStream.getAudioTracks().forEach((track: MediaStreamTrack) => {
                 track.enabled = true;
             });
-            this.log("Peer audio was unmuted:", this)
+            log("Peer audio was unmuted:", this)
         }
 
         /**
@@ -397,7 +386,7 @@ module Talk {
             this.remoteStream.getVideoTracks().forEach((track: MediaStreamTrack) => {
                 track.enabled = false;
             });
-            this.log("Peer video was paused:", this)
+            log("Peer video was paused:", this)
         }
 
         /**
@@ -408,7 +397,7 @@ module Talk {
             this.remoteStream.getVideoTracks().forEach((track: MediaStreamTrack) => {
                 track.enabled = true;
             });
-            this.log("Peer video was resumed:", this)
+            log("Peer video was resumed:", this)
         }
 
         /**
@@ -419,7 +408,7 @@ module Talk {
             this.localStream.getAudioTracks().forEach((track: MediaStreamTrack) => {
                 track.enabled = false;
             });
-            this.log("Local audio for the peer was muted:", this)
+            log("Local audio for the peer was muted:", this)
         }
 
         /**
@@ -430,7 +419,7 @@ module Talk {
             this.localStream.getAudioTracks().forEach((track: MediaStreamTrack) => {
                 track.enabled = true;
             });
-            this.log("Local audio for the peer was unmuted:", this)
+            log("Local audio for the peer was unmuted:", this)
         }
 
         /**
@@ -441,7 +430,7 @@ module Talk {
             this.localStream.getVideoTracks().forEach((track: MediaStreamTrack) => {
                 track.enabled = false;
             });
-            this.log("Local video for the peer was paused:", this)
+            log("Local video for the peer was paused:", this)
         }
 
         /**
@@ -452,19 +441,7 @@ module Talk {
             this.localStream.getVideoTracks().forEach((track: MediaStreamTrack) => {
                 track.enabled = true;
             });
-            this.log("Local video for the peer was resumed:", this)
+            log("Local video for the peer was resumed:", this)
         }
-    }
-
-    export interface Logger {
-        warn: (...args: any[]) => void;
-        log: (...args: any[]) => void;
-    }
-
-    export interface Message {
-        handler: any[];
-        peer: string;
-        key: string;
-        value: any;
     }
 }

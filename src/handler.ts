@@ -10,64 +10,22 @@ module Talk {
                     OfferToReceiveVideo: false
                 }
             },
-            logger: <Logger> {
-                warn: Util.noop,
-                log: Util.noop
-            },
-            localStream: new Pointer,
             handler: Handler,
-            supports: null,
             peer: Peer
         };
-        public localStream: MediaStream;
-        public warn: Function;
-        public log: Function;
         public handlers = [];
-        public _peers = [];
+        public peers = [];
         public id: string;
 
         constructor(id?: any, options?: Object) {
             super();
 
-            if(!options && !Util.isString(id)) {
+            if(!options && !isStr(id)) {
                 options = id;
                 id = null;
             }
-            Util.extend(this.config, options);
-
-            this.config.supports = this.config.supports || Util.supports();
-            this.warn = this.config.logger.warn.bind(this.config.logger);
-            this.log = this.config.logger.log.bind(this.config.logger);
+            extend(this.config, options);
             this.id = id;
-
-            this.config.localStream.on("change", (stream) => {
-                this.localStream = stream;
-            });
-        }
-
-        /**
-         * Get user media
-         */
-
-        public getUserMedia(audio = true, video = true): MediaStream {
-            if(!this.localStream || this.localStream.ended) {
-                Util.getUserMedia(
-                    {
-                        audio: this.config.media.mandatory.OfferToReceiveAudio = audio,
-                        video: this.config.media.mandatory.OfferToReceiveVideo = video
-                    },
-                    (stream: MediaStream) => {
-                        this.log("User media request was successful");
-                        this.config.localStream.value = stream;
-                        this.emit("localStream", stream);
-                    },
-                    (error: string) => {
-                        this.warn(error);
-                        throw Error(error);
-                    }
-                );
-            }
-            return this.localStream;
         }
 
         /**
@@ -81,7 +39,7 @@ module Talk {
                 switch(args[0]) {
                     case "message":
                         var payload = <Message> args[1];
-                        payload = Util.clone(payload);
+                        payload = clone(payload);
                         payload.handler = [handler.id].concat(payload.handler);
                         this.emit("message", payload);
                         break;
@@ -90,7 +48,7 @@ module Talk {
                         break;
                 }
             });
-            this.log("Handler created:", handler);
+            log("Handler created:", handler);
             this.handlers.push(handler);
             return handler;
         }
@@ -123,17 +81,17 @@ module Talk {
             peer.on("*", (...args: any[]) => {
                 switch(args[0]) {
                     case "peerClosed":
-                        var i = this._peers.indexOf(peer);
+                        var i = this.peers.indexOf(peer);
                         if(i >= 0) {
-                            this._peers.splice(i, 1);
+                            this.peers.splice(i, 1);
                         }
                     default:
                         this.emit.apply(this, args);
                         break;
                 }
             });
-            this.log("Peer added:", peer);
-            this._peers.push(peer);
+            log("Peer added:", peer);
+            this.peers.push(peer);
             return peer;
         }
 
@@ -143,7 +101,7 @@ module Talk {
 
         public get(id: string): Peer {
             var result = <any> false;
-            this._peers.some((peer: Peer) => {
+            this.peers.some((peer: Peer) => {
                 if(peer.id === id) {
                     result = peer;
                     return true;
@@ -157,15 +115,15 @@ module Talk {
          * Get a list of peers by their parameters and optionally use their methods
          */
 
-        public peers(args?: any, cb?: any): Peer[] {
+        public find(args?: any, cb?: any): Peer[] {
             var result;
-            if(Util.isObject(args)) {
-                result = this._peers.filter((peer) => {
-                    return Util.comp(args, peer);
+            if(isObj(args)) {
+                result = this.peers.filter((peer) => {
+                    return comp(args, peer);
                 });
             }
             else {
-                result = this._peers;
+                result = this.peers;
                 cb = args;
             }
             switch(typeof cb) {
