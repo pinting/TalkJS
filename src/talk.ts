@@ -8,6 +8,5 @@
 /// <reference path="handler.ts" />
 /// <reference path="main.ts" />
 /// <reference path="peer.ts" />
-/// <reference path="pointer.ts" />
 /// <reference path="room.ts" />
 //grunt-end

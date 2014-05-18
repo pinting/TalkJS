@@ -756,33 +756,6 @@ var Talk;
 })(Talk || (Talk = {}));
 var Talk;
 (function (Talk) {
-    var Pointer = (function (_super) {
-        __extends(Pointer, _super);
-        function Pointer(value) {
-            _super.call(this);
-            this.memory = {
-                value: null
-            };
-            this.memory.value = value || null;
-        }
-        Object.defineProperty(Pointer.prototype, "value", {
-            get: function () {
-                return this.memory.value;
-            },
-            set: function (value) {
-                this.memory.value = value;
-                this.emit("change", value);
-            },
-            enumerable: true,
-            configurable: true
-        });
-
-        return Pointer;
-    })(WildEmitter);
-    Talk.Pointer = Pointer;
-})(Talk || (Talk = {}));
-var Talk;
-(function (Talk) {
     var Room = (function (_super) {
         __extends(Room, _super);
         function Room(handler, host, onOffer, onAnswer) {

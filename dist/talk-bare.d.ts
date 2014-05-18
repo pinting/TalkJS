@@ -133,13 +133,6 @@ declare module Talk {
     }
 }
 declare module Talk {
-    class Pointer extends WildEmitter {
-        private memory;
-        constructor(value?: any);
-        public value : any;
-    }
-}
-declare module Talk {
     class Room extends Connection {
         public onAnswer: (peer: Peer) => void;
         public onOffer: (peer: Peer) => void;
