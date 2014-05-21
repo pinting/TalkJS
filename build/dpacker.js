@@ -4,30 +4,48 @@ var fs = require("fs");
  * Pack definition and its references into one file
  */
 
-module.exports = function(grunt) {
-    grunt.registerMultiTask("dpacker", function() {
-        var src = this.data.src;
-        var dest = this.data.dest || src;
-
-        var file = fs.readFileSync(src, {encoding: "utf8"});
-        var buffer = "";
-        var start = 0;
-
-        file.split("\r\n").every(function(row) {
-            if(row.substr(0, 3) === "///") {
-                var path =  new RegExp(/path=[\'"]?([^\'" >]+)/g).exec(row);
-                if(path && path[1]) {
-                    buffer += fs.readFileSync("./dist/" + path[1], {encoding: "utf8"});
-                    start += row.length + 2;
-                    return true;
-                }
-            }
-            return false;
-        });
-
-        if(start > 0 && buffer.length > 0) {
-            buffer += file.substr(start);
-            fs.writeFileSync(dest, buffer, {encoding: "utf8"});
-        }
+function DPacker(src) {
+    var self = this;
+    var path = src.split("/").slice(0, -1).join("/") + "/";
+    this.buffer = fs.readFileSync(src, {encoding: "utf8"});
+    this.buffer = this.buffer.split(this._newLineChar());
+    this.search(function(src, i) {
+        var packer = new DPacker(path + src);
+        self.inject(i, packer.buffer);
     });
+}
+
+DPacker.prototype._newLineChar = function() {
+    if(this.buffer.search("\r\n") >= 0) {
+        return "\r\n";
+    }
+    if(this.buffer.search("\r") >= 0) {
+        return "\r";
+    }
+    if(this.buffer.search("\n") >= 0) {
+        return "\n";
+    }
+    return "";
 };
+
+DPacker.prototype.search = function(cb) {
+    for(var i = 0; i < this.buffer.length; i++) {
+        var line = this.buffer[i];
+        if(line.substr(0, 3) === "///") {
+            var path =  new RegExp(/path=[\'"]?([^\'" >]+)/g).exec(line);
+            if(path && path[1]) {
+                cb(path[1], i);
+            }
+        }
+    }
+};
+
+DPacker.prototype.inject = function(i, array) {
+    this.buffer.splice.apply(this.buffer, [i, 1].concat(array));
+};
+
+DPacker.prototype.out = function(dest, char) {
+    fs.writeFileSync(dest, this.buffer.join(char || "\r\n"), {encoding: "utf8"});
+};
+
+module.exports = DPacker;

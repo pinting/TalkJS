@@ -44,7 +44,11 @@ module.exports = function(grunt) {
             }
         }
     });
-    require("./build/dpacker")(grunt);
+    grunt.registerMultiTask("dpacker", function() {
+        var DPacker = require("./build/dpacker");
+        var packer = new DPacker(this.data.src);
+        packer.out(this.data.dest || this.data.src);
+    });
     grunt.loadNpmTasks("grunt-contrib-uglify");
     grunt.loadNpmTasks("grunt-contrib-concat");
     grunt.loadNpmTasks("grunt-bump");
