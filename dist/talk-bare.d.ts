@@ -23,18 +23,16 @@ declare module Talk {
                     OfferToReceiveVideo: boolean;
                 };
             };
-            handler: typeof Handler;
-            peer: typeof Peer;
         };
         public handlers: any[];
         public peers: any[];
         public id: string;
         constructor(id?: any, options?: Object);
         private createHandler(id, H?);
-        public h(id: any, H?: Object): Handler;
-        public add(id: string): Peer;
+        public h(id: any, H?: typeof Handler): Handler;
+        public add(id: string, P?: typeof Peer): Peer;
         public get(id: string): Peer;
-        public find(args?: any, cb?: any): Peer[];
+        public find(props?: any, cb?: any): Peer[];
     }
 }
 declare module Talk {
@@ -68,7 +66,7 @@ declare module Talk {
     function attachMediaStream(element: HTMLVideoElement, stream: MediaStream): HTMLVideoElement;
     function safeCb(obj: any): any;
     function safeStr(obj: any): string;
-    function safeText(obj: any): string;
+    function safeText(obj: string): string;
     function isEmpty(obj: any): boolean;
     function isStr(obj: any): boolean;
     function isObj(obj: any): boolean;

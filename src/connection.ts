@@ -7,6 +7,12 @@ module Talk {
         public handler: Handler;
         public id: string;
 
+        /**
+         * Connection object is meant to sync peers across a Socket.IO server
+         * @param {Talk.Handler} handler
+         * @param {string} [host]
+         */
+
         constructor(handler: Handler, host = "http://localhost:8000") {
             super();
 
@@ -22,6 +28,7 @@ module Talk {
 
         /**
          * Send a message of a peer
+         * @param {Talk.Message} payload
          */
 
         public send(payload: Message): void {
@@ -31,6 +38,7 @@ module Talk {
 
         /**
          * Get a message, then find its peer and parse it
+         * @param {Talk.Message} payload
          */
 
         public get(payload: Message): void {
@@ -48,7 +56,9 @@ module Talk {
         }
 
         /**
-         * Find a handler by a hierarchy list
+         * Find the handler from the bottom of the array
+         * @param {Talk.Handler[]} handler - An array of handlers
+         * @returns {Talk.Handler}
          */
 
         private findHandler(handler: Handler[]): Handler {

@@ -2,6 +2,22 @@
 /// <reference path="./definitions/wildemitter" />
 /// <reference path="./definitions/crypto" />
 
+/**
+ * TalkJS is a library to connect. It can serve many purpose: starting from online games, to
+ * communication apps. All can be done, with this library. It is easy to use, but advanced
+ * tasks can be done too, if we dig deeper in the possibilities.
+ *
+ * @example
+ * var handler = new Talk.Handler;
+ * var room = new Talk.Room(handler, "https://example.io:8080", (peer) => {
+ *     peer.addDataChannel("default");
+ * });
+ *
+ * handler.on("channelOpened", (peer) => {
+ *     peer.send("default", "Cake is a lie!");
+ * });
+ */
+
 module Talk {
     declare var navigator: any;
     declare var window: any;
@@ -50,6 +66,7 @@ module Talk {
 
     /**
      * Check what is supported - from PeerJS
+     * @param {Talk.Peer.config} [config]
      */
 
     export var supports = <Supports> (function(config?: Object): Supports {
@@ -139,6 +156,7 @@ module Talk {
 
     /**
      * Set a new logger
+     * @param {Talk.Logger} obj
      */
 
     export function logger(obj: Logger): void {
@@ -152,6 +170,10 @@ module Talk {
 
     /**
      * Get user media
+     * @param {boolean} [audio]
+     * @param {boolean} [video]
+     * @param {Function} [cb]
+     * @returns {MediaStream}
      */
 
     export function getUserMedia(audio = true, video = true, cb?: (stream: MediaStream) => void): MediaStream {
@@ -177,6 +199,9 @@ module Talk {
 
     /**
      * Attach stream to an element
+     * @param {HTMLVideoElement} element
+     * @param {MediaStream} stream
+     * @returns {HTMLVideoElement}
      */
 
     export function attachMediaStream(element: HTMLVideoElement, stream: MediaStream): HTMLVideoElement {
@@ -192,6 +217,8 @@ module Talk {
 
     /**
      * Check if input is a function: if it is not, then return an empty function
+     * @param {*} obj
+     * @returns {Function}
      */
 
     export function safeCb(obj: any): any {
@@ -205,6 +232,8 @@ module Talk {
 
     /**
      * Remove unwanted characters from a string
+     * @param {string} obj
+     * @returns {string}
      */
 
     export function safeStr(obj: any): string {
@@ -213,9 +242,11 @@ module Talk {
 
     /**
      * Make a string HTML-safe
+     * @param {string} obj
+     * @returns {string}
      */
 
-    export function safeText(obj: any): string {
+    export function safeText(obj: string): string {
         return obj
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&apos;")
@@ -226,6 +257,8 @@ module Talk {
 
     /**
      * Check if object is empty - from TokBox
+     * @param {Array|Object|string} obj
+     * @returns {boolean}
      */
 
     export function isEmpty(obj: any): boolean {
@@ -245,6 +278,8 @@ module Talk {
 
     /**
      * Check if object is a NOT EMPTY string.
+     * @param {*} obj
+     * @returns {boolean}
      */
 
     export function isStr(obj: any): boolean {
@@ -261,6 +296,8 @@ module Talk {
 
     /**
      * Check if object is a number
+     * @param {*} obj
+     * @returns {boolean}
      */
 
     export function isNum(obj: any): boolean {
@@ -269,6 +306,9 @@ module Talk {
 
     /**
      * Create a random number between the minimum and the maximum argument
+     * @param {number} [min]
+     * @param {number} [max]
+     * @returns {number}
      */
 
     export function randNum(min = 0, max = Math.pow(10, 16)): number {
@@ -277,6 +317,8 @@ module Talk {
 
     /**
      * Create a random word
+     * @param {number} [length]
+     * @returns {string}
      */
 
     export function randWord(length = 8): string {
@@ -294,6 +336,8 @@ module Talk {
 
     /**
      * Make an SHA256 hash from a string
+     * @param {string} obj
+     * @returns {string}
      */
 
     export function sha256(obj: string): string {
@@ -302,6 +346,9 @@ module Talk {
 
     /**
      * Check if an object can be found in a array
+     * @param {Array} list - List of elements
+     * @param {*} obj
+     * @returns {boolean}
      */
 
     export function find(list: any[], obj: any): boolean {
@@ -309,7 +356,10 @@ module Talk {
     }
 
     /**
-     * Extend an array - from PeerJS
+     * Extend an object - from PeerJS
+     * @param {Object} obj
+     * @param {Object} source
+     * @returns {Object}
      */
 
     export function extend(obj: Object, source: Object): Object {
@@ -322,7 +372,9 @@ module Talk {
     }
 
     /**
-     * Clone an object
+     * Clone an object or an array
+     * @param {Object|Array} obj
+     * @returns {Object|Array}
      */
 
     export function clone(obj: any): any {
@@ -337,6 +389,9 @@ module Talk {
 
     /**
      * Compare objects by the first one
+     * @param {Object} obj1
+     * @param {Object} obj2
+     * @returns {boolean}
      */
 
     export function comp(obj1: Object, obj2: Object): boolean {
@@ -353,6 +408,7 @@ module Talk {
 
     /**
      * An empty function
+     * @param {...*} [args]
      */
 
     export function noop(...args: any[]): void {

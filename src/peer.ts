@@ -27,6 +27,14 @@ module Talk {
         private channels = [];
         public id: string;
 
+        /**
+         * A peer symbolizes another user and its connection. We can use
+         * any kind of messaging service to sync a peer object with
+         * the actual user.
+         * @param {string} id - An unique ID
+         * @param {Talk.Peer.config} [options]
+         */
+
         constructor(id: string, options?: Object) {
             super();
 
@@ -50,6 +58,8 @@ module Talk {
 
         /**
          * Send message to the peer
+         * @param {string} key - Key of the message
+         * @param {*} value
          */
 
         private sendMessage(key: string, value: Object): void {
@@ -64,6 +74,9 @@ module Talk {
 
         /**
          * Parse message from the peer
+         * @param {string} key
+         * @param {*} value
+         * @returns {boolean}
          */
 
         public parseMessage(key: string, value: Object): boolean {
@@ -86,6 +99,7 @@ module Talk {
 
         /**
          * Add our stream to the peer
+         * @param {MediaStream} stream
          */
 
         public addStream(stream: MediaStream): void {
@@ -99,6 +113,7 @@ module Talk {
 
         /**
          * When the peer adds its stream to us
+         * @param {RTCMediaStreamEvent} event
          */
 
         private onAddStream(event: RTCMediaStreamEvent): void {
@@ -114,6 +129,7 @@ module Talk {
 
         /**
          * When the added stream is removed
+         * @param {RTCMediaStreamEvent} event
          */
 
         private onRemoveStream(event: RTCMediaStreamEvent): void {
@@ -124,6 +140,9 @@ module Talk {
 
         /**
          * Send data directly to the peer
+         * @param {string} label - Label of the data channel
+         * @param {*} payload
+         * @returns {boolean}
          */
 
         public send(label: string, payload: any): boolean {
@@ -138,6 +157,8 @@ module Talk {
 
         /**
          * Get a data channel
+         * @param {string} label
+         * @returns {boolean||RTCDataChannel}
          */
 
         private getDataChannel(label: string): RTCDataChannel {
@@ -154,6 +175,7 @@ module Talk {
 
         /**
          * Configuration a newly created data channel
+         * @param {RTCDataChannel} channel
          */
 
         private configDataChannel(channel: RTCDataChannel): void {
@@ -180,6 +202,9 @@ module Talk {
 
         /**
          * Add a data channel
+         * @param {string} label
+         * @param {RTCDataChannelInit} [options]
+         * @returns {RTCDataChannel}
          */
 
         public addDataChannel(label: string, options?: RTCDataChannelInit): RTCDataChannel {
@@ -195,6 +220,7 @@ module Talk {
 
         /**
          * When the peer has added a data channel between us
+         * @param {RTCDataChannelEvent} event
          */
 
         private onDataChannel(event: RTCDataChannelEvent): void {
@@ -231,6 +257,7 @@ module Talk {
 
         /**
          * When we found an ice candidate
+         * @param {RTCIceCandidateEvent} event
          */
 
         private onCandidate(event: RTCIceCandidateEvent): void {
@@ -246,6 +273,7 @@ module Talk {
 
         /**
          * Handle a received ice candidate, through a message
+         * @param {RTCIceCandidate} ice
          */
 
         private handleCandidate(ice: RTCIceCandidate): void {
@@ -301,6 +329,7 @@ module Talk {
 
         /**
          * Answer for a offer of the peer
+         * @param {RTCSessionDescription} offer
          */
 
         private answer(offer: RTCSessionDescription): void {
@@ -332,6 +361,7 @@ module Talk {
 
         /**
          * Handle the answer of the peer
+         * @param {RTCSessionDescription} answer
          */
 
         private handleAnswer(answer: RTCSessionDescription): void {

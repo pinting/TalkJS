@@ -5,6 +5,15 @@ module Talk {
         public type: string;
         public room: string;
 
+        /**
+         * Room is an extended connection object: it can handle a handler like
+         * chat room, so it will add and remove peers when its needed.
+         * @param {Talk.Handler} handler
+         * @param {string} [host]
+         * @param {Function} [onOffer]
+         * @param {Function} [onAnswer] - If its not defined, onOffer will used
+         */
+
         constructor(handler: Handler, host = "http://localhost:8000", onOffer = noop, onAnswer?: any) {
             super(handler, host);
 
@@ -20,6 +29,7 @@ module Talk {
 
         /**
          * Get a message, then find its peer and parse it
+         * @param {Talk.Message} payload
          */
 
         public get(payload: Message): void {
@@ -42,6 +52,9 @@ module Talk {
 
         /**
          * Join to a room
+         * @param {string} room - Name of the room
+         * @param {string} type
+         * @param {Function} [cb]
          */
 
         public join(room: string, type: string, cb?: (error: any, clients: any[]) => void) {
@@ -75,6 +88,8 @@ module Talk {
 
         /**
          * Remove user from the handler by id
+         * @param {string} id - ID of the peer
+         * @returns {boolean}
          */
 
         public remove(id): boolean {

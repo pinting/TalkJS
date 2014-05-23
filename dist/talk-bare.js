@@ -63,9 +63,7 @@ var Talk;
                         OfferToReceiveAudio: false,
                         OfferToReceiveVideo: false
                     }
-                },
-                handler: Handler,
-                peer: Talk.Peer
+                }
             };
             this.handlers = [];
             this.peers = [];
@@ -79,8 +77,8 @@ var Talk;
         }
         Handler.prototype.createHandler = function (id, H) {
             var _this = this;
-            this.config.handler = H || this.config.handler;
-            var handler = new this.config.handler(id, this.config);
+            if (typeof H === "undefined") { H = Handler; }
+            var handler = new H(id, this.config);
             handler.on("*", function () {
                 var args = [];
                 for (var _i = 0; _i < (arguments.length - 0); _i++) {
@@ -104,6 +102,7 @@ var Talk;
         };
 
         Handler.prototype.h = function (id, H) {
+            if (typeof H === "undefined") { H = Handler; }
             var result = false;
             this.handlers.some(function (handler) {
                 if (handler.id === id) {
@@ -118,9 +117,10 @@ var Talk;
             return result;
         };
 
-        Handler.prototype.add = function (id) {
+        Handler.prototype.add = function (id, P) {
             var _this = this;
-            var peer = new this.config.peer(id, this.config);
+            if (typeof P === "undefined") { P = Talk.Peer; }
+            var peer = new P(id, this.config);
             peer.on("*", function () {
                 var args = [];
                 for (var _i = 0; _i < (arguments.length - 0); _i++) {
@@ -154,15 +154,15 @@ var Talk;
             return result;
         };
 
-        Handler.prototype.find = function (args, cb) {
+        Handler.prototype.find = function (props, cb) {
             var result;
-            if (Talk.isObj(args)) {
+            if (Talk.isObj(props)) {
                 result = this.peers.filter(function (peer) {
-                    return Talk.comp(args, peer);
+                    return Talk.comp(props, peer);
                 });
             } else {
                 result = this.peers;
-                cb = args;
+                cb = props;
             }
             switch (typeof cb) {
                 case "function":

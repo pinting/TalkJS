@@ -6,6 +6,7 @@ module.exports = function(grunt) {
                 out: "./dist/talk-bare.js",
                 src: ["./src/**/*.ts"],
                 options: {
+                    removeComments: true,
                     module: "commonjs",
                     declaration: true,
                     sourceMap: false,

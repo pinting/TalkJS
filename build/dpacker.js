@@ -2,8 +2,8 @@ var fs = require("fs");
 
 /**
  * Pack definition and its references into one file
- * @param src {string}
- * @param found {Array}
+ * @param {string} src - Source of the definition file
+ * @param {Array} [found] - Excepted references
  * @constructor
  */
 
@@ -52,7 +52,7 @@ DPacker.prototype._newLineChar = function() {
 
 /**
  * Search the buffer for references
- * @param cb {function}
+ * @param {Function} cb
  */
 
 DPacker.prototype.search = function(cb) {
@@ -70,7 +70,7 @@ DPacker.prototype.search = function(cb) {
 
 /**
  * Inject an array into the buffer
- * @param array {Array}
+ * @param {Array} array
  */
 
 DPacker.prototype.inject = function(array) {
@@ -80,8 +80,8 @@ DPacker.prototype.inject = function(array) {
 
 /**
  * Write the buffer to a file with the given new line character
- * @param dest {string}
- * @param char {char}
+ * @param {string} dest
+ * @param {string} [char]
  */
 
 DPacker.prototype.out = function(dest, char) {

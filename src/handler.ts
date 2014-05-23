@@ -9,13 +9,19 @@ module Talk {
                     OfferToReceiveAudio: false,
                     OfferToReceiveVideo: false
                 }
-            },
-            handler: Handler,
-            peer: Peer
+            }
         };
         public handlers = [];
         public peers = [];
         public id: string;
+
+        /**
+         * A handler is likes a directory: it can store infinite number of peers,
+         * and other handlers. The only limit is the limit of the interpreter.
+         * @param {string|Talk.Handler.config} [id] - An unique ID, or the second
+         * argument can be passed here.
+         * @param {Talk.Handler.config} [options]
+         */
 
         constructor(id?: any, options?: Object) {
             super();
@@ -29,12 +35,14 @@ module Talk {
         }
 
         /**
-         * Create a handler: H argument is for a custom handler
+         * Create a handler
+         * @param {string} id - An unique ID
+         * @param {Talk.Handler} [H] - Custom handler object
+         * @returns {Talk.Handler}
          */
 
-        private createHandler(id: string, H?: any): Handler {
-            this.config.handler = H || this.config.handler;
-            var handler = <Handler> new this.config.handler(id, this.config);
+        private createHandler(id: string, H = Handler): Handler {
+            var handler = new H(id, this.config);
             handler.on("*", (...args: any[]) => {
                 switch(args[0]) {
                     case "message":
@@ -55,9 +63,12 @@ module Talk {
 
         /**
          * Open a handler, or create it if it is not exists
+         * @param {string} id - An unique ID
+         * @param {Talk.Handler} [H] - Custom handler object
+         * @returns {Talk.Handler}
          */
 
-        public h(id, H?: Object): Handler {
+        public h(id, H = Handler): Handler {
             var result = <any> false;
             this.handlers.some((handler: Handler) => {
                 if(handler.id === id) {
@@ -74,10 +85,13 @@ module Talk {
 
         /**
          * Add a peer to THIS handler
+         * @param {string} id - An unique ID
+         * @param {Talk.Peer} [P] - Custom peer object
+         * @returns {Talk.Peer}
          */
 
-        public add(id: string): Peer {
-            var peer = <Peer> new this.config.peer(id, this.config);
+        public add(id: string, P = Peer): Peer {
+            var peer = new P(id, this.config);
             peer.on("*", (...args: any[]) => {
                 switch(args[0]) {
                     case "peerClosed":
@@ -97,6 +111,8 @@ module Talk {
 
         /**
          * Get an EXISTING peer by its ID
+         * @param {string} id
+         * @returns {Talk.Peer}
          */
 
         public get(id: string): Peer {
@@ -113,18 +129,23 @@ module Talk {
 
         /**
          * Get a list of peers by their parameters and optionally use their methods
+         * @param {Object|Function|string} [props] - Properties of the wanted peers: empty means all.
+         * Second argument can be passed here too, if its empty.
+         * @param {Function|string} [cb] - Execute a callback on results (peer: Peer) => void,
+         * or (if cb a string) call one of their properties.
+         * @returns {Talk.Peer}
          */
 
-        public find(args?: any, cb?: any): Peer[] {
+        public find(props?: any, cb?: any): Peer[] {
             var result;
-            if(isObj(args)) {
+            if(isObj(props)) {
                 result = this.peers.filter((peer) => {
-                    return comp(args, peer);
+                    return comp(props, peer);
                 });
             }
             else {
                 result = this.peers;
-                cb = args;
+                cb = props;
             }
             switch(typeof cb) {
                 case "function":
