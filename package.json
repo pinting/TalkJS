@@ -1,7 +1,7 @@
 {
     "name": "TalkJS",
     "main": "index.js",
-    "version": "1.0.342",
+    "version": "1.0.368",
     "author": "Tornyi Dénes",
     "description": "WebRTC simplier library",
     "repository": {

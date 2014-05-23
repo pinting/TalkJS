@@ -5,7 +5,7 @@
 
 // Definitions taken from http://dev.w3.org/2011/webrtc/editor/webrtc.html
 
-/// <reference path="MediaStream.d.ts" />
+/// <reference path="mediastream.d.ts" />
 
 interface RTCConfiguration {
     iceServers: RTCIceServer[];
