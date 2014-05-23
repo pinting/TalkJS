@@ -66,15 +66,15 @@ module Talk {
 
     /**
      * Check what is supported - from PeerJS
-     * @param {Talk.Peer.config} [config]
+     * @param {Talk.Peer.config.options} [options]
      */
 
-    export var supports = <Supports> (function(config?: Object): Supports {
+    export var supports = <Supports> (function(options?: Object): Supports {
         if(!this.PeerConnection) {
             return <Supports> {};
         }
 
-        config = config || {
+        options = options || {
             iceServers: [
                 {"url": "stun:stun.l.google.com:19302"}
             ]
@@ -89,7 +89,7 @@ module Talk {
         var dc;
 
         try {
-            pc = new this.PeerConnection(config, {optional: [{RtpDataChannels: true}]});
+            pc = new this.PeerConnection(options, {optional: [{RtpDataChannels: true}]});
         }
         catch(e) {
             data = false;
@@ -114,7 +114,7 @@ module Talk {
 
             }
 
-            var reliablePC = new this.PeerConnection(config, {});
+            var reliablePC = new this.PeerConnection(options, {});
             try {
                 var reliableDC = reliablePC.createDataChannel("_reliableTest", <RTCDataChannelInit> {});
                 sctp = reliableDC.reliable;
@@ -130,7 +130,7 @@ module Talk {
         }
 
         if(!negotiation && data) {
-            var negotiationPC = new this.PeerConnection(config, {optional: [{RtpDataChannels: true}]});
+            var negotiationPC = new this.PeerConnection(options, {optional: [{RtpDataChannels: true}]});
             negotiationPC.onnegotiationneeded = function() {
                 negotiation = true;
             };
