@@ -3,9 +3,11 @@
 /// <reference path="./definitions/crypto" />
 
 /**
- * TalkJS is a library to connect. It can serve many purpose: starting from online games, to
- * communication apps. All can be done, with this library. It is easy to use, but advanced
- * tasks can be done too, if we dig deeper in the possibilities.
+ * TalkJS is a P2P data transfer library, so it relies on the WebRTC protocol.
+ * Its main goal is to communicate without a central point: so it is not just
+ * fast, but secure and it can reduce server usage. It can serve many purposes:
+ * starting from games, to chat services. All can be done with a single
+ * library. It is fast to learn and easy to use.
  *
  * @example
  * var handler = new Talk.Handler;
