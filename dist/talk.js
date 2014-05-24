@@ -195,12 +195,12 @@ var Talk;
 
     Talk.userMedia;
 
-    Talk.supports = (function (config) {
+    Talk.supports = (function (options) {
         if (!this.PeerConnection) {
             return {};
         }
 
-        config = config || {
+        options = options || {
             iceServers: [
                 { "url": "stun:stun.l.google.com:19302" }
             ]
@@ -215,7 +215,7 @@ var Talk;
         var dc;
 
         try  {
-            pc = new this.PeerConnection(config, { optional: [{ RtpDataChannels: true }] });
+            pc = new this.PeerConnection(options, { optional: [{ RtpDataChannels: true }] });
         } catch (e) {
             data = false;
             media = false;
@@ -236,7 +236,7 @@ var Talk;
             } catch (e) {
             }
 
-            var reliablePC = new this.PeerConnection(config, {});
+            var reliablePC = new this.PeerConnection(options, {});
             try  {
                 var reliableDC = reliablePC.createDataChannel("_reliableTest", {});
                 sctp = reliableDC.reliable;
@@ -250,7 +250,7 @@ var Talk;
         }
 
         if (!negotiation && data) {
-            var negotiationPC = new this.PeerConnection(config, { optional: [{ RtpDataChannels: true }] });
+            var negotiationPC = new this.PeerConnection(options, { optional: [{ RtpDataChannels: true }] });
             negotiationPC.onnegotiationneeded = function () {
                 negotiation = true;
             };
