@@ -5,7 +5,9 @@ TalkJS is a P2P data transfer library, so it relies on the WebRTC protocol. Its 
 ## Usage
 
 `npm install`: Install dependencies
+
 `grunt`: Build the library
+
 `grunt bump`: Bump the version
 
 **JSDoc is included in the source**
