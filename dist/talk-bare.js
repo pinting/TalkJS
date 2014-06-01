@@ -275,7 +275,7 @@ var Talk;
             Talk.log = obj.log.bind(obj);
         }
         if (obj.warn) {
-            Talk.warn = obj.warn.bind(Talk.warn);
+            Talk.warn = obj.warn.bind(obj);
         }
     }
     Talk.logger = logger;
@@ -284,7 +284,8 @@ var Talk;
         if (typeof audio === "undefined") { audio = true; }
         if (typeof video === "undefined") { video = true; }
         if (!Talk.userMedia || Talk.userMedia.ended) {
-            (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia)({
+            navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+            navigator.getUserMedia({
                 audio: audio,
                 video: video
             }, function (stream) {
@@ -787,17 +788,18 @@ var Talk;
         Room.prototype.join = function (room, type, cb) {
             var _this = this;
             this.server.emit("join", room, type, function (error, clients) {
-                Talk.log("Joined to room `%s`", room);
                 if (error) {
                     Talk.warn(error);
+                } else {
+                    Talk.log("Joined to room `%s`", room);
+                    clients.forEach(function (client) {
+                        var peer = _this.handler.add(client.id);
+                        _this.onOffer(peer);
+                        peer.offer();
+                    });
+                    _this.room = room;
+                    _this.type = type;
                 }
-                clients.forEach(function (client) {
-                    var peer = _this.handler.add(client.id);
-                    _this.onOffer(peer);
-                    peer.offer();
-                });
-                _this.room = room;
-                _this.type = type;
                 Talk.safeCb(cb)(error, clients);
             });
         };

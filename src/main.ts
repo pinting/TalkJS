@@ -6,7 +6,7 @@
  * TalkJS is a P2P data transfer helper library: it relies on the WebRTC protocol.
  * Its main goal is to communicate without a central point: so it is not just
  * fast, but secure and it can reduce server usage. It can serve many purposes:
- * starting from games, to chat services. All can be done with a single library. 
+ * starting from games, to chat services. All can be done with a single library.
  * It is fast to learn and easy to use.
  *
  * @example
@@ -166,7 +166,7 @@ module Talk {
             log = obj.log.bind(obj);
         }
         if(obj.warn) {
-            warn = obj.warn.bind(warn);
+            warn = obj.warn.bind(obj);
         }
     }
 
@@ -180,7 +180,9 @@ module Talk {
 
     export function getUserMedia(audio = true, video = true, cb?: (stream: MediaStream) => void): MediaStream {
         if(!userMedia || userMedia.ended) {
-            (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia)(
+            // Workaround to avoid illegal invocation error
+            navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+            navigator.getUserMedia(
                 {
                     audio: audio,
                     video: video

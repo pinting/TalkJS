@@ -59,17 +59,19 @@ module Talk {
 
         public join(room: string, type: string, cb?: (error: any, clients: any[]) => void) {
             this.server.emit("join", room, type, (error, clients) => {
-                log("Joined to room `%s`", room);
                 if(error) {
                     warn(error);
                 }
-                clients.forEach((client) => {
-                    var peer = this.handler.add(client.id);
-                    this.onOffer(peer);
-                    peer.offer();
-                });
-                this.room = room;
-                this.type = type;
+                else {
+                    log("Joined to room `%s`", room);
+                    clients.forEach((client) => {
+                        var peer = this.handler.add(client.id);
+                        this.onOffer(peer);
+                        peer.offer();
+                    });
+                    this.room = room;
+                    this.type = type;
+                }
                 safeCb(cb)(error, clients);
             });
         }
