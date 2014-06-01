@@ -19,6 +19,7 @@ module Talk {
                     OfferToReceiveVideo: false
                 }
             },
+            newMediaStream: false,
             negotiate: false
         };
         public remoteStream: MediaStream;
@@ -103,7 +104,15 @@ module Talk {
          */
 
         public addStream(stream: MediaStream): void {
-            this.localStream = new Talk.MediaStream(stream);
+            if(stream.getVideoTracks().length > 0) {
+                this.config.media.mandatory.OfferToReceiveVideo = true;
+                log("Offer to receive video");
+            }
+            if(stream.getAudioTracks().length > 0) {
+                this.config.media.mandatory.OfferToReceiveAudio = true;
+                log("Offer to receive audio");
+            }
+            this.localStream = this.config.newMediaStream ? new Talk.MediaStream(stream) : stream;
             this.pc.addStream(this.localStream, this.config.media);
             log("Stream was added:", this.localStream);
             if(!supports.negotiation) {
@@ -277,7 +286,7 @@ module Talk {
          */
 
         private handleCandidate(ice: RTCIceCandidate): void {
-            if(ice.candidate && ice.sdpMid && isNum(ice.sdpMLineIndex)) {
+            if(isStr(ice.candidate) && isStr(ice.sdpMid) && isNum(ice.sdpMLineIndex)) {
                 log("Handling received candidate:", ice);
                 this.pc.addIceCandidate(new IceCandidate(ice));
             }

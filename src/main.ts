@@ -54,6 +54,13 @@ module Talk {
     export var MediaStream = window.MediaStream || window.webkitMediaStream;
 
     /**
+     * Get the type of the browser
+     */
+
+    export var isChrome = !!navigator.webkitGetUserMedia;
+    export var isFirefox = !!navigator.mozGetUserMedia;
+
+    /**
      * Logger functions
      */
 
@@ -72,7 +79,7 @@ module Talk {
      */
 
     export var supports = <Supports> (function(options?: Object): Supports {
-        if(!this.PeerConnection) {
+        if(!PeerConnection) {
             return <Supports> {};
         }
 
@@ -91,7 +98,7 @@ module Talk {
         var dc;
 
         try {
-            pc = new this.PeerConnection(options, {optional: [{RtpDataChannels: true}]});
+            pc = new PeerConnection(options, {optional: [{RtpDataChannels: true}]});
         }
         catch(e) {
             data = false;
@@ -116,7 +123,7 @@ module Talk {
 
             }
 
-            var reliablePC = new this.PeerConnection(options, {});
+            var reliablePC = new PeerConnection(options, {});
             try {
                 var reliableDC = reliablePC.createDataChannel("_reliableTest", <RTCDataChannelInit> {});
                 sctp = reliableDC.reliable;
@@ -132,7 +139,7 @@ module Talk {
         }
 
         if(!negotiation && data) {
-            var negotiationPC = new this.PeerConnection(options, {optional: [{RtpDataChannels: true}]});
+            var negotiationPC = new PeerConnection(options, {optional: [{RtpDataChannels: true}]});
             negotiationPC.onnegotiationneeded = function() {
                 negotiation = true;
             };
@@ -287,7 +294,7 @@ module Talk {
      */
 
     export function isStr(obj: any): boolean {
-        return typeof obj === "string" && !isEmpty(obj);
+        return typeof obj === "string";
     }
 
     /**

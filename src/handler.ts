@@ -3,15 +3,8 @@
 
 module Talk {
     export class Handler extends WildEmitter {
-        public config = {
-            media: {
-                mandatory: {
-                    OfferToReceiveAudio: false,
-                    OfferToReceiveVideo: false
-                }
-            }
-        };
         public handlers = [];
+        public config = {};
         public peers = [];
         public id: string;
 

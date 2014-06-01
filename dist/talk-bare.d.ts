@@ -16,15 +16,8 @@ declare module Talk {
 }
 declare module Talk {
     class Handler extends WildEmitter {
-        public config: {
-            media: {
-                mandatory: {
-                    OfferToReceiveAudio: boolean;
-                    OfferToReceiveVideo: boolean;
-                };
-            };
-        };
         public handlers: any[];
+        public config: {};
         public peers: any[];
         public id: string;
         constructor(id?: any, options?: Object);
@@ -57,6 +50,8 @@ declare module Talk {
     var SessionDescription: any;
     var IceCandidate: any;
     var MediaStream: any;
+    var isChrome: boolean;
+    var isFirefox: boolean;
     var log: typeof noop;
     var warn: typeof noop;
     var userMedia: any;
@@ -94,6 +89,7 @@ declare module Talk {
                     OfferToReceiveVideo: boolean;
                 };
             };
+            newMediaStream: boolean;
             negotiate: boolean;
         };
         public remoteStream: MediaStream;

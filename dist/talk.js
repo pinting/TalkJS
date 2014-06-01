@@ -61,15 +61,8 @@ var Talk;
         __extends(Handler, _super);
         function Handler(id, options) {
             _super.call(this);
-            this.config = {
-                media: {
-                    mandatory: {
-                        OfferToReceiveAudio: false,
-                        OfferToReceiveVideo: false
-                    }
-                }
-            };
             this.handlers = [];
+            this.config = {};
             this.peers = [];
 
             if (!options && !Talk.isStr(id)) {
@@ -190,13 +183,16 @@ var Talk;
     Talk.IceCandidate = window.RTCIceCandidate || window.mozRTCIceCandidate;
     Talk.MediaStream = window.MediaStream || window.webkitMediaStream;
 
+    Talk.isChrome = !!navigator.webkitGetUserMedia;
+    Talk.isFirefox = !!navigator.mozGetUserMedia;
+
     Talk.log = noop;
     Talk.warn = noop;
 
     Talk.userMedia;
 
     Talk.supports = (function (options) {
-        if (!this.PeerConnection) {
+        if (!Talk.PeerConnection) {
             return {};
         }
 
@@ -215,7 +211,7 @@ var Talk;
         var dc;
 
         try  {
-            pc = new this.PeerConnection(options, { optional: [{ RtpDataChannels: true }] });
+            pc = new Talk.PeerConnection(options, { optional: [{ RtpDataChannels: true }] });
         } catch (e) {
             data = false;
             media = false;
@@ -236,7 +232,7 @@ var Talk;
             } catch (e) {
             }
 
-            var reliablePC = new this.PeerConnection(options, {});
+            var reliablePC = new Talk.PeerConnection(options, {});
             try  {
                 var reliableDC = reliablePC.createDataChannel("_reliableTest", {});
                 sctp = reliableDC.reliable;
@@ -250,7 +246,7 @@ var Talk;
         }
 
         if (!negotiation && data) {
-            var negotiationPC = new this.PeerConnection(options, { optional: [{ RtpDataChannels: true }] });
+            var negotiationPC = new Talk.PeerConnection(options, { optional: [{ RtpDataChannels: true }] });
             negotiationPC.onnegotiationneeded = function () {
                 negotiation = true;
             };
@@ -352,7 +348,7 @@ var Talk;
     Talk.isEmpty = isEmpty;
 
     function isStr(obj) {
-        return typeof obj === "string" && !isEmpty(obj);
+        return typeof obj === "string";
     }
     Talk.isStr = isStr;
 
@@ -461,6 +457,7 @@ var Talk;
                         OfferToReceiveVideo: false
                     }
                 },
+                newMediaStream: false,
                 negotiate: false
             };
             this.channels = [];
@@ -511,7 +508,15 @@ var Talk;
         };
 
         Peer.prototype.addStream = function (stream) {
-            this.localStream = new Talk.MediaStream(stream);
+            if (stream.getVideoTracks().length > 0) {
+                this.config.media.mandatory.OfferToReceiveVideo = true;
+                Talk.log("Offer to receive video");
+            }
+            if (stream.getAudioTracks().length > 0) {
+                this.config.media.mandatory.OfferToReceiveAudio = true;
+                Talk.log("Offer to receive audio");
+            }
+            this.localStream = this.config.newMediaStream ? new Talk.MediaStream(stream) : stream;
             this.pc.addStream(this.localStream, this.config.media);
             Talk.log("Stream was added:", this.localStream);
             if (!Talk.supports.negotiation) {
@@ -629,7 +634,7 @@ var Talk;
         };
 
         Peer.prototype.handleCandidate = function (ice) {
-            if (ice.candidate && ice.sdpMid && Talk.isNum(ice.sdpMLineIndex)) {
+            if (Talk.isStr(ice.candidate) && Talk.isStr(ice.sdpMid) && Talk.isNum(ice.sdpMLineIndex)) {
                 Talk.log("Handling received candidate:", ice);
                 this.pc.addIceCandidate(new Talk.IceCandidate(ice));
             } else {
