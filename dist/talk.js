@@ -183,91 +183,47 @@ var Talk;
     Talk.IceCandidate = window.RTCIceCandidate || window.mozRTCIceCandidate;
     Talk.MediaStream = window.MediaStream || window.webkitMediaStream;
 
-    Talk.isChrome = !!navigator.webkitGetUserMedia;
-    Talk.isFirefox = !!navigator.mozGetUserMedia;
+    Talk.userMedia;
 
     Talk.log = noop;
     Talk.warn = noop;
 
-    Talk.userMedia;
-
-    Talk.supports = (function (options) {
-        if (!Talk.PeerConnection) {
-            return {};
-        }
-
-        options = options || {
+    Talk.sctp = (function () {
+        var pc = new Talk.PeerConnection({
             iceServers: [
                 { "url": "stun:stun.l.google.com:19302" }
             ]
-        };
-
-        var negotiation = !!window.webkitRTCPeerConnection;
-        var media = true;
-        var blob = false;
-        var sctp = false;
-        var data = true;
-        var pc;
-        var dc;
-
+        }, {});
         try  {
-            pc = new Talk.PeerConnection(options, { optional: [{ RtpDataChannels: true }] });
-        } catch (e) {
-            data = false;
-            media = false;
-        }
-
-        if (data) {
-            try  {
-                dc = pc.createDataChannel("_test");
-            } catch (e) {
-                data = false;
-            }
-        }
-
-        if (data) {
-            try  {
-                dc.binaryType = "blob";
-                blob = true;
-            } catch (e) {
-            }
-
-            var reliablePC = new Talk.PeerConnection(options, {});
-            try  {
-                var reliableDC = reliablePC.createDataChannel("_reliableTest", {});
-                sctp = reliableDC.reliable;
-            } catch (e) {
-            }
-            reliablePC.close();
-        }
-
-        if (media) {
-            media = !!pc.addStream;
-        }
-
-        if (!negotiation && data) {
-            var negotiationPC = new Talk.PeerConnection(options, { optional: [{ RtpDataChannels: true }] });
-            negotiationPC.onnegotiationneeded = function () {
-                negotiation = true;
-            };
-            negotiationPC.createDataChannel("_negotiationTest");
-
-            setTimeout(function () {
-                negotiationPC.close();
-            }, 1000);
-        }
-
-        if (pc) {
+            var dc = pc.createDataChannel("_test", {});
             pc.close();
+            return dc.reliable || false;
+        } catch (e) {
+            pc.close();
+            return false;
         }
+    })();
 
-        return {
-            negotiation: negotiation,
-            media: media,
-            blob: blob,
-            sctp: sctp,
-            data: data
+    Talk.negotiation = (function () {
+        var pc = new Talk.PeerConnection({
+            iceServers: [
+                { "url": "stun:stun.l.google.com:19302" }
+            ]
+        }, {
+            optional: [
+                { RtpDataChannels: true }
+            ]
+        });
+        pc.onnegotiationneeded = function () {
+            Talk.negotiation = true;
         };
+        pc.createDataChannel("_test");
+
+        setTimeout(function () {
+            pc.close();
+        }, 1000);
+
+        return false;
     })();
 
     function logger(obj) {
@@ -442,13 +398,19 @@ var Talk;
         function Peer(id, options) {
             _super.call(this);
             this.config = {
-                options: {
+                settings: {
                     iceServers: [
                         { "url": "stun:stun.l.google.com:19302" },
                         { "url": "stun:stun1.l.google.com:19302" },
                         { "url": "stun:stun2.l.google.com:19302" },
                         { "url": "stun:stun3.l.google.com:19302" },
                         { "url": "stun:stun4.l.google.com:19302" }
+                    ]
+                },
+                constraints: {
+                    optional: [
+                        { DtlsSrtpKeyAgreement: true },
+                        { RtpDataChannels: !Talk.sctp }
                     ]
                 },
                 media: {
@@ -465,12 +427,7 @@ var Talk;
             Talk.extend(this.config, options);
             this.id = id;
 
-            this.pc = new Talk.PeerConnection(this.config.options, {
-                optional: [
-                    { RtpDataChannels: !Talk.supports.sctp },
-                    { DtlsSrtpKeyAgreement: true }
-                ]
-            });
+            this.pc = new Talk.PeerConnection(this.config.settings, this.config.constraints);
             this.pc.oniceconnectionstatechange = this.onConnectionChange.bind(this);
             this.pc.onicechange = this.onConnectionChange.bind(this);
             this.pc.onnegotiationneeded = this.negotiate.bind(this);
@@ -510,16 +467,14 @@ var Talk;
         Peer.prototype.addStream = function (stream) {
             if (stream.getVideoTracks().length > 0) {
                 this.config.media.mandatory.OfferToReceiveVideo = true;
-                Talk.log("Offer to receive video");
             }
             if (stream.getAudioTracks().length > 0) {
                 this.config.media.mandatory.OfferToReceiveAudio = true;
-                Talk.log("Offer to receive audio");
             }
             this.localStream = this.config.newMediaStream ? new Talk.MediaStream(stream) : stream;
             this.pc.addStream(this.localStream, this.config.media);
             Talk.log("Stream was added:", this.localStream);
-            if (!Talk.supports.negotiation) {
+            if (!Talk.negotiation) {
                 this.negotiate();
             }
         };
@@ -590,7 +545,7 @@ var Talk;
             this.configDataChannel(channel);
             this.channels.push(channel);
             Talk.log("Data channel was added:", channel);
-            if (!Talk.supports.negotiation) {
+            if (!Talk.negotiation) {
                 this.negotiate();
             }
             return channel;
@@ -621,13 +576,13 @@ var Talk;
                     this.pc.onicecandidate = this.onCandidate.bind(this);
                     break;
             }
+            this.emit("connectionState", this, this.pc.iceConnectionState);
         };
 
         Peer.prototype.onCandidate = function (event) {
             if (event.candidate) {
                 Talk.log("Candidate was found:", event.candidate);
                 this.sendMessage("candidate", event.candidate);
-                this.pc.onicecandidate = Talk.noop;
             } else {
                 Talk.log("End of candidates", event);
             }

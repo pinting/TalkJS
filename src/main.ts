@@ -31,136 +31,58 @@ module Talk {
         value: any;
     }
 
-    export interface Supports {
-        negotiation: boolean;
-        media: boolean;
-        blob: boolean;
-        sctp: boolean;
-        data: boolean;
-    }
-
     export interface Logger {
         warn: (...args: any[]) => void;
         log: (...args: any[]) => void;
     }
-
-    /**
-     * Polyfills for the browsers
-     */
 
     export var PeerConnection = window.RTCPeerConnection || window.webkitRTCPeerConnection || window.mozRTCPeerConnection;
     export var SessionDescription = window.RTCSessionDescription || window.mozRTCSessionDescription;
     export var IceCandidate = window.RTCIceCandidate || window.mozRTCIceCandidate;
     export var MediaStream = window.MediaStream || window.webkitMediaStream;
 
-    /**
-     * Get the type of the browser
-     */
-
-    export var isChrome = !!navigator.webkitGetUserMedia;
-    export var isFirefox = !!navigator.mozGetUserMedia;
-
-    /**
-     * Logger functions
-     */
+    export var userMedia: any;
 
     export var log = noop;
     export var warn = noop;
 
-    /**
-     * Local MediaStream
-     */
-
-    export var userMedia: any;
-
-    /**
-     * Check what is supported - from PeerJS
-     * @param {Talk.Peer.config.options} [options]
-     */
-
-    export var supports = <Supports> (function(options?: Object): Supports {
-        if(!PeerConnection) {
-            return <Supports> {};
-        }
-
-        options = options || {
+    export var sctp = (function() {
+        var pc = new PeerConnection({
             iceServers: [
                 {"url": "stun:stun.l.google.com:19302"}
             ]
-        };
-
-        var negotiation = !!window.webkitRTCPeerConnection;
-        var media = true;
-        var blob = false;
-        var sctp = false;
-        var data = true;
-        var pc;
-        var dc;
-
+        }, {});
         try {
-            pc = new PeerConnection(options, {optional: [{RtpDataChannels: true}]});
+            var dc = pc.createDataChannel("_test", <RTCDataChannelInit> {});
+            pc.close();
+            return dc.reliable || false;
         }
         catch(e) {
-            data = false;
-            media = false;
-        }
-
-        if(data) {
-            try {
-                dc = pc.createDataChannel("_test");
-            }
-            catch(e) {
-                data = false;
-            }
-        }
-
-        if(data) {
-            try {
-                dc.binaryType = "blob";
-                blob = true;
-            }
-            catch(e) {
-
-            }
-
-            var reliablePC = new PeerConnection(options, {});
-            try {
-                var reliableDC = reliablePC.createDataChannel("_reliableTest", <RTCDataChannelInit> {});
-                sctp = reliableDC.reliable;
-            }
-            catch(e) {
-
-            }
-            reliablePC.close();
-        }
-
-        if(media) {
-            media = !!pc.addStream;
-        }
-
-        if(!negotiation && data) {
-            var negotiationPC = new PeerConnection(options, {optional: [{RtpDataChannels: true}]});
-            negotiationPC.onnegotiationneeded = function() {
-                negotiation = true;
-            };
-            negotiationPC.createDataChannel("_negotiationTest");
-
-            setTimeout(function() {
-                negotiationPC.close();
-            }, 1000);
-        }
-
-        if(pc) {
             pc.close();
+            return false;
         }
+    })();
 
-        return <Supports> {
-            negotiation: negotiation,
-            media: media,
-            blob: blob,
-            sctp: sctp,
-            data: data
+    export var negotiation = (function() {
+        var pc = new PeerConnection({
+            iceServers: [
+                {"url": "stun:stun.l.google.com:19302"}
+            ]
+        }, {
+            optional: [
+                {RtpDataChannels: true}
+            ]
+        });
+        pc.onnegotiationneeded = function() {
+            negotiation = true;
         };
+        pc.createDataChannel("_test");
+
+        setTimeout(function() {
+            pc.close();
+        }, 1000);
+
+        return false;
     })();
 
     /**
@@ -267,7 +189,7 @@ module Talk {
     }
 
     /**
-     * Check if object is empty - from TokBox
+     * Check if object is empty
      * @param {Array|Object|string} obj
      * @returns {boolean}
      */
@@ -298,7 +220,7 @@ module Talk {
     }
 
     /**
-     * Check input is object - from TokBox
+     * Check input is object
      */
 
     export function isObj(obj: any): boolean {
@@ -367,7 +289,7 @@ module Talk {
     }
 
     /**
-     * Extend an object - from PeerJS
+     * Extend an object
      * @param {Object} obj
      * @param {Object} source
      * @returns {Object}

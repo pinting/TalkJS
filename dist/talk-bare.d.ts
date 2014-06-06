@@ -35,13 +35,6 @@ declare module Talk {
         key: string;
         value: any;
     }
-    interface Supports {
-        negotiation: boolean;
-        media: boolean;
-        blob: boolean;
-        sctp: boolean;
-        data: boolean;
-    }
     interface Logger {
         warn: (...args: any[]) => void;
         log: (...args: any[]) => void;
@@ -50,12 +43,11 @@ declare module Talk {
     var SessionDescription: any;
     var IceCandidate: any;
     var MediaStream: any;
-    var isChrome: boolean;
-    var isFirefox: boolean;
+    var userMedia: any;
     var log: typeof noop;
     var warn: typeof noop;
-    var userMedia: any;
-    var supports: Supports;
+    var sctp: any;
+    var negotiation: boolean;
     function logger(obj: Logger): void;
     function getUserMedia(audio?: boolean, video?: boolean, cb?: (stream: MediaStream) => void): MediaStream;
     function attachMediaStream(element: HTMLVideoElement, stream: MediaStream): HTMLVideoElement;
@@ -78,10 +70,13 @@ declare module Talk {
 declare module Talk {
     class Peer extends WildEmitter {
         public config: {
-            options: {
+            settings: {
                 iceServers: {
                     "url": string;
                 }[];
+            };
+            constraints: {
+                optional: {}[];
             };
             media: {
                 mandatory: {

@@ -4,13 +4,19 @@
 module Talk {
     export class Peer extends WildEmitter {
         public config = {
-            options: {
+            settings: {
                 iceServers: [
                     {"url": "stun:stun.l.google.com:19302"},
                     {"url": "stun:stun1.l.google.com:19302"},
                     {"url": "stun:stun2.l.google.com:19302"},
                     {"url": "stun:stun3.l.google.com:19302"},
                     {"url": "stun:stun4.l.google.com:19302"}
+                ]
+            },
+            constraints: {
+                optional: [
+                    {DtlsSrtpKeyAgreement: true},
+                    {RtpDataChannels: !sctp}
                 ]
             },
             media: {
@@ -42,12 +48,7 @@ module Talk {
             extend(this.config, options);
             this.id = id;
 
-            this.pc = new PeerConnection(this.config.options, {
-                optional: [
-                    {RtpDataChannels: !supports.sctp},
-                    {DtlsSrtpKeyAgreement: true}
-                ]
-            });
+            this.pc = new PeerConnection(this.config.settings, this.config.constraints);
             this.pc.oniceconnectionstatechange = this.onConnectionChange.bind(this);
             this.pc.onicechange = this.onConnectionChange.bind(this);
             this.pc.onnegotiationneeded = this.negotiate.bind(this);
@@ -106,16 +107,14 @@ module Talk {
         public addStream(stream: MediaStream): void {
             if(stream.getVideoTracks().length > 0) {
                 this.config.media.mandatory.OfferToReceiveVideo = true;
-                log("Offer to receive video");
             }
             if(stream.getAudioTracks().length > 0) {
                 this.config.media.mandatory.OfferToReceiveAudio = true;
-                log("Offer to receive audio");
             }
             this.localStream = this.config.newMediaStream ? new Talk.MediaStream(stream) : stream;
             this.pc.addStream(this.localStream, this.config.media);
             log("Stream was added:", this.localStream);
-            if(!supports.negotiation) {
+            if(!negotiation) {
                 this.negotiate();
             }
         }
@@ -221,7 +220,7 @@ module Talk {
             this.configDataChannel(channel);
             this.channels.push(channel);
             log("Data channel was added:", channel);
-            if(!supports.negotiation) {
+            if(!negotiation) {
                 this.negotiate();
             }
             return channel;
@@ -262,6 +261,7 @@ module Talk {
                     this.pc.onicecandidate = this.onCandidate.bind(this);
                     break;
             }
+            this.emit("connectionState", this, this.pc.iceConnectionState);
         }
 
         /**
@@ -273,7 +273,6 @@ module Talk {
             if(event.candidate) {
                 log("Candidate was found:", event.candidate);
                 this.sendMessage("candidate", event.candidate);
-                this.pc.onicecandidate = noop;
             }
             else {
                 log("End of candidates", event);
