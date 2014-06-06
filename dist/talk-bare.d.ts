@@ -49,7 +49,7 @@ declare module Talk {
     var sctp: any;
     var negotiation: boolean;
     function logger(obj: Logger): void;
-    function getUserMedia(audio?: boolean, video?: boolean, cb?: (stream: MediaStream) => void): MediaStream;
+    function getUserMedia(audio?: boolean, video?: boolean, cb?: (error: any, stream?: MediaStream) => void): MediaStream;
     function attachMediaStream(element: HTMLVideoElement, stream: MediaStream): HTMLVideoElement;
     function safeCb(obj: any): any;
     function safeStr(obj: any): string;

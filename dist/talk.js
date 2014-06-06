@@ -247,13 +247,14 @@ var Talk;
             }, function (stream) {
                 Talk.log("User media request was successful");
                 Talk.userMedia = stream;
-                safeCb(cb)(stream);
+                safeCb(cb)(null, stream);
             }, function (error) {
+                safeCb(cb)(error);
                 Talk.warn(error);
-                throw Error(error);
             });
+        } else {
+            return Talk.userMedia;
         }
-        return Talk.userMedia;
     }
     Talk.getUserMedia = getUserMedia;
 

@@ -107,7 +107,7 @@ module Talk {
      * @returns {MediaStream}
      */
 
-    export function getUserMedia(audio = true, video = true, cb?: (stream: MediaStream) => void): MediaStream {
+    export function getUserMedia(audio = true, video = true, cb?: (error: any, stream?: MediaStream) => void): MediaStream {
         if(!userMedia || userMedia.ended) {
             // Workaround to avoid illegal invocation error
             navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
@@ -119,15 +119,17 @@ module Talk {
                 (stream: MediaStream) => {
                     log("User media request was successful");
                     userMedia = stream;
-                    safeCb(cb)(stream);
+                    safeCb(cb)(null, stream);
                 },
-                (error: string) => {
+                (error: Error) => {
+                    safeCb(cb)(error);
                     warn(error);
-                    throw Error(error);
                 }
             );
         }
-        return userMedia;
+        else {
+            return userMedia;
+        }
     }
 
     /**
