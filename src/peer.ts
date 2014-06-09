@@ -184,6 +184,7 @@ module Talk {
         private sendData(label: string, payload: any) {
             var channel = this.getDataChannel(label);
             if(channel && <any> channel.readyState === "open") {
+                log("Sending (%s):", label, payload);
                 channel.send(JSON.stringify(payload));
             }
             else {

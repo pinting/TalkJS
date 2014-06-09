@@ -522,6 +522,7 @@ var Talk;
         Peer.prototype.sendData = function (label, payload) {
             var channel = this.getDataChannel(label);
             if (channel && channel.readyState === "open") {
+                Talk.log("Sending (%s):", label, payload);
                 channel.send(JSON.stringify(payload));
             } else {
                 Talk.warn("Data channel named `%s` does not exists or it is not opened", label);
