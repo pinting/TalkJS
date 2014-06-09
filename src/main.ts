@@ -10,14 +10,30 @@
  * It is fast to learn and easy to use.
  *
  * @example
- * var handler = new Talk.Handler;
- * var room = new Talk.Room(handler, "https://example.io:8080", (peer) => {
- *     peer.addDataChannel("default");
+ * Talk.getUserMedia(function(error, stream) {
+ *   var handler = new Talk.Handler;
+ *   var room = new Talk.Room(handler, "https://example.io:8080", (peer) => {
+ *       peer.addStream(stream);
+ *   });
+ *
+ *   handler.on("streamAdded", function(peer, stream) {
+ *       var element = document.createElement("video");
+ *       Talk.attachMediaStream(element, stream);
+ *       document.body.appendChild(element);
+ *   });
  * });
  *
- * handler.on("channelOpened", (peer) => {
- *     peer.send("default", "Cake is a lie!");
- * });
+ * @emits Peer#chunk (peer: Peer, length: number, chunk: string)
+ * @emits Peer#streamAdded (peer: Peer, stream: MediaStream)
+ * @emits Peer#connectionState (peer: Peer, state: string)
+ * @emits Peer#channelClosed (peer: Peer, event: Event)
+ * @emits Peer#channelOpened (peer: Peer, event: Event)
+ * @emits Peer#channelError (peer: Peer, event: Event)
+ * @emits Peer#data (peer: Peer, data: any)
+ * @emits Peer#streamRemoved (peer: Peer)
+ * @emits Peer#message (payload: Message)
+ * @emits Peer#closed (peer: Peer)
+ * @emits Connection#ready (id: string)
  */
 
 module Talk {

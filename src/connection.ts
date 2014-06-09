@@ -21,7 +21,7 @@ module Talk {
             this.server = io.connect(host);
             this.server.on("connect", () => {
                 this.id = this.server.socket.sessionid;
-                this.emit("connectionReady", this.id);
+                this.emit("ready", this.id);
             });
             this.server.on("message", this.get.bind(this));
         }

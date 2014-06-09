@@ -133,7 +133,7 @@ module Talk {
             if(event.stream) {
                 log("Remote stream was added:", event.stream);
                 this.remoteStream = event.stream;
-                this.emit("streamAdded", this);
+                this.emit("streamAdded", this, this.remoteStream);
             }
             else {
                 warn("Remote stream could not be added:", event);
