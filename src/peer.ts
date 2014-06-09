@@ -25,6 +25,7 @@ module Talk {
                     OfferToReceiveVideo: false
                 }
             },
+            serverDataChannel: true,
             newMediaStream: false,
             negotiate: false,
             chunkSize: 1200
@@ -187,7 +188,9 @@ module Talk {
             }
             else {
                 warn("Data channel named `%s` does not exists or it is not opened", label);
-                this.sendMessage("data", payload);
+                if(this.config.serverDataChannel) {
+                    this.sendMessage("data", payload);
+                }
             }
         }
 
@@ -215,8 +218,8 @@ module Talk {
                     delete this.chunks[p.hash];
                 }
             }
-            log("Chunk received (%d/%d)", p.length, p.end ? p.length : this.chunks[p.hash].length);
             this.emit("chunk", this, p.length, this.chunks[p.hash]);
+            log("Chunk received:", p);
         }
 
         /**

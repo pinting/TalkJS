@@ -22,7 +22,7 @@ var Talk;
             this.server = io.connect(host);
             this.server.on("connect", function () {
                 _this.id = _this.server.socket.sessionid;
-                _this.emit("connectionReady", _this.id);
+                _this.emit("ready", _this.id);
             });
             this.server.on("message", this.get.bind(this));
         }
@@ -421,6 +421,7 @@ var Talk;
                         OfferToReceiveVideo: false
                     }
                 },
+                serverDataChannel: true,
                 newMediaStream: false,
                 negotiate: false,
                 chunkSize: 1200
@@ -490,7 +491,7 @@ var Talk;
             if (event.stream) {
                 Talk.log("Remote stream was added:", event.stream);
                 this.remoteStream = event.stream;
-                this.emit("streamAdded", this);
+                this.emit("streamAdded", this, this.remoteStream);
             } else {
                 Talk.warn("Remote stream could not be added:", event);
             }
@@ -524,7 +525,9 @@ var Talk;
                 channel.send(JSON.stringify(payload));
             } else {
                 Talk.warn("Data channel named `%s` does not exists or it is not opened", label);
-                this.sendMessage("data", payload);
+                if (this.config.serverDataChannel) {
+                    this.sendMessage("data", payload);
+                }
             }
         };
 
@@ -544,8 +547,8 @@ var Talk;
                     delete this.chunks[p.hash];
                 }
             }
-            Talk.log("Chunk received (%d/%d)", p.length, p.end ? p.length : this.chunks[p.hash].length);
             this.emit("chunk", this, p.length, this.chunks[p.hash]);
+            Talk.log("Chunk received:", p);
         };
 
         Peer.prototype.getDataChannel = function (label) {
