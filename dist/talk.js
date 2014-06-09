@@ -124,7 +124,7 @@ var Talk;
                     args[_i] = arguments[_i + 0];
                 }
                 switch (args[0]) {
-                    case "peerClosed":
+                    case "closed":
                         var i = _this.peers.indexOf(peer);
                         if (i >= 0) {
                             _this.peers.splice(i, 1);

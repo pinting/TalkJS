@@ -87,7 +87,7 @@ module Talk {
             var peer = new P(id, this.config);
             peer.on("*", (...args: any[]) => {
                 switch(args[0]) {
-                    case "peerClosed":
+                    case "closed":
                         var i = this.peers.indexOf(peer);
                         if(i >= 0) {
                             this.peers.splice(i, 1);
