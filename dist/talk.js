@@ -185,8 +185,9 @@ var Talk;
 
     Talk.userMedia;
 
-    Talk.log = noop;
+    Talk.debug = noop;
     Talk.warn = noop;
+    Talk.log = noop;
 
     Talk.sctp = (function () {
         var pc = new Talk.PeerConnection({
@@ -204,7 +205,7 @@ var Talk;
         }
     })();
 
-    Talk.negotiation = (function () {
+    Talk.negotiations = (function () {
         var pc = new Talk.PeerConnection({
             iceServers: [
                 { "url": "stun:stun.l.google.com:19302" }
@@ -215,7 +216,7 @@ var Talk;
             ]
         });
         pc.onnegotiationneeded = function () {
-            Talk.negotiation = true;
+            Talk.negotiations = true;
         };
         pc.createDataChannel("_test");
 
@@ -227,11 +228,11 @@ var Talk;
     })();
 
     function logger(obj) {
-        if (obj.log) {
-            Talk.log = obj.log.bind(obj);
-        }
         if (obj.warn) {
             Talk.warn = obj.warn.bind(obj);
+        }
+        if (obj.log) {
+            Talk.log = obj.log.bind(obj);
         }
     }
     Talk.logger = logger;
@@ -249,8 +250,8 @@ var Talk;
                 Talk.userMedia = stream;
                 safeCb(cb)(null, stream);
             }, function (error) {
-                safeCb(cb)(error);
                 Talk.warn(error);
+                safeCb(cb)(error);
             });
         } else {
             return Talk.userMedia;
@@ -421,9 +422,11 @@ var Talk;
                     }
                 },
                 newMediaStream: false,
-                negotiate: false
+                negotiate: false,
+                chunkSize: 1200
             };
             this.channels = [];
+            this.chunks = {};
 
             Talk.extend(this.config, options);
             this.id = id;
@@ -459,6 +462,9 @@ var Talk;
                 case "candidate":
                     this.handleCandidate(value);
                     break;
+                case "data":
+                    this.handleData(value);
+                    break;
                 default:
                     return false;
             }
@@ -475,7 +481,7 @@ var Talk;
             this.localStream = this.config.newMediaStream ? new Talk.MediaStream(stream) : stream;
             this.pc.addStream(this.localStream, this.config.media);
             Talk.log("Stream was added:", this.localStream);
-            if (!Talk.negotiation) {
+            if (!Talk.negotiations) {
                 this.negotiate();
             }
         };
@@ -497,13 +503,49 @@ var Talk;
         };
 
         Peer.prototype.send = function (label, payload) {
+            payload = JSON.stringify(payload);
+            var length = payload.length;
+            var hash = Talk.sha256(payload);
+            while (payload.length > 0) {
+                var chunk = payload.slice(0, this.config.chunkSize);
+                payload = payload.slice(this.config.chunkSize);
+                this.sendData(label, {
+                    end: payload.length === 0,
+                    payload: chunk,
+                    length: length,
+                    hash: hash
+                });
+            }
+        };
+
+        Peer.prototype.sendData = function (label, payload) {
             var channel = this.getDataChannel(label);
             if (channel && channel.readyState === "open") {
                 channel.send(JSON.stringify(payload));
-                return true;
+            } else {
+                Talk.warn("Data channel named `%s` does not exists or it is not opened", label);
+                this.sendMessage("data", payload);
             }
-            Talk.warn("Data channel named `%s` does not exists or it is not opened", label);
-            return false;
+        };
+
+        Peer.prototype.handleData = function (p) {
+            if (!this.chunks[p.hash]) {
+                if (p.end) {
+                    this.emit("data", this, JSON.parse(p.payload));
+                } else {
+                    this.chunks[p.hash] = p.payload;
+                }
+            } else {
+                this.chunks[p.hash] += p.payload;
+                if (p.end) {
+                    if (Talk.sha256(this.chunks[p.hash]) === p.hash) {
+                        this.emit("data", this, JSON.parse(this.chunks[p.hash]));
+                    }
+                    delete this.chunks[p.hash];
+                }
+            }
+            Talk.log("Chunk received (%d/%d)", p.length, p.end ? p.length : this.chunks[p.hash].length);
+            this.emit("chunk", this, p.length, this.chunks[p.hash]);
         };
 
         Peer.prototype.getDataChannel = function (label) {
@@ -536,17 +578,17 @@ var Talk;
                 if (event.data) {
                     var payload = JSON.parse(event.data);
                     Talk.log("Getting (%s):", channel.label, payload);
-                    _this.emit("channelMessage", _this, payload);
+                    _this.handleData(payload);
                 }
             };
         };
 
-        Peer.prototype.addDataChannel = function (label, options) {
+        Peer.prototype.addDC = function (label, options) {
             var channel = this.pc.createDataChannel(label, options);
             this.configDataChannel(channel);
             this.channels.push(channel);
             Talk.log("Data channel was added:", channel);
-            if (!Talk.negotiation) {
+            if (!Talk.negotiations) {
                 this.negotiate();
             }
             return channel;
@@ -653,7 +695,7 @@ var Talk;
 
         Peer.prototype.close = function () {
             this.pc.close();
-            this.emit("peerClosed", this);
+            this.emit("closed", this);
             Talk.log("Peer closed:", this);
         };
 

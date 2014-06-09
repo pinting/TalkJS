@@ -26,12 +26,14 @@ module Talk {
                 }
             },
             newMediaStream: false,
-            negotiate: false
+            negotiate: false,
+            chunkSize: 1200
         };
         public remoteStream: MediaStream;
         public localStream: MediaStream;
         private pc: RTCPeerConnection;
         private channels = [];
+        private chunks = {};
         public id: string;
 
         /**
@@ -93,6 +95,9 @@ module Talk {
                 case "candidate":
                     this.handleCandidate(value);
                     break;
+                case "data":
+                    this.handleData(<Packet> value);
+                    break;
                 default:
                     return false;
             }
@@ -114,7 +119,7 @@ module Talk {
             this.localStream = this.config.newMediaStream ? new Talk.MediaStream(stream) : stream;
             this.pc.addStream(this.localStream, this.config.media);
             log("Stream was added:", this.localStream);
-            if(!negotiation) {
+            if(!negotiations) {
                 this.negotiate();
             }
         }
@@ -147,20 +152,71 @@ module Talk {
         }
 
         /**
-         * Send data directly to the peer
+         * Send data to the peer, and chunk it if its needed
          * @param {string} label - Label of the data channel
          * @param {*} payload
-         * @returns {boolean}
          */
 
-        public send(label: string, payload: any): boolean {
+        public send(label: string, payload: any): void {
+            payload = JSON.stringify(payload);
+            var length = payload.length;
+            var hash = sha256(payload);
+            while(payload.length > 0) {
+                var chunk = payload.slice(0, this.config.chunkSize);
+                payload = payload.slice(this.config.chunkSize);
+                this.sendData(label, <Packet> {
+                    end: payload.length === 0,
+                    payload: chunk,
+                    length: length,
+                    hash: hash
+                });
+            }
+        }
+
+        /**
+         * Send data to the peer through the chosen data channel,
+         * or SocketIO if it is not opened yet
+         * @param {string} label - Label of the data channel
+         * @param {*} payload
+         */
+
+        private sendData(label: string, payload: any) {
             var channel = this.getDataChannel(label);
             if(channel && <any> channel.readyState === "open") {
                 channel.send(JSON.stringify(payload));
-                return true;
             }
-            warn("Data channel named `%s` does not exists or it is not opened", label);
-            return false;
+            else {
+                warn("Data channel named `%s` does not exists or it is not opened", label);
+                this.sendMessage("data", payload);
+            }
+        }
+
+        /**
+         * Handle received data: if it is chunked, then wait for
+         * each part and join them.
+         * @param p {Talk.Packet}
+         */
+
+        private handleData(p: Packet): void {
+            if(!this.chunks[p.hash]) {
+                if(p.end) {
+                    this.emit("data", this, JSON.parse(p.payload));
+                }
+                else {
+                    this.chunks[p.hash] = p.payload;
+                }
+            }
+            else {
+                this.chunks[p.hash] += p.payload;
+                if(p.end) {
+                    if(sha256(this.chunks[p.hash]) === p.hash) {
+                        this.emit("data", this, JSON.parse(this.chunks[p.hash]));
+                    }
+                    delete this.chunks[p.hash];
+                }
+            }
+            log("Chunk received (%d/%d)", p.length, p.end ? p.length : this.chunks[p.hash].length);
+            this.emit("chunk", this, p.length, this.chunks[p.hash]);
         }
 
         /**
@@ -203,7 +259,7 @@ module Talk {
                 if(event.data) {
                     var payload = JSON.parse(event.data);
                     log("Getting (%s):", channel.label, payload);
-                    this.emit("channelMessage", this, payload);
+                    this.handleData(payload);
                 }
             };
         }
@@ -215,12 +271,12 @@ module Talk {
          * @returns {RTCDataChannel}
          */
 
-        public addDataChannel(label: string, options?: RTCDataChannelInit): RTCDataChannel {
+        public addDC(label: string, options?: RTCDataChannelInit): RTCDataChannel {
             var channel = this.pc.createDataChannel(label, options);
             this.configDataChannel(channel);
             this.channels.push(channel);
             log("Data channel was added:", channel);
-            if(!negotiation) {
+            if(!negotiations) {
                 this.negotiate();
             }
             return channel;
@@ -390,7 +446,7 @@ module Talk {
 
         public close() {
             this.pc.close();
-            this.emit("peerClosed", this);
+            this.emit("closed", this);
             log("Peer closed:", this);
         }
 

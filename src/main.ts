@@ -24,6 +24,13 @@ module Talk {
     declare var navigator: any;
     declare var window: any;
 
+    export interface Packet {
+        length: number;
+        payload: any;
+        hash: string;
+        end: boolean;
+    }
+
     export interface Message {
         handler: any[];
         peer: string;
@@ -43,8 +50,13 @@ module Talk {
 
     export var userMedia: any;
 
-    export var log = noop;
+    export var debug = noop;
     export var warn = noop;
+    export var log = noop;
+
+    /**
+     * Check if sctp data channels are supported
+     */
 
     export var sctp = (function() {
         var pc = new PeerConnection({
@@ -63,7 +75,11 @@ module Talk {
         }
     })();
 
-    export var negotiation = (function() {
+    /**
+     * Check if negotiations are supported
+     */
+
+    export var negotiations = (function() {
         var pc = new PeerConnection({
             iceServers: [
                 {"url": "stun:stun.l.google.com:19302"}
@@ -74,7 +90,7 @@ module Talk {
             ]
         });
         pc.onnegotiationneeded = function() {
-            negotiation = true;
+            negotiations = true;
         };
         pc.createDataChannel("_test");
 
@@ -91,11 +107,11 @@ module Talk {
      */
 
     export function logger(obj: Logger): void {
-        if(obj.log) {
-            log = obj.log.bind(obj);
-        }
         if(obj.warn) {
             warn = obj.warn.bind(obj);
+        }
+        if(obj.log) {
+            log = obj.log.bind(obj);
         }
     }
 
@@ -122,8 +138,8 @@ module Talk {
                     safeCb(cb)(null, stream);
                 },
                 (error: Error) => {
-                    safeCb(cb)(error);
                     warn(error);
+                    safeCb(cb)(error);
                 }
             );
         }

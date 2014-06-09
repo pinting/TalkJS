@@ -905,6 +905,12 @@ declare module Talk {
     }
 }
 declare module Talk {
+    interface Packet {
+        length: number;
+        payload: any;
+        hash: string;
+        end: boolean;
+    }
     interface Message {
         handler: any[];
         peer: string;
@@ -920,10 +926,11 @@ declare module Talk {
     var IceCandidate: any;
     var MediaStream: any;
     var userMedia: any;
-    var log: typeof noop;
+    var debug: typeof noop;
     var warn: typeof noop;
+    var log: typeof noop;
     var sctp: any;
-    var negotiation: boolean;
+    var negotiations: boolean;
     function logger(obj: Logger): void;
     function getUserMedia(audio?: boolean, video?: boolean, cb?: (error: any, stream?: MediaStream) => void): MediaStream;
     function attachMediaStream(element: HTMLVideoElement, stream: MediaStream): HTMLVideoElement;
@@ -962,11 +969,13 @@ declare module Talk {
             };
             newMediaStream: boolean;
             negotiate: boolean;
+            chunkSize: number;
         };
         public remoteStream: MediaStream;
         public localStream: MediaStream;
         private pc;
         private channels;
+        private chunks;
         public id: string;
         constructor(id: string, options?: Object);
         private sendMessage(key, value);
@@ -974,10 +983,12 @@ declare module Talk {
         public addStream(stream: MediaStream): void;
         private onAddStream(event);
         private onRemoveStream(event);
-        public send(label: string, payload: any): boolean;
+        public send(label: string, payload: any): void;
+        private sendData(label, payload);
+        private handleData(p);
         private getDataChannel(label);
         private configDataChannel(channel);
-        public addDataChannel(label: string, options?: RTCDataChannelInit): RTCDataChannel;
+        public addDC(label: string, options?: RTCDataChannelInit): RTCDataChannel;
         private onDataChannel(event);
         private onConnectionChange();
         private onCandidate(event);
