@@ -165,12 +165,14 @@ module Talk {
             while(payload.length > 0) {
                 var chunk = payload.slice(0, this.config.chunkSize);
                 payload = payload.slice(this.config.chunkSize);
-                this.sendData(label, <Packet> {
+                var packet = <Packet> {
                     end: payload.length === 0,
                     payload: chunk,
                     length: length,
                     hash: hash
-                });
+                };
+                this.sendData(label, packet);
+                this.emit("packetSent", this, packet);
             }
         }
 
@@ -219,7 +221,7 @@ module Talk {
                     delete this.chunks[p.hash];
                 }
             }
-            this.emit("chunk", this, p.length, this.chunks[p.hash]);
+            this.emit("packetReceived", this, p);
         }
 
         /**

@@ -23,13 +23,14 @@
  *   });
  * });
  *
- * @emits Peer#chunk (peer: Peer, length: number, chunk: string)
+ * @emits Peer#data (peer: Peer, data: any, hash: string, length: number)
  * @emits Peer#streamAdded (peer: Peer, stream: MediaStream)
  * @emits Peer#connectionState (peer: Peer, state: string)
+ * @emits Peer#packetReceived (peer: Peer, packet: Packet)
  * @emits Peer#channelClosed (peer: Peer, event: Event)
  * @emits Peer#channelOpened (peer: Peer, event: Event)
  * @emits Peer#channelError (peer: Peer, event: Event)
- * @emits Peer#data (peer: Peer, data: any)
+ * @emits Peer#packetSent (peer: Peer, packet: Packet)
  * @emits Peer#streamRemoved (peer: Peer)
  * @emits Peer#message (payload: Message)
  * @emits Peer#closed (peer: Peer)
