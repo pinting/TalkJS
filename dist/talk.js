@@ -535,7 +535,7 @@ var Talk;
                     hash: hash
                 };
                 this.sendData(label, packet);
-                this.emit("packetSent", this, packet);
+                this.emit("packetSent", this, packet, payload);
             }
         };
 

@@ -24,13 +24,13 @@
  * });
  *
  * @emits Peer#data (peer: Peer, data: any, hash: string, length: number)
+ * @emits Peer#packetSent (peer: Peer, packet: Packet, payload: string)
  * @emits Peer#streamAdded (peer: Peer, stream: MediaStream)
  * @emits Peer#connectionState (peer: Peer, state: string)
  * @emits Peer#packetReceived (peer: Peer, packet: Packet)
  * @emits Peer#channelClosed (peer: Peer, event: Event)
  * @emits Peer#channelOpened (peer: Peer, event: Event)
  * @emits Peer#channelError (peer: Peer, event: Event)
- * @emits Peer#packetSent (peer: Peer, packet: Packet)
  * @emits Peer#streamRemoved (peer: Peer)
  * @emits Peer#message (payload: Message)
  * @emits Peer#closed (peer: Peer)
