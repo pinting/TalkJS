@@ -160,12 +160,16 @@ module Talk {
 
         public send(label: string, payload: any): void {
             payload = JSON.stringify(payload);
+
             var length = payload.length;
             var hash = sha256(payload);
+            var packet;
+            var chunk;
+
             while(payload.length > 0) {
-                var chunk = payload.slice(0, this.config.chunkSize);
+                chunk = payload.slice(0, this.config.chunkSize);
                 payload = payload.slice(this.config.chunkSize);
-                var packet = <Packet> {
+                packet = <Packet> {
                     end: payload.length === 0,
                     payload: chunk,
                     length: length,
@@ -188,6 +192,7 @@ module Talk {
             if(channel && <any> channel.readyState === "open") {
                 try {
                     channel.send(JSON.stringify(payload));
+                    return;
                 }
                 catch(error) {
                     warn(error);
@@ -195,9 +200,9 @@ module Talk {
             }
             else {
                 warn("Data channel named `%s` does not exists or it is not opened", label);
-                if(this.config.serverDataChannel) {
-                    this.sendMessage("data", payload);
-                }
+            }
+            if(this.config.serverDataChannel) {
+                this.sendMessage("data", payload);
             }
         }
 
