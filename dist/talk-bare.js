@@ -411,7 +411,6 @@ var Talk;
     var Peer = (function (_super) {
         __extends(Peer, _super);
         function Peer(id, options) {
-            var _this = this;
             _super.call(this);
             this.config = {
                 settings: {
@@ -435,7 +434,6 @@ var Talk;
                         OfferToReceiveVideo: false
                     }
                 },
-                turn: "https://computeengineondemand.appspot.com/turn?username=95084268&key=4080218913",
                 serverDataChannel: true,
                 newMediaStream: false,
                 negotiate: false,
@@ -446,32 +444,6 @@ var Talk;
 
             Talk.extend(this.config, options);
             this.id = id;
-
-            if (this.config.turn) {
-                document.domain = "https://apprtc.appspot.com";
-                var request = new XMLHttpRequest();
-                request.onreadystatechange = function () {
-                    if (request.readyState !== 4) {
-                        return;
-                    }
-                    if (request.status === 200) {
-                        var result = JSON.parse(request.responseText);
-                        if (result.uris && result.username && result.password) {
-                            result.uris.forEach(function (url) {
-                                _this.config.settings.iceServers.push({
-                                    credential: result.password,
-                                    username: result.username,
-                                    url: url
-                                });
-                            });
-                        }
-                    } else {
-                        Talk.warn("No TURN server found!");
-                    }
-                };
-                request.open("GET", this.config.turn, true);
-                request.send();
-            }
 
             this.pc = new Talk.PeerConnection(this.config.settings, this.config.constraints);
             this.pc.oniceconnectionstatechange = this.onConnectionChange.bind(this);
