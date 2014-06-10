@@ -452,6 +452,7 @@ var Talk;
             this.id = id;
 
             if (this.config.turn) {
+                document.domain = "https://apprtc.appspot.com";
                 var request = new XMLHttpRequest();
                 request.onreadystatechange = function () {
                     if (request.readyState !== 4) {
@@ -469,7 +470,7 @@ var Talk;
                             });
                         }
                     } else {
-                        Talk.warn("No turn server found!");
+                        Talk.warn("No TURN server found!");
                     }
                 };
                 request.open("GET", this.config.turn, true);
