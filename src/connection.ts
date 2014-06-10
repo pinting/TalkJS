@@ -22,6 +22,7 @@ module Talk {
             this.server.on("connect", () => {
                 this.id = this.server.socket.sessionid;
                 this.emit("ready", this.id);
+                log("Connection is ready:", this.id);
             });
             this.server.on("message", this.get.bind(this));
         }
@@ -32,7 +33,6 @@ module Talk {
          */
 
         public send(payload: Message): void {
-            log("Sending:", payload);
             this.server.emit("message", payload);
         }
 
@@ -42,7 +42,6 @@ module Talk {
          */
 
         public get(payload: Message): void {
-            log("Getting:", payload);
             if(payload.key && payload.value && payload.peer && payload.handler) {
                 var peer = this.findHandler(payload.handler).get(payload.peer);
                 if(peer) {

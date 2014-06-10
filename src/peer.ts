@@ -172,7 +172,7 @@ module Talk {
                     hash: hash
                 };
                 this.sendData(label, packet);
-                this.emit("packetSent", this, packet, payload);
+                this.emit("packetSent", this, packet, payload.length);
             }
         }
 
@@ -186,7 +186,6 @@ module Talk {
         private sendData(label: string, payload: any) {
             var channel = this.getDataChannel(label);
             if(channel && <any> channel.readyState === "open") {
-                log("Sending (%s):", label, payload);
                 channel.send(JSON.stringify(payload));
             }
             else {
@@ -207,6 +206,7 @@ module Talk {
             if(!this.chunks[p.hash]) {
                 if(p.end) {
                     this.emit("data", this, JSON.parse(p.payload), p.hash, p.length);
+                    log("Data received:", p.hash);
                 }
                 else {
                     this.chunks[p.hash] = p.payload;
@@ -217,11 +217,12 @@ module Talk {
                 if(p.end) {
                     if(sha256(this.chunks[p.hash]) === p.hash) {
                         this.emit("data", this, JSON.parse(this.chunks[p.hash]), p.hash, p.length);
+                        log("Data received:", p.hash);
                     }
                     delete this.chunks[p.hash];
                 }
             }
-            this.emit("packetReceived", this, p);
+            this.emit("packetReceived", this, p, p.end ? p.length : this.chunks[p.hash].length);
         }
 
         /**
@@ -263,7 +264,6 @@ module Talk {
             channel.onmessage = (event: any) => {
                 if(event.data) {
                     var payload = JSON.parse(event.data);
-                    log("Getting (%s):", channel.label, payload);
                     this.handleData(payload);
                 }
             };

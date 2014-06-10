@@ -23,16 +23,15 @@ var Talk;
             this.server.on("connect", function () {
                 _this.id = _this.server.socket.sessionid;
                 _this.emit("ready", _this.id);
+                Talk.log("Connection is ready:", _this.id);
             });
             this.server.on("message", this.get.bind(this));
         }
         Connection.prototype.send = function (payload) {
-            Talk.log("Sending:", payload);
             this.server.emit("message", payload);
         };
 
         Connection.prototype.get = function (payload) {
-            Talk.log("Getting:", payload);
             if (payload.key && payload.value && payload.peer && payload.handler) {
                 var peer = this.findHandler(payload.handler).get(payload.peer);
                 if (peer) {
@@ -535,14 +534,13 @@ var Talk;
                     hash: hash
                 };
                 this.sendData(label, packet);
-                this.emit("packetSent", this, packet, payload);
+                this.emit("packetSent", this, packet, payload.length);
             }
         };
 
         Peer.prototype.sendData = function (label, payload) {
             var channel = this.getDataChannel(label);
             if (channel && channel.readyState === "open") {
-                Talk.log("Sending (%s):", label, payload);
                 channel.send(JSON.stringify(payload));
             } else {
                 Talk.warn("Data channel named `%s` does not exists or it is not opened", label);
@@ -556,6 +554,7 @@ var Talk;
             if (!this.chunks[p.hash]) {
                 if (p.end) {
                     this.emit("data", this, JSON.parse(p.payload), p.hash, p.length);
+                    Talk.log("Data received:", p.hash);
                 } else {
                     this.chunks[p.hash] = p.payload;
                 }
@@ -564,11 +563,12 @@ var Talk;
                 if (p.end) {
                     if (Talk.sha256(this.chunks[p.hash]) === p.hash) {
                         this.emit("data", this, JSON.parse(this.chunks[p.hash]), p.hash, p.length);
+                        Talk.log("Data received:", p.hash);
                     }
                     delete this.chunks[p.hash];
                 }
             }
-            this.emit("packetReceived", this, p);
+            this.emit("packetReceived", this, p, p.end ? p.length : this.chunks[p.hash].length);
         };
 
         Peer.prototype.getDataChannel = function (label) {
@@ -600,7 +600,6 @@ var Talk;
             channel.onmessage = function (event) {
                 if (event.data) {
                     var payload = JSON.parse(event.data);
-                    Talk.log("Getting (%s):", channel.label, payload);
                     _this.handleData(payload);
                 }
             };
