@@ -25,6 +25,7 @@ module Talk {
                     OfferToReceiveVideo: false
                 }
             },
+            turn: "https://computeengineondemand.appspot.com/turn?username=95084268&key=4080218913",
             serverDataChannel: true,
             newMediaStream: false,
             negotiate: false,
@@ -50,6 +51,32 @@ module Talk {
 
             extend(this.config, options);
             this.id = id;
+
+            if(this.config.turn) {
+                var request = new XMLHttpRequest();
+                request.onreadystatechange = () => {
+                    if(request.readyState !== 4) {
+                        return;
+                    }
+                    if(request.status === 200) {
+                        var result = JSON.parse(request.responseText);
+                        if(result.uris && result.username && result.password) {
+                            result.uris.forEach((url) => {
+                                this.config.settings.iceServers.push({
+                                    credential: result.password,
+                                    username: result.username,
+                                    url: url
+                                });
+                            });
+                        }
+                    }
+                    else {
+                        warn("No TURN server found!");
+                    }
+                };
+                request.open("GET", this.config.turn, true);
+                request.send();
+            }
 
             this.pc = new PeerConnection(this.config.settings, this.config.constraints);
             this.pc.oniceconnectionstatechange = this.onConnectionChange.bind(this);
@@ -186,7 +213,12 @@ module Talk {
         private sendData(label: string, payload: any) {
             var channel = this.getDataChannel(label);
             if(channel && <any> channel.readyState === "open") {
-                channel.send(JSON.stringify(payload));
+                try {
+                    channel.send(JSON.stringify(payload));
+                }
+                catch(error) {
+                    warn(error);
+                }
             }
             else {
                 warn("Data channel named `%s` does not exists or it is not opened", label);

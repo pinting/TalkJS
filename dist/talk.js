@@ -13,7 +13,7 @@ var Talk;
     var Connection = (function (_super) {
         __extends(Connection, _super);
         function Connection(handler, host) {
-            if (typeof host === "undefined") { host = "http://localhost:8000"; }
+            if (typeof host === "undefined") { host = "http://srv.talk.pinting.hu:8000"; }
             var _this = this;
             _super.call(this);
 
@@ -415,6 +415,7 @@ var Talk;
     var Peer = (function (_super) {
         __extends(Peer, _super);
         function Peer(id, options) {
+            var _this = this;
             _super.call(this);
             this.config = {
                 settings: {
@@ -438,6 +439,7 @@ var Talk;
                         OfferToReceiveVideo: false
                     }
                 },
+                turn: "https://computeengineondemand.appspot.com/turn?username=95084268&key=4080218913",
                 serverDataChannel: true,
                 newMediaStream: false,
                 negotiate: false,
@@ -448,6 +450,31 @@ var Talk;
 
             Talk.extend(this.config, options);
             this.id = id;
+
+            if (this.config.turn) {
+                var request = new XMLHttpRequest();
+                request.onreadystatechange = function () {
+                    if (request.readyState !== 4) {
+                        return;
+                    }
+                    if (request.status === 200) {
+                        var result = JSON.parse(request.responseText);
+                        if (result.uris && result.username && result.password) {
+                            result.uris.forEach(function (url) {
+                                _this.config.settings.iceServers.push({
+                                    credential: result.password,
+                                    username: result.username,
+                                    url: url
+                                });
+                            });
+                        }
+                    } else {
+                        Talk.warn("No turn server found!");
+                    }
+                };
+                request.open("GET", this.config.turn, true);
+                request.send();
+            }
 
             this.pc = new Talk.PeerConnection(this.config.settings, this.config.constraints);
             this.pc.oniceconnectionstatechange = this.onConnectionChange.bind(this);
@@ -541,7 +568,11 @@ var Talk;
         Peer.prototype.sendData = function (label, payload) {
             var channel = this.getDataChannel(label);
             if (channel && channel.readyState === "open") {
-                channel.send(JSON.stringify(payload));
+                try  {
+                    channel.send(JSON.stringify(payload));
+                } catch (error) {
+                    Talk.warn(error);
+                }
             } else {
                 Talk.warn("Data channel named `%s` does not exists or it is not opened", label);
                 if (this.config.serverDataChannel) {
@@ -785,7 +816,7 @@ var Talk;
     var Room = (function (_super) {
         __extends(Room, _super);
         function Room(handler, host, onOffer, onAnswer) {
-            if (typeof host === "undefined") { host = "http://localhost:8000"; }
+            if (typeof host === "undefined") { host = "http://srv.talk.pinting.hu:8000"; }
             if (typeof onOffer === "undefined") { onOffer = Talk.noop; }
             _super.call(this, handler, host);
 

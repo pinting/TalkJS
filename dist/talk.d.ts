@@ -969,6 +969,7 @@ declare module Talk {
                     OfferToReceiveVideo: boolean;
                 };
             };
+            turn: string;
             serverDataChannel: boolean;
             newMediaStream: boolean;
             negotiate: boolean;

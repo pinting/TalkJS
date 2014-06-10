@@ -13,7 +13,7 @@ module Talk {
          * @param {string} [host]
          */
 
-        constructor(handler: Handler, host = "http://localhost:8000") {
+        constructor(handler: Handler, host = "http://srv.talk.pinting.hu:8000") {
             super();
 
             this.handler = handler;

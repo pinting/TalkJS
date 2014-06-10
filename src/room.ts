@@ -14,7 +14,7 @@ module Talk {
          * @param {Function} [onAnswer] - If its not defined, onOffer will used
          */
 
-        constructor(handler: Handler, host = "http://localhost:8000", onOffer = noop, onAnswer?: any) {
+        constructor(handler: Handler, host = "http://srv.talk.pinting.hu:8000", onOffer = noop, onAnswer?: any) {
             super(handler, host);
 
             if(!onAnswer) {
