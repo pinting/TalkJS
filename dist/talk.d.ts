@@ -937,6 +937,7 @@ declare module Talk {
     function safeCb(obj: any): any;
     function safeStr(obj: any): string;
     function safeText(obj: string): string;
+    function isFunc(obj: any): boolean;
     function isEmpty(obj: any): boolean;
     function isStr(obj: any): boolean;
     function isObj(obj: any): boolean;

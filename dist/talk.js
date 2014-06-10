@@ -153,7 +153,7 @@ var Talk;
 
         Handler.prototype.find = function (props, cb) {
             var result;
-            if (Talk.isObj(props)) {
+            if (Talk.isObj(props) && !Talk.isFunc(props)) {
                 result = this.peers.filter(function (peer) {
                     return Talk.comp(props, peer);
                 });
@@ -288,6 +288,11 @@ var Talk;
         return obj.replace(/"/g, "&quot;").replace(/'/g, "&apos;").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
     Talk.safeText = safeText;
+
+    function isFunc(obj) {
+        return typeof obj === "function";
+    }
+    Talk.isFunc = isFunc;
 
     function isEmpty(obj) {
         if (obj === null || obj === undefined) {
@@ -535,7 +540,7 @@ var Talk;
         Peer.prototype.handleData = function (p) {
             if (!this.chunks[p.hash]) {
                 if (p.end) {
-                    this.emit("data", this, JSON.parse(p.payload));
+                    this.emit("data", this, JSON.parse(p.payload), p.hash, p.length);
                 } else {
                     this.chunks[p.hash] = p.payload;
                 }
@@ -543,13 +548,12 @@ var Talk;
                 this.chunks[p.hash] += p.payload;
                 if (p.end) {
                     if (Talk.sha256(this.chunks[p.hash]) === p.hash) {
-                        this.emit("data", this, JSON.parse(this.chunks[p.hash]));
+                        this.emit("data", this, JSON.parse(this.chunks[p.hash]), p.hash, p.length);
                     }
                     delete this.chunks[p.hash];
                 }
             }
             this.emit("chunk", this, p.length, this.chunks[p.hash]);
-            Talk.log("Chunk received:", p);
         };
 
         Peer.prototype.getDataChannel = function (label) {

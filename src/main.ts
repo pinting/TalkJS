@@ -223,6 +223,16 @@ module Talk {
     }
 
     /**
+     * Check if object is function
+     * @param {*} obj
+     * @returns {boolean}
+     */
+
+    export function isFunc(obj: any): boolean {
+        return typeof obj === "function";
+    }
+
+    /**
      * Check if object is empty
      * @param {Array|Object|string} obj
      * @returns {boolean}

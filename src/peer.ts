@@ -204,7 +204,7 @@ module Talk {
         private handleData(p: Packet): void {
             if(!this.chunks[p.hash]) {
                 if(p.end) {
-                    this.emit("data", this, JSON.parse(p.payload));
+                    this.emit("data", this, JSON.parse(p.payload), p.hash, p.length);
                 }
                 else {
                     this.chunks[p.hash] = p.payload;
@@ -214,13 +214,12 @@ module Talk {
                 this.chunks[p.hash] += p.payload;
                 if(p.end) {
                     if(sha256(this.chunks[p.hash]) === p.hash) {
-                        this.emit("data", this, JSON.parse(this.chunks[p.hash]));
+                        this.emit("data", this, JSON.parse(this.chunks[p.hash]), p.hash, p.length);
                     }
                     delete this.chunks[p.hash];
                 }
             }
             this.emit("chunk", this, p.length, this.chunks[p.hash]);
-            log("Chunk received:", p);
         }
 
         /**

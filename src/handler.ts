@@ -131,7 +131,7 @@ module Talk {
 
         public find(props?: any, cb?: any): Peer[] {
             var result;
-            if(isObj(props)) {
+            if(isObj(props) && !isFunc(props)) {
                 result = this.peers.filter((peer) => {
                     return comp(props, peer);
                 });
