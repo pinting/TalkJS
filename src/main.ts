@@ -182,6 +182,18 @@ module Talk {
         return element;
     }
 
+    export function dataURLtoBlob(dataURL) {
+        var type = dataURL.split(";")[0].split(":")[1];
+        var data = atob(dataURL.split(",")[1]);
+        var buffer = new Uint8Array(data.length);
+
+        for(var i = 0; i < data.length; i++) {
+            buffer[i] = data.charCodeAt(i);
+        }
+
+        return new Blob([buffer], {type: type});
+    }
+
     /**
      * Check if input is a function: if it is not, then return an empty function
      * @param {*} obj

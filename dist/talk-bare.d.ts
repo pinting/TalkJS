@@ -58,6 +58,7 @@ declare module Talk {
     function logger(obj: Logger): void;
     function getUserMedia(audio?: boolean, video?: boolean, cb?: (error: any, stream?: MediaStream) => void): MediaStream;
     function attachMediaStream(element: HTMLVideoElement, stream: MediaStream): HTMLVideoElement;
+    function dataURLtoBlob(dataURL: any): Blob;
     function safeCb(obj: any): any;
     function safeStr(obj: any): string;
     function safeText(obj: string): string;

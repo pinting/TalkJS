@@ -266,6 +266,19 @@ var Talk;
     }
     Talk.attachMediaStream = attachMediaStream;
 
+    function dataURLtoBlob(dataURL) {
+        var type = dataURL.split(";")[0].split(":")[1];
+        var data = atob(dataURL.split(",")[1]);
+        var buffer = new Uint8Array(data.length);
+
+        for (var i = 0; i < data.length; i++) {
+            buffer[i] = data.charCodeAt(i);
+        }
+
+        return new Blob([buffer], { type: type });
+    }
+    Talk.dataURLtoBlob = dataURLtoBlob;
+
     function safeCb(obj) {
         if (typeof obj === "function") {
             return obj;
