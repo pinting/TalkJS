@@ -38,10 +38,8 @@
  */
 
 module Talk {
-    declare var mozRTCSessionDescription;
-    declare var mozRTCPeerConnection;
-    declare var mozRTCIceCandidate;
-    declare var navigator;
+    declare var navigator: any;
+    declare var window: any;
 
     export interface Packet {
         length: number;
@@ -62,10 +60,10 @@ module Talk {
         log: (...args: any[]) => void;
     }
 
-    export var PeerConnection = RTCPeerConnection || webkitRTCPeerConnection || mozRTCPeerConnection;
-    export var SessionDescription = RTCSessionDescription || mozRTCSessionDescription;
-    export var IceCandidate = RTCIceCandidate || mozRTCIceCandidate;
-    export var MediaStream = MediaStream || webkitMediaStream;
+    export var PeerConnection = window.RTCPeerConnection || window.webkitRTCPeerConnection || window.mozRTCPeerConnection;
+    export var SessionDescription = window.RTCSessionDescription || window.mozRTCSessionDescription;
+    export var IceCandidate = window.RTCIceCandidate || window.mozRTCIceCandidate;
+    export var MediaStream = window.MediaStream || window.webkitMediaStream;
 
     export var userMedia: any;
 

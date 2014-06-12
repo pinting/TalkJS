@@ -255,8 +255,8 @@ var Talk;
     Talk.getUserMedia = getUserMedia;
 
     function attachMediaStream(element, stream) {
-        if (window.URL) {
-            element.src = window.URL.createObjectURL(stream);
+        if (URL) {
+            element.src = URL.createObjectURL(stream);
         } else {
             element.src = stream;
         }
