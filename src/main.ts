@@ -156,8 +156,14 @@ module Talk {
                     safeCb(cb)(null, stream);
                 },
                 (error: Error) => {
-                    warn(error);
-                    safeCb(cb)(error);
+                    if(video && error && error.name === "DevicesNotFoundError") {
+                        // Fallback to audio-only stream on Chrome
+                        getUserMedia(true, false, safeCb(cb));
+                    }
+                    else {
+                        warn(error);
+                        safeCb(cb)(error);
+                    }
                 }
             );
         }

@@ -21,8 +21,8 @@ module Talk {
             },
             media: {
                 mandatory: {
-                    OfferToReceiveAudio: false,
-                    OfferToReceiveVideo: false
+                    OfferToReceiveAudio: true,
+                    OfferToReceiveVideo: true
                 }
             },
             serverDataChannel: true,
@@ -500,12 +500,6 @@ module Talk {
          */
 
         public addStream(stream: MediaStream): void {
-            if(stream.getVideoTracks().length > 0) {
-                this.config.media.mandatory.OfferToReceiveVideo = true;
-            }
-            if(stream.getAudioTracks().length > 0) {
-                this.config.media.mandatory.OfferToReceiveAudio = true;
-            }
             this.localStream = this.config.newMediaStream ? new Talk.MediaStream(stream) : stream;
             this.pc.addStream(this.localStream, this.config.media);
             log("Stream was added:", this.localStream);

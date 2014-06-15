@@ -248,8 +248,12 @@ var Talk;
                 Talk.userMedia = stream;
                 safeCb(cb)(null, stream);
             }, function (error) {
-                Talk.warn(error);
-                safeCb(cb)(error);
+                if (video && error && error.name === "DevicesNotFoundError") {
+                    getUserMedia(true, false, safeCb(cb));
+                } else {
+                    Talk.warn(error);
+                    safeCb(cb)(error);
+                }
             });
         } else {
             return Talk.userMedia;
@@ -433,8 +437,8 @@ var Talk;
                 },
                 media: {
                     mandatory: {
-                        OfferToReceiveAudio: false,
-                        OfferToReceiveVideo: false
+                        OfferToReceiveAudio: true,
+                        OfferToReceiveVideo: true
                     }
                 },
                 serverDataChannel: true,
@@ -756,12 +760,6 @@ var Talk;
         };
 
         Peer.prototype.addStream = function (stream) {
-            if (stream.getVideoTracks().length > 0) {
-                this.config.media.mandatory.OfferToReceiveVideo = true;
-            }
-            if (stream.getAudioTracks().length > 0) {
-                this.config.media.mandatory.OfferToReceiveAudio = true;
-            }
             this.localStream = this.config.newMediaStream ? new Talk.MediaStream(stream) : stream;
             this.pc.addStream(this.localStream, this.config.media);
             Talk.log("Stream was added:", this.localStream);
