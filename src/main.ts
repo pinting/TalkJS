@@ -332,6 +332,20 @@ module Talk {
     }
 
     /**
+     * Generate an UUID
+     * @returns {string}
+     */
+
+    export function uuid(): string {
+        var d = new Date().getTime();
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
+            var r = (d + Math.random() * 16) % 16 | 0;
+            d = Math.floor(d / 16);
+            return (c === "x" ? r : (r & 0x7 | 0x8)).toString(16);
+        });
+    }
+
+    /**
      * Make an MD5 hash from a string
      * @param {string} obj
      * @returns {string}

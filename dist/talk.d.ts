@@ -946,6 +946,7 @@ declare module Talk {
     function isNum(obj: any): boolean;
     function randNum(min?: number, max?: number): number;
     function randWord(length?: number): string;
+    function uuid(): string;
     function md5(obj: string): string;
     function find(list: any[], obj: any): boolean;
     function extend(obj: Object, source: Object): Object;

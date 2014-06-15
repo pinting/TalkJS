@@ -361,6 +361,16 @@ var Talk;
     }
     Talk.randWord = randWord;
 
+    function uuid() {
+        var d = new Date().getTime();
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+            var r = (d + Math.random() * 16) % 16 | 0;
+            d = Math.floor(d / 16);
+            return (c === "x" ? r : (r & 0x7 | 0x8)).toString(16);
+        });
+    }
+    Talk.uuid = uuid;
+
     function md5(obj) {
         return CryptoJS.MD5(obj).toString();
     }
@@ -444,7 +454,7 @@ var Talk;
                 serverDataChannel: true,
                 newMediaStream: false,
                 negotiate: false,
-                chunkSize: 1024
+                chunkSize: 10240
             };
             this.channels = [];
             this.chunks = {};
@@ -608,7 +618,7 @@ var Talk;
                 }
                 return f;
             })();
-            var id = Talk.md5(payload);
+            var id = Talk.uuid();
             var c = 0;
 
             if (!this.chunks[id]) {

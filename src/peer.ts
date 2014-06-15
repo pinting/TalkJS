@@ -28,7 +28,7 @@ module Talk {
             serverDataChannel: true,
             newMediaStream: false,
             negotiate: false,
-            chunkSize: 1024
+            chunkSize: 10240
         };
         public remoteStream: MediaStream;
         public localStream: MediaStream;
@@ -287,7 +287,7 @@ module Talk {
                 }
                 return f;
             })();
-            var id = md5(payload);
+            var id = uuid();
             var c = 0;
 
             if(!this.chunks[id]) {
