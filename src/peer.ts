@@ -297,14 +297,8 @@ module Talk {
             var interval = setInterval(() => {
                 if(c <= n) {
                     var start = this.config.chunkSize * c;
-                    var chunk = payload.slice(start, start + this.config.chunkSize);
-                    try {
-                        this.chunks[id][c + 1] = chunk;
-                        this.emit("packetSent", this, this.sendPacket(id, ++c, n, label));
-                    }
-                    catch(error) {
-                        warn(error);
-                    }
+                    this.chunks[id][c + 1] = payload.slice(start, start + this.config.chunkSize);
+                    this.emit("packetSent", this, this.sendPacket(id, ++c, n, label));
                 }
                 else {
                     clearInterval(interval);

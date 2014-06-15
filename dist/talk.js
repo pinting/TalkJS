@@ -614,13 +614,8 @@ var Talk;
             var interval = setInterval(function () {
                 if (c <= n) {
                     var start = _this.config.chunkSize * c;
-                    var chunk = payload.slice(start, start + _this.config.chunkSize);
-                    try  {
-                        _this.chunks[id][c + 1] = chunk;
-                        _this.emit("packetSent", _this, _this.sendPacket(id, ++c, n, label));
-                    } catch (error) {
-                        Talk.warn(error);
-                    }
+                    _this.chunks[id][c + 1] = payload.slice(start, start + _this.config.chunkSize);
+                    _this.emit("packetSent", _this, _this.sendPacket(id, ++c, n, label));
                 } else {
                     clearInterval(interval);
                 }
