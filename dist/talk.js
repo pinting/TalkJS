@@ -617,7 +617,7 @@ var Talk;
                     var chunk = payload.slice(start, start + _this.config.chunkSize);
                     try  {
                         _this.chunks[id][c + 1] = chunk;
-                        _this.emit("packetSent", _this, _this.sendPacket(id, ++c, n, label), payload.length);
+                        _this.emit("packetSent", _this, _this.sendPacket(id, ++c, n, label));
                     } catch (error) {
                         Talk.warn(error);
                     }

@@ -300,7 +300,7 @@ module Talk {
                     var chunk = payload.slice(start, start + this.config.chunkSize);
                     try {
                         this.chunks[id][c + 1] = chunk;
-                        this.emit("packetSent", this, this.sendPacket(id, ++c, n, label), payload.length);
+                        this.emit("packetSent", this, this.sendPacket(id, ++c, n, label));
                     }
                     catch(error) {
                         warn(error);
