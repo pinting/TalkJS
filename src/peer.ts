@@ -28,7 +28,7 @@ module Talk {
             serverDataChannel: true,
             newMediaStream: false,
             negotiate: false,
-            chunkSize: 1200
+            chunkSize: 1024
         };
         public remoteStream: MediaStream;
         public localStream: MediaStream;
@@ -84,8 +84,7 @@ module Talk {
          * @returns {boolean}
          */
 
-        public parseMessage(key: string, value: Object): boolean {
-            log("Parsing:", key, value);
+        public parseMessage(key: string, value: any): boolean {
             switch(key) {
                 case "offer":
                     this.answer(value);
@@ -96,221 +95,22 @@ module Talk {
                 case "candidate":
                     this.handleCandidate(value);
                     break;
-                case "data":
-                    this.handleData(<Packet> value);
+                case "packet":
+                    this.handlePacket(value, null);
+                    break;
+                case "packetsEnd":
+                    this.endOfPackets.apply(this, value);
+                    break;
+                case "packetsReceived":
+                    this.deleteChunks(value);
+                    break;
+                case "packetReq":
+                    this.sendPacket.apply(this, value);
                     break;
                 default:
                     return false;
             }
             return true;
-        }
-
-        /**
-         * Add our stream to the peer
-         * @param {MediaStream} stream
-         */
-
-        public addStream(stream: MediaStream): void {
-            if(stream.getVideoTracks().length > 0) {
-                this.config.media.mandatory.OfferToReceiveVideo = true;
-            }
-            if(stream.getAudioTracks().length > 0) {
-                this.config.media.mandatory.OfferToReceiveAudio = true;
-            }
-            this.localStream = this.config.newMediaStream ? new Talk.MediaStream(stream) : stream;
-            this.pc.addStream(this.localStream, this.config.media);
-            log("Stream was added:", this.localStream);
-            if(!negotiations) {
-                this.negotiate();
-            }
-        }
-
-        /**
-         * When the peer adds its stream to us
-         * @param {RTCMediaStreamEvent} event
-         */
-
-        private onAddStream(event: RTCMediaStreamEvent): void {
-            if(event.stream) {
-                log("Remote stream was added:", event.stream);
-                this.remoteStream = event.stream;
-                this.emit("streamAdded", this, this.remoteStream);
-            }
-            else {
-                warn("Remote stream could not be added:", event);
-            }
-        }
-
-        /**
-         * When the added stream is removed
-         * @param {RTCMediaStreamEvent} event
-         */
-
-        private onRemoveStream(event: RTCMediaStreamEvent): void {
-            this.remoteStream = <MediaStream> {};
-            this.emit("streamRemoved", this);
-            log("Remote stream was removed from peer:", event);
-        }
-
-        /**
-         * Send data to the peer, and chunk it if its needed
-         * @param {string} label - Label of the data channel
-         * @param {*} payload
-         */
-
-        public send(label: string, payload: any): void {
-            payload = JSON.stringify(payload);
-
-            var length = payload.length;
-            var hash = sha256(payload);
-            var packet;
-            var chunk;
-
-            while(payload.length > 0) {
-                chunk = payload.slice(0, this.config.chunkSize);
-                payload = payload.slice(this.config.chunkSize);
-                packet = <Packet> {
-                    end: payload.length === 0,
-                    payload: chunk,
-                    length: length,
-                    hash: hash
-                };
-                this.sendData(label, packet);
-                this.emit("packetSent", this, packet, payload.length);
-            }
-        }
-
-        /**
-         * Send data to the peer through the chosen data channel,
-         * or SocketIO if it is not opened yet
-         * @param {string} label - Label of the data channel
-         * @param {*} payload
-         */
-
-        private sendData(label: string, payload: any) {
-            var channel = this.getDataChannel(label);
-            if(channel && <any> channel.readyState === "open") {
-                try {
-                    channel.send(JSON.stringify(payload));
-                    return;
-                }
-                catch(error) {
-                    warn(error);
-                }
-            }
-            else {
-                warn("Data channel named `%s` does not exists or it is not opened", label);
-            }
-            if(this.config.serverDataChannel) {
-                this.sendMessage("data", payload);
-            }
-        }
-
-        /**
-         * Handle received data: if it is chunked, then wait for
-         * each part and join them.
-         * @param p {Talk.Packet}
-         */
-
-        private handleData(p: Packet): void {
-            if(!this.chunks[p.hash]) {
-                if(p.end) {
-                    this.emit("data", this, JSON.parse(p.payload), p.hash, p.length);
-                    log("Data received:", p.hash);
-                }
-                else {
-                    this.chunks[p.hash] = p.payload;
-                }
-            }
-            else {
-                this.chunks[p.hash] += p.payload;
-                if(p.end) {
-                    if(sha256(this.chunks[p.hash]) === p.hash) {
-                        this.emit("data", this, JSON.parse(this.chunks[p.hash]), p.hash, p.length);
-                        log("Data received:", p.hash);
-                    }
-                    delete this.chunks[p.hash];
-                }
-            }
-            this.emit("packetReceived", this, p, p.end ? p.length : this.chunks[p.hash].length);
-        }
-
-        /**
-         * Get a data channel
-         * @param {string} label
-         * @returns {boolean||RTCDataChannel}
-         */
-
-        private getDataChannel(label: string): RTCDataChannel {
-            var result = <any> false;
-            this.channels.some(function(channel: RTCDataChannel) {
-                if(channel.label === label) {
-                    result = channel;
-                    return true;
-                }
-                return false;
-            });
-            return result;
-        }
-
-        /**
-         * Configuration a newly created data channel
-         * @param {RTCDataChannel} channel
-         */
-
-        private configDataChannel(channel: RTCDataChannel): void {
-            channel.onclose = (event) => {
-                log("Channel named `%s` was closed", channel.label);
-                this.emit("channelClosed", this, event);
-            };
-            channel.onerror = (event) => {
-                warn("Channel error:", event);
-                this.emit("channelError", this, event);
-            };
-            channel.onopen = (event) => {
-                log("Channel named `%s` was opened", channel.label);
-                this.emit("channelOpened", this, event);
-            };
-            channel.onmessage = (event: any) => {
-                if(event.data) {
-                    var payload = JSON.parse(event.data);
-                    this.handleData(payload);
-                }
-            };
-        }
-
-        /**
-         * Add a data channel
-         * @param {string} label
-         * @param {RTCDataChannelInit} [options]
-         * @returns {RTCDataChannel}
-         */
-
-        public addDC(label: string, options?: RTCDataChannelInit): RTCDataChannel {
-            var channel = this.pc.createDataChannel(label, options);
-            this.configDataChannel(channel);
-            this.channels.push(channel);
-            log("Data channel was added:", channel);
-            if(!negotiations) {
-                this.negotiate();
-            }
-            return channel;
-        }
-
-        /**
-         * When the peer has added a data channel between us
-         * @param {RTCDataChannelEvent} event
-         */
-
-        private onDataChannel(event: RTCDataChannelEvent): void {
-            if(event.channel) {
-                this.configDataChannel(event.channel);
-                this.channels.push(event.channel);
-                log("Data channel was added:", event.channel)
-            }
-            else {
-                warn("Data channel could not be added", event);
-            }
         }
 
         /**
@@ -463,6 +263,288 @@ module Talk {
             this.pc.close();
             this.emit("closed", this);
             log("Peer closed:", this);
+        }
+
+        /**
+         * ============================================= Data =============================================
+         */
+
+        /**
+         * Send data to the peer and chunk it if its needed
+         * @param {*} payload
+         * @param {string} [label] - Label of the data channel
+         */
+
+        public sendData(payload: any, label?: string): void {
+            payload = JSON.stringify(payload);
+
+            var n = (() => {
+                var x = payload.length / this.config.chunkSize;
+                var f = Math.floor(x);
+
+                if(f < x) {
+                    return f + 1;
+                }
+                return f;
+            })();
+            var id = md5(payload);
+            var c = 0;
+
+            if(!this.chunks[id]) {
+                this.chunks[id] = {};
+            }
+
+            var interval = setInterval(() => {
+                if(c <= n) {
+                    var start = this.config.chunkSize * c;
+                    var chunk = payload.slice(start, start + this.config.chunkSize);
+                    try {
+                        this.chunks[id][c + 1] = chunk;
+                        this.emit("packetSent", this, this.sendPacket(id, ++c, n, label), payload.length);
+                    }
+                    catch(error) {
+                        warn(error);
+                    }
+                }
+                else {
+                    clearInterval(interval);
+                }
+            }, 0);
+        }
+
+        /**
+         * Send a packet
+         * @param {string} id - ID of the chunks array
+         * @param {number} c - Index of the chunks
+         * @param {number} n - Length of the chunks array
+         * @param {string} [label] - Label of the data channel
+         * @returns {Talk.Packet}
+         */
+
+        private sendPacket(id: string, c: number, n: number, label?: string): Packet {
+            if(this.chunks[id] && this.chunks[id][c]) {
+                var packet = {
+                    sum: md5(this.chunks[id][c]),
+                    chunk: this.chunks[id][c],
+                    id: id,
+                    c: c,
+                    n: n
+                };
+
+                try {
+                    var channel = this.getDataChannel(label);
+                    channel.send(JSON.stringify(packet));
+                }
+                catch(error) {
+                    if(this.config.serverDataChannel) {
+                        this.sendMessage("packet", packet);
+                    }
+                    else {
+                        warn(error);
+                        return <Packet> {};
+                    }
+                }
+                if(c === n || Object.keys(this.chunks[id]).length === n) {
+                    this.sendMessage("packetsEnd", [id, n, label]);
+                }
+
+                return packet;
+            }
+            return <Packet> {};
+        }
+
+        /**
+         * Handle a received packet.
+         * @param {Talk.Packet} packet
+         * @param {string} [label] - Label of the data channel
+         */
+
+        private handlePacket(packet: Packet, label?: string): void {
+            if(!packet.id || !packet.c || !packet.n) {
+                return;
+            }
+            if(!this.chunks[packet.id]) {
+                this.chunks[packet.id] = {};
+            }
+            setTimeout(() => {
+                if(packet.chunk && md5(packet.chunk) === packet.sum) {
+                    this.chunks[packet.id][packet.c] = packet.chunk;
+                    this.emit("packetReceived", this, packet);
+                }
+                else {
+                    log("Invalid packet was received: require resend");
+                    this.sendMessage("packetReq", [packet.id, packet.c, packet.n, label]);
+                }
+            }, 0);
+        }
+
+        /**
+         * Executed when the sender has sent every packets
+         * @param {string} id - ID of the chunks
+         * @param {number} n - Length of the chunks array
+         * @param {string} [label] - Label of the data channel
+         */
+
+        private endOfPackets(id: string, n: number, label?: string): void {
+            if(!this.chunks[id]) {
+                return;
+            }
+            setTimeout(() => {
+                var buffer = "";
+                for(var i = 1; i <= n; i++) {
+                    if(!this.chunks[id][i]) {
+                        log("Invalid packet was received: require resend");
+                        this.sendMessage("packetReq", [id, i, n, label]);
+                        return;
+                    }
+                    buffer += this.chunks[id][i];
+                }
+                buffer = JSON.parse(buffer);
+                this.sendMessage("packetsReceived", id);
+                this.deleteChunks(id);
+                this.emit("data", this, buffer);
+                log("Data received:", buffer);
+            }, 0);
+        }
+
+        /**
+         * Delete chunks from the internal storage
+         * @param {string} id - ID of the chunks
+         */
+
+        private deleteChunks(id: string): void {
+            if(this.chunks[id]) {
+                delete this.chunks[id];
+            }
+        }
+
+        /**
+         * Get a data channel
+         * @param {string} label
+         * @returns {boolean|RTCDataChannel}
+         */
+
+        private getDataChannel(label: string): RTCDataChannel {
+            var result = <any> false;
+            this.channels.some(function(channel: RTCDataChannel) {
+                if(channel.label === label) {
+                    result = channel;
+                    return true;
+                }
+                return false;
+            });
+            return result;
+        }
+
+        /**
+         * Configuration a newly created data channel
+         * @param {RTCDataChannel} channel
+         */
+
+        private initDataChannel(channel: RTCDataChannel): void {
+            channel.onclose = (event) => {
+                log("Channel named `%s` was closed", channel.label);
+                this.emit("channelClosed", this, event);
+            };
+            channel.onerror = (event) => {
+                warn("Channel error:", event);
+                this.emit("channelError", this, event);
+            };
+            channel.onopen = (event) => {
+                log("Channel named `%s` was opened", channel.label);
+                this.emit("channelOpened", this, event);
+            };
+            channel.onmessage = (event: any) => {
+                if(event.data) {
+                    var payload = JSON.parse(event.data);
+                    this.handlePacket(payload, channel.label);
+                }
+            };
+        }
+
+        /**
+         * Add a data channel
+         * @param {string} label
+         * @param {RTCDataChannelInit} [options]
+         * @returns {RTCDataChannel}
+         */
+
+        public addDataChannel(label: string, options?: RTCDataChannelInit): RTCDataChannel {
+            var channel = this.pc.createDataChannel(label, options);
+            this.initDataChannel(channel);
+            this.channels.push(channel);
+            log("Data channel was added:", channel);
+            if(!negotiations) {
+                this.negotiate();
+            }
+            return channel;
+        }
+
+        /**
+         * When the peer has added a data channel between us
+         * @param {RTCDataChannelEvent} event
+         */
+
+        private onDataChannel(event: RTCDataChannelEvent): void {
+            if(event.channel) {
+                this.initDataChannel(event.channel);
+                this.channels.push(event.channel);
+                log("Data channel was added:", event.channel)
+            }
+            else {
+                warn("Data channel could not be added", event);
+            }
+        }
+
+        /**
+         * ============================================= Media =============================================
+         */
+
+        /**
+         * Add our stream to the peer
+         * @param {MediaStream} stream
+         */
+
+        public addStream(stream: MediaStream): void {
+            if(stream.getVideoTracks().length > 0) {
+                this.config.media.mandatory.OfferToReceiveVideo = true;
+            }
+            if(stream.getAudioTracks().length > 0) {
+                this.config.media.mandatory.OfferToReceiveAudio = true;
+            }
+            this.localStream = this.config.newMediaStream ? new Talk.MediaStream(stream) : stream;
+            this.pc.addStream(this.localStream, this.config.media);
+            log("Stream was added:", this.localStream);
+            if(!negotiations) {
+                this.negotiate();
+            }
+        }
+
+        /**
+         * When the peer adds its stream to us
+         * @param {RTCMediaStreamEvent} event
+         */
+
+        private onAddStream(event: RTCMediaStreamEvent): void {
+            if(event.stream) {
+                log("Remote stream was added:", event.stream);
+                this.remoteStream = event.stream;
+                this.emit("streamAdded", this, this.remoteStream);
+            }
+            else {
+                warn("Remote stream could not be added:", event);
+            }
+        }
+
+        /**
+         * When the added stream is removed
+         * @param {RTCMediaStreamEvent} event
+         */
+
+        private onRemoveStream(event: RTCMediaStreamEvent): void {
+            this.remoteStream = <MediaStream> {};
+            this.emit("streamRemoved", this);
+            log("Remote stream was removed from peer:", event);
         }
 
         /**

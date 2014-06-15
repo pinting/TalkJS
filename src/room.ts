@@ -33,7 +33,6 @@ module Talk {
          */
 
         public get(payload: Message): void {
-            log("Getting:", payload);
             if(payload.key && payload.value && payload.peer) {
                 var peer = this.handler.get(payload.peer);
                 if(!peer && payload.key === "offer") {
@@ -41,7 +40,6 @@ module Talk {
                     this.onAnswer(peer);
                 }
                 if(peer) {
-                    log("Peer found!");
                     peer.parseMessage(payload.key, payload.value);
                 }
                 else {

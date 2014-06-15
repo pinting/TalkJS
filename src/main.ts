@@ -23,14 +23,14 @@
  *   });
  * });
  *
- * @emits Peer#data (peer: Peer, data: any, hash: string, length: number)
  * @emits Peer#packetSent (peer: Peer, packet: Packet, length: number)
  * @emits Peer#streamAdded (peer: Peer, stream: MediaStream)
  * @emits Peer#connectionState (peer: Peer, state: string)
- * @emits Peer#packetReceived (peer: Peer, length: number)
+ * @emits Peer#packetReceived (peer: Peer, packet: Packet)
  * @emits Peer#channelClosed (peer: Peer, event: Event)
  * @emits Peer#channelOpened (peer: Peer, event: Event)
  * @emits Peer#channelError (peer: Peer, event: Event)
+ * @emits Peer#data (peer: Peer, data: any)
  * @emits Peer#streamRemoved (peer: Peer)
  * @emits Peer#message (payload: Message)
  * @emits Peer#closed (peer: Peer)
@@ -42,10 +42,11 @@ module Talk {
     declare var window: any;
 
     export interface Packet {
-        length: number;
-        payload: any;
-        hash: string;
-        end: boolean;
+        chunk: string;
+        sum: string;
+        id: string;
+        c: number;
+        n: number;
     }
 
     export interface Message {
@@ -325,13 +326,13 @@ module Talk {
     }
 
     /**
-     * Make an SHA256 hash from a string
+     * Make an MD5 hash from a string
      * @param {string} obj
      * @returns {string}
      */
 
-    export function sha256(obj: string): string {
-        return CryptoJS.SHA256(obj).toString();
+    export function md5(obj: string): string {
+        return CryptoJS.MD5(obj).toString();
     }
 
     /**

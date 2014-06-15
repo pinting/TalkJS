@@ -31,7 +31,6 @@ var Talk;
             if (payload.key && payload.value && payload.peer && payload.handler) {
                 var peer = this.findHandler(payload.handler).get(payload.peer);
                 if (peer) {
-                    Talk.log("Peer found!");
                     peer.parseMessage(payload.key, payload.value);
                 } else {
                     Talk.warn("Peer not found!");
@@ -354,10 +353,10 @@ var Talk;
     }
     Talk.randWord = randWord;
 
-    function sha256(obj) {
-        return CryptoJS.SHA256(obj).toString();
+    function md5(obj) {
+        return CryptoJS.MD5(obj).toString();
     }
-    Talk.sha256 = sha256;
+    Talk.md5 = md5;
 
     function find(list, obj) {
         return list.indexOf(obj) >= 0;
@@ -437,7 +436,7 @@ var Talk;
                 serverDataChannel: true,
                 newMediaStream: false,
                 negotiate: false,
-                chunkSize: 1200
+                chunkSize: 1024
             };
             this.channels = [];
             this.chunks = {};
@@ -465,7 +464,6 @@ var Talk;
         };
 
         Peer.prototype.parseMessage = function (key, value) {
-            Talk.log("Parsing:", key, value);
             switch (key) {
                 case "offer":
                     this.answer(value);
@@ -476,159 +474,22 @@ var Talk;
                 case "candidate":
                     this.handleCandidate(value);
                     break;
-                case "data":
-                    this.handleData(value);
+                case "packet":
+                    this.handlePacket(value, null);
+                    break;
+                case "packetsEnd":
+                    this.endOfPackets.apply(this, value);
+                    break;
+                case "packetsReceived":
+                    this.deleteChunks(value);
+                    break;
+                case "packetReq":
+                    this.sendPacket.apply(this, value);
                     break;
                 default:
                     return false;
             }
             return true;
-        };
-
-        Peer.prototype.addStream = function (stream) {
-            if (stream.getVideoTracks().length > 0) {
-                this.config.media.mandatory.OfferToReceiveVideo = true;
-            }
-            if (stream.getAudioTracks().length > 0) {
-                this.config.media.mandatory.OfferToReceiveAudio = true;
-            }
-            this.localStream = this.config.newMediaStream ? new Talk.MediaStream(stream) : stream;
-            this.pc.addStream(this.localStream, this.config.media);
-            Talk.log("Stream was added:", this.localStream);
-            if (!Talk.negotiations) {
-                this.negotiate();
-            }
-        };
-
-        Peer.prototype.onAddStream = function (event) {
-            if (event.stream) {
-                Talk.log("Remote stream was added:", event.stream);
-                this.remoteStream = event.stream;
-                this.emit("streamAdded", this, this.remoteStream);
-            } else {
-                Talk.warn("Remote stream could not be added:", event);
-            }
-        };
-
-        Peer.prototype.onRemoveStream = function (event) {
-            this.remoteStream = {};
-            this.emit("streamRemoved", this);
-            Talk.log("Remote stream was removed from peer:", event);
-        };
-
-        Peer.prototype.send = function (label, payload) {
-            payload = JSON.stringify(payload);
-
-            var length = payload.length;
-            var hash = Talk.sha256(payload);
-            var packet;
-            var chunk;
-
-            while (payload.length > 0) {
-                chunk = payload.slice(0, this.config.chunkSize);
-                payload = payload.slice(this.config.chunkSize);
-                packet = {
-                    end: payload.length === 0,
-                    payload: chunk,
-                    length: length,
-                    hash: hash
-                };
-                this.sendData(label, packet);
-                this.emit("packetSent", this, packet, payload.length);
-            }
-        };
-
-        Peer.prototype.sendData = function (label, payload) {
-            var channel = this.getDataChannel(label);
-            if (channel && channel.readyState === "open") {
-                try  {
-                    channel.send(JSON.stringify(payload));
-                    return;
-                } catch (error) {
-                    Talk.warn(error);
-                }
-            } else {
-                Talk.warn("Data channel named `%s` does not exists or it is not opened", label);
-            }
-            if (this.config.serverDataChannel) {
-                this.sendMessage("data", payload);
-            }
-        };
-
-        Peer.prototype.handleData = function (p) {
-            if (!this.chunks[p.hash]) {
-                if (p.end) {
-                    this.emit("data", this, JSON.parse(p.payload), p.hash, p.length);
-                    Talk.log("Data received:", p.hash);
-                } else {
-                    this.chunks[p.hash] = p.payload;
-                }
-            } else {
-                this.chunks[p.hash] += p.payload;
-                if (p.end) {
-                    if (Talk.sha256(this.chunks[p.hash]) === p.hash) {
-                        this.emit("data", this, JSON.parse(this.chunks[p.hash]), p.hash, p.length);
-                        Talk.log("Data received:", p.hash);
-                    }
-                    delete this.chunks[p.hash];
-                }
-            }
-            this.emit("packetReceived", this, p, p.end ? p.length : this.chunks[p.hash].length);
-        };
-
-        Peer.prototype.getDataChannel = function (label) {
-            var result = false;
-            this.channels.some(function (channel) {
-                if (channel.label === label) {
-                    result = channel;
-                    return true;
-                }
-                return false;
-            });
-            return result;
-        };
-
-        Peer.prototype.configDataChannel = function (channel) {
-            var _this = this;
-            channel.onclose = function (event) {
-                Talk.log("Channel named `%s` was closed", channel.label);
-                _this.emit("channelClosed", _this, event);
-            };
-            channel.onerror = function (event) {
-                Talk.warn("Channel error:", event);
-                _this.emit("channelError", _this, event);
-            };
-            channel.onopen = function (event) {
-                Talk.log("Channel named `%s` was opened", channel.label);
-                _this.emit("channelOpened", _this, event);
-            };
-            channel.onmessage = function (event) {
-                if (event.data) {
-                    var payload = JSON.parse(event.data);
-                    _this.handleData(payload);
-                }
-            };
-        };
-
-        Peer.prototype.addDC = function (label, options) {
-            var channel = this.pc.createDataChannel(label, options);
-            this.configDataChannel(channel);
-            this.channels.push(channel);
-            Talk.log("Data channel was added:", channel);
-            if (!Talk.negotiations) {
-                this.negotiate();
-            }
-            return channel;
-        };
-
-        Peer.prototype.onDataChannel = function (event) {
-            if (event.channel) {
-                this.configDataChannel(event.channel);
-                this.channels.push(event.channel);
-                Talk.log("Data channel was added:", event.channel);
-            } else {
-                Talk.warn("Data channel could not be added", event);
-            }
         };
 
         Peer.prototype.onConnectionChange = function () {
@@ -726,6 +587,206 @@ var Talk;
             Talk.log("Peer closed:", this);
         };
 
+        Peer.prototype.sendData = function (payload, label) {
+            var _this = this;
+            payload = JSON.stringify(payload);
+
+            var n = (function () {
+                var x = payload.length / _this.config.chunkSize;
+                var f = Math.floor(x);
+
+                if (f < x) {
+                    return f + 1;
+                }
+                return f;
+            })();
+            var id = Talk.md5(payload);
+            var c = 0;
+
+            if (!this.chunks[id]) {
+                this.chunks[id] = {};
+            }
+
+            var interval = setInterval(function () {
+                if (c <= n) {
+                    var start = _this.config.chunkSize * c;
+                    var chunk = payload.slice(start, start + _this.config.chunkSize);
+                    try  {
+                        _this.chunks[id][c + 1] = chunk;
+                        _this.emit("packetSent", _this, _this.sendPacket(id, ++c, n, label), payload.length);
+                    } catch (error) {
+                        Talk.warn(error);
+                    }
+                } else {
+                    clearInterval(interval);
+                }
+            }, 0);
+        };
+
+        Peer.prototype.sendPacket = function (id, c, n, label) {
+            if (this.chunks[id] && this.chunks[id][c]) {
+                var packet = {
+                    sum: Talk.md5(this.chunks[id][c]),
+                    chunk: this.chunks[id][c],
+                    id: id,
+                    c: c,
+                    n: n
+                };
+
+                try  {
+                    var channel = this.getDataChannel(label);
+                    channel.send(JSON.stringify(packet));
+                } catch (error) {
+                    if (this.config.serverDataChannel) {
+                        this.sendMessage("packet", packet);
+                    } else {
+                        Talk.warn(error);
+                        return {};
+                    }
+                }
+                if (c === n || Object.keys(this.chunks[id]).length === n) {
+                    this.sendMessage("packetsEnd", [id, n, label]);
+                }
+
+                return packet;
+            }
+            return {};
+        };
+
+        Peer.prototype.handlePacket = function (packet, label) {
+            var _this = this;
+            if (!packet.id || !packet.c || !packet.n) {
+                return;
+            }
+            if (!this.chunks[packet.id]) {
+                this.chunks[packet.id] = {};
+            }
+            setTimeout(function () {
+                if (packet.chunk && Talk.md5(packet.chunk) === packet.sum) {
+                    _this.chunks[packet.id][packet.c] = packet.chunk;
+                    _this.emit("packetReceived", _this, packet);
+                } else {
+                    Talk.log("Invalid packet was received: require resend");
+                    _this.sendMessage("packetReq", [packet.id, packet.c, packet.n, label]);
+                }
+            }, 0);
+        };
+
+        Peer.prototype.endOfPackets = function (id, n, label) {
+            var _this = this;
+            if (!this.chunks[id]) {
+                return;
+            }
+            setTimeout(function () {
+                var buffer = "";
+                for (var i = 1; i <= n; i++) {
+                    if (!_this.chunks[id][i]) {
+                        Talk.log("Invalid packet was received: require resend");
+                        _this.sendMessage("packetReq", [id, i, n, label]);
+                        return;
+                    }
+                    buffer += _this.chunks[id][i];
+                }
+                buffer = JSON.parse(buffer);
+                _this.sendMessage("packetsReceived", id);
+                _this.deleteChunks(id);
+                _this.emit("data", _this, buffer);
+                Talk.log("Data received:", buffer);
+            }, 0);
+        };
+
+        Peer.prototype.deleteChunks = function (id) {
+            if (this.chunks[id]) {
+                delete this.chunks[id];
+            }
+        };
+
+        Peer.prototype.getDataChannel = function (label) {
+            var result = false;
+            this.channels.some(function (channel) {
+                if (channel.label === label) {
+                    result = channel;
+                    return true;
+                }
+                return false;
+            });
+            return result;
+        };
+
+        Peer.prototype.initDataChannel = function (channel) {
+            var _this = this;
+            channel.onclose = function (event) {
+                Talk.log("Channel named `%s` was closed", channel.label);
+                _this.emit("channelClosed", _this, event);
+            };
+            channel.onerror = function (event) {
+                Talk.warn("Channel error:", event);
+                _this.emit("channelError", _this, event);
+            };
+            channel.onopen = function (event) {
+                Talk.log("Channel named `%s` was opened", channel.label);
+                _this.emit("channelOpened", _this, event);
+            };
+            channel.onmessage = function (event) {
+                if (event.data) {
+                    var payload = JSON.parse(event.data);
+                    _this.handlePacket(payload, channel.label);
+                }
+            };
+        };
+
+        Peer.prototype.addDataChannel = function (label, options) {
+            var channel = this.pc.createDataChannel(label, options);
+            this.initDataChannel(channel);
+            this.channels.push(channel);
+            Talk.log("Data channel was added:", channel);
+            if (!Talk.negotiations) {
+                this.negotiate();
+            }
+            return channel;
+        };
+
+        Peer.prototype.onDataChannel = function (event) {
+            if (event.channel) {
+                this.initDataChannel(event.channel);
+                this.channels.push(event.channel);
+                Talk.log("Data channel was added:", event.channel);
+            } else {
+                Talk.warn("Data channel could not be added", event);
+            }
+        };
+
+        Peer.prototype.addStream = function (stream) {
+            if (stream.getVideoTracks().length > 0) {
+                this.config.media.mandatory.OfferToReceiveVideo = true;
+            }
+            if (stream.getAudioTracks().length > 0) {
+                this.config.media.mandatory.OfferToReceiveAudio = true;
+            }
+            this.localStream = this.config.newMediaStream ? new Talk.MediaStream(stream) : stream;
+            this.pc.addStream(this.localStream, this.config.media);
+            Talk.log("Stream was added:", this.localStream);
+            if (!Talk.negotiations) {
+                this.negotiate();
+            }
+        };
+
+        Peer.prototype.onAddStream = function (event) {
+            if (event.stream) {
+                Talk.log("Remote stream was added:", event.stream);
+                this.remoteStream = event.stream;
+                this.emit("streamAdded", this, this.remoteStream);
+            } else {
+                Talk.warn("Remote stream could not be added:", event);
+            }
+        };
+
+        Peer.prototype.onRemoveStream = function (event) {
+            this.remoteStream = {};
+            this.emit("streamRemoved", this);
+            Talk.log("Remote stream was removed from peer:", event);
+        };
+
         Peer.prototype.mute = function () {
             this.remoteStream.getAudioTracks().forEach(function (track) {
                 track.enabled = false;
@@ -803,7 +864,6 @@ var Talk;
             this.server.on("remove", this.remove.bind(this));
         }
         Room.prototype.get = function (payload) {
-            Talk.log("Getting:", payload);
             if (payload.key && payload.value && payload.peer) {
                 var peer = this.handler.get(payload.peer);
                 if (!peer && payload.key === "offer") {
@@ -811,7 +871,6 @@ var Talk;
                     this.onAnswer(peer);
                 }
                 if (peer) {
-                    Talk.log("Peer found!");
                     peer.parseMessage(payload.key, payload.value);
                 } else {
                     Talk.warn("Peer not found!");

@@ -906,10 +906,11 @@ declare module Talk {
 }
 declare module Talk {
     interface Packet {
-        length: number;
-        payload: any;
-        hash: string;
-        end: boolean;
+        chunk: string;
+        sum: string;
+        id: string;
+        c: number;
+        n: number;
     }
     interface Message {
         handler: any[];
@@ -945,7 +946,7 @@ declare module Talk {
     function isNum(obj: any): boolean;
     function randNum(min?: number, max?: number): number;
     function randWord(length?: number): string;
-    function sha256(obj: string): string;
+    function md5(obj: string): string;
     function find(list: any[], obj: any): boolean;
     function extend(obj: Object, source: Object): Object;
     function clone(obj: any): any;
@@ -982,17 +983,7 @@ declare module Talk {
         public id: string;
         constructor(id: string, options?: Object);
         private sendMessage(key, value);
-        public parseMessage(key: string, value: Object): boolean;
-        public addStream(stream: MediaStream): void;
-        private onAddStream(event);
-        private onRemoveStream(event);
-        public send(label: string, payload: any): void;
-        private sendData(label, payload);
-        private handleData(p);
-        private getDataChannel(label);
-        private configDataChannel(channel);
-        public addDC(label: string, options?: RTCDataChannelInit): RTCDataChannel;
-        private onDataChannel(event);
+        public parseMessage(key: string, value: any): boolean;
         private onConnectionChange();
         private onCandidate(event);
         private handleCandidate(ice);
@@ -1001,6 +992,18 @@ declare module Talk {
         private answer(offer);
         private handleAnswer(answer);
         public close(): void;
+        public sendData(payload: any, label?: string): void;
+        private sendPacket(id, c, n, label?);
+        private handlePacket(packet, label?);
+        private endOfPackets(id, n, label?);
+        private deleteChunks(id);
+        private getDataChannel(label);
+        private initDataChannel(channel);
+        public addDataChannel(label: string, options?: RTCDataChannelInit): RTCDataChannel;
+        private onDataChannel(event);
+        public addStream(stream: MediaStream): void;
+        private onAddStream(event);
+        private onRemoveStream(event);
         public mute(): void;
         public unmute(): void;
         public pause(): void;

@@ -45,7 +45,6 @@ module Talk {
             if(payload.key && payload.value && payload.peer && payload.handler) {
                 var peer = this.findHandler(payload.handler).get(payload.peer);
                 if(peer) {
-                    log("Peer found!");
                     peer.parseMessage(payload.key, payload.value);
                 }
                 else {
