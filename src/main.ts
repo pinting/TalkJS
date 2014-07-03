@@ -1,79 +1,23 @@
-/// <reference path="./definitions/rtcpeerconnection" />
-/// <reference path="./definitions/wildemitter" />
-/// <reference path="./definitions/crypto" />
-
-/**
- * TalkJS is a P2P data transfer helper library: it relies on the WebRTC protocol.
- * Its main goal is to communicate without a central point: so it is not just
- * fast, but secure and it can reduce server usage. It can serve many purposes:
- * starting from games, to chat services. All can be done with a single library.
- * It is fast to learn and easy to use.
- *
- * @example
- * Talk.getUserMedia(function(error, stream) {
- *   var handler = new Talk.Handler;
- *   var room = new Talk.Room(handler, "https://example.io:8080", (peer) => {
- *       peer.addStream(stream);
- *   });
- *
- *   handler.on("streamAdded", function(peer, stream) {
- *       var element = document.createElement("video");
- *       Talk.attachMediaStream(element, stream);
- *       document.body.appendChild(element);
- *   });
- * });
- *
- * @emits Peer#streamAdded (peer: Peer, stream: MediaStream)
- * @emits Peer#connectionState (peer: Peer, state: string)
- * @emits Peer#packetReceived (peer: Peer, packet: Packet)
- * @emits Peer#channelClosed (peer: Peer, event: Event)
- * @emits Peer#channelOpened (peer: Peer, event: Event)
- * @emits Peer#channelError (peer: Peer, event: Event)
- * @emits Peer#packetSent (peer: Peer, packet: Packet)
- * @emits Peer#data (peer: Peer, data: any)
- * @emits Peer#streamRemoved (peer: Peer)
- * @emits Peer#message (payload: Message)
- * @emits Peer#closed (peer: Peer)
- * @emits Connection#ready (id: string)
- */
+/// <reference path="./Definitions/socket.io-client.d" />
+/// <reference path="./Definitions/RTCPeerConnection" />
+/// <reference path="./Definitions/Wildemitter" />
+/// <reference path="./Definitions/Navigator" />
+/// <reference path="./Definitions/Window" />
 
 module Talk {
-    declare var navigator: any;
-    declare var window: any;
-
-    export interface Packet {
-        chunk: string;
-        sum: string;
-        id: string;
-        c: number;
-        n: number;
-    }
-
-    export interface Message {
-        handler: any[];
-        peer: string;
-        key: string;
-        value: any;
-    }
-
-    export interface Logger {
-        warn: (...args: any[]) => void;
-        log: (...args: any[]) => void;
-    }
-
     export var PeerConnection = window.RTCPeerConnection || window.webkitRTCPeerConnection || window.mozRTCPeerConnection;
     export var SessionDescription = window.RTCSessionDescription || window.mozRTCSessionDescription;
     export var IceCandidate = window.RTCIceCandidate || window.mozRTCIceCandidate;
     export var MediaStream = window.MediaStream || window.webkitMediaStream;
+    export var URL = window.URL || window.webkitURL;
 
-    export var userMedia: any;
+    export var userMedia: LocalMediaStream;
 
-    export var debug = noop;
     export var warn = noop;
     export var log = noop;
 
     /**
-     * Check if sctp data channels are supported
+     * Check if SCTP data channels are supported
      */
 
     export var sctp = (function() {
@@ -121,10 +65,10 @@ module Talk {
 
     /**
      * Set a new logger
-     * @param {Talk.Logger} obj
+     * @param {Talk.ILogger} obj
      */
 
-    export function logger(obj: Logger): void {
+    export function logger(obj: ILogger): void {
         if(obj.warn) {
             warn = obj.warn.bind(obj);
         }
@@ -142,34 +86,32 @@ module Talk {
      */
 
     export function getUserMedia(audio = true, video = true, cb?: (error: any, stream?: MediaStream) => void): MediaStream {
-        if(!userMedia || userMedia.ended) {
-            // Workaround to avoid illegal invocation error
-            navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
-            navigator.getUserMedia(
-                {
-                    audio: audio,
-                    video: video
-                },
-                (stream: MediaStream) => {
-                    log("User media request was successful");
-                    userMedia = stream;
-                    safeCb(cb)(null, stream);
-                },
-                (error: Error) => {
-                    if(video && error && error.name === "DevicesNotFoundError") {
-                        // Fallback to audio-only stream on Chrome
-                        getUserMedia(true, false, safeCb(cb));
-                    }
-                    else {
-                        warn(error);
-                        safeCb(cb)(error);
-                    }
-                }
-            );
-        }
-        else {
+        if(userMedia && !userMedia.ended) {
             return userMedia;
         }
+        // Workaround to avoid illegal invocation error
+        navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+        navigator.getUserMedia(
+            {
+                audio: audio,
+                video: video
+            },
+            (stream: LocalMediaStream) => {
+                log("User media request was successful");
+                userMedia = stream;
+                safeCb(cb)(null, stream);
+            },
+            (error: Error) => {
+                if(video && error && error.name === "DevicesNotFoundError") {
+                    // Fallback to audio-only stream on Chrome
+                    getUserMedia(true, false, safeCb(cb));
+                }
+                else {
+                    warn(error);
+                    safeCb(cb)(error);
+                }
+            }
+        );
     }
 
     /**
@@ -189,6 +131,12 @@ module Talk {
         element.autoplay = true;
         return element;
     }
+
+    /**
+     * Convert DataURL to Blob
+     * @param {string} dataURL
+     * @returns {Blob}
+     */
 
     export function dataURLtoBlob(dataURL) {
         var type = dataURL.split(";")[0].split(":")[1];
@@ -225,21 +173,6 @@ module Talk {
 
     export function safeStr(obj: any): string {
         return obj.replace(/\s/g, "-").replace(/[^A-Za-z0-9_\-]/g, "").toString();
-    }
-
-    /**
-     * Make a string HTML-safe
-     * @param {string} obj
-     * @returns {string}
-     */
-
-    export function safeText(obj: string): string {
-        return obj
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&apos;")
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
     }
 
     /**
@@ -332,6 +265,20 @@ module Talk {
     }
 
     /**
+     * Round up a number to the next integer
+     * @param {number} x
+     * @returns {number}
+     */
+
+    export function roundUp(x: number) {
+        var f = Math.floor(x);
+        if(f < x) {
+            return f + 1;
+        }
+        return f;
+    }
+
+    /**
      * Generate an UUID
      * @returns {string}
      */
@@ -343,27 +290,6 @@ module Talk {
             d = Math.floor(d / 16);
             return (c === "x" ? r : (r & 0x7 | 0x8)).toString(16);
         });
-    }
-
-    /**
-     * Make an MD5 hash from a string
-     * @param {string} obj
-     * @returns {string}
-     */
-
-    export function md5(obj: string): string {
-        return CryptoJS.MD5(obj).toString();
-    }
-
-    /**
-     * Check if an object can be found in a array
-     * @param {Array} list - List of elements
-     * @param {*} obj
-     * @returns {boolean}
-     */
-
-    export function find(list: any[], obj: any): boolean {
-        return list.indexOf(obj) >= 0;
     }
 
     /**
@@ -407,6 +333,9 @@ module Talk {
 
     export function comp(obj1: Object, obj2: Object): boolean {
         for(var key in obj1) {
+            if(!obj1.hasOwnProperty(key) || !obj2.hasOwnProperty(key)) {
+                return false;
+            }
             if(isObj(obj1[key]) && isObj(obj2[key]) && comp(obj1[key], obj2[key])) {
                 continue;
             }

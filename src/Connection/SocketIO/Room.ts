@@ -1,13 +1,18 @@
-module Talk {
-    export class Room extends Connection {
+module Talk.Connection.SocketIO {
+    /**
+     * Room is an extended connection object: it can handle a handler like a
+     * chat room, so it will add and remove peers when its needed.
+     *
+     * @emits Room#ready (id: string)
+     */
+
+    export class Room extends Pure {
         public onAnswer: (peer: Peer) => void;
         public onOffer: (peer: Peer) => void;
         public type: string;
         public room: string;
 
         /**
-         * Room is an extended connection object: it can handle a handler like
-         * chat room, so it will add and remove peers when its needed.
          * @param {Talk.Handler} handler
          * @param {string} [host]
          * @param {Function} [onOffer]
@@ -29,10 +34,10 @@ module Talk {
 
         /**
          * Get a message, then find its peer and parse it
-         * @param {Talk.Message} payload
+         * @param {Talk.IMessage} payload
          */
 
-        public get(payload: Message): void {
+        public get(payload: IMessage): void {
             if(payload.key && payload.value && payload.peer) {
                 var peer = this.handler.get(payload.peer);
                 if(!peer && payload.key === "offer") {

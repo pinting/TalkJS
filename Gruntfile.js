@@ -2,7 +2,6 @@ module.exports = function(grunt) {
     grunt.initConfig({
         ts: {
             compile: {
-                reference: "./src/talk.ts",
                 out: "./dist/talk-bare.js",
                 src: ["./src/**/*.ts"],
                 options: {

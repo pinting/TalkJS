@@ -1,7 +1,18 @@
-/// <reference path="./definitions/rtcpeerconnection" />
-/// <reference path="./definitions/wildemitter" />
-
 module Talk {
+    /**
+     * @emits Peer#streamAdded (peer: Peer, stream: MediaStream)
+     * @emits Peer#connectionState (peer: Peer, state: string)
+     * @emits Peer#packetReceived (peer: Peer, packet: IPacket)
+     * @emits Peer#channelClosed (peer: Peer, event: Event)
+     * @emits Peer#channelOpened (peer: Peer, event: Event)
+     * @emits Peer#channelError (peer: Peer, event: Event)
+     * @emits Peer#packetSent (peer: Peer, packet: IPacket)
+     * @emits Peer#data (peer: Peer, data: any)
+     * @emits Peer#streamRemoved (peer: Peer)
+     * @emits Peer#message (payload: Message)
+     * @emits Peer#closed (peer: Peer)
+     */
+
     export class Peer extends WildEmitter {
         public config = {
             settings: {
@@ -25,16 +36,15 @@ module Talk {
                     OfferToReceiveVideo: true
                 }
             },
-            serverDataChannel: true,
-            newMediaStream: false,
-            negotiate: false,
-            chunkSize: 10240
+            serverDataChannel: true, // Use server as a DC polyfill
+            newLocalStream: false, // Create a new local MediaStream for every peer
+            negotiate: false // Enable negotiation
         };
         public remoteStream: MediaStream;
         public localStream: MediaStream;
         private pc: RTCPeerConnection;
         private channels = [];
-        private chunks = {};
+        private packets = {};
         public id: string;
 
         /**
@@ -68,7 +78,7 @@ module Talk {
          */
 
         private sendMessage(key: string, value: Object): void {
-            var payload = <Message> {
+            var payload = <IMessage> {
                 peer: this.id,
                 value: value,
                 handler: [],
@@ -95,17 +105,8 @@ module Talk {
                 case "candidate":
                     this.handleCandidate(value);
                     break;
-                case "packet":
-                    this.handlePacket(value, null);
-                    break;
-                case "packetsEnd":
-                    this.endOfPackets.apply(this, value);
-                    break;
-                case "packetsReceived":
-                    this.deleteChunks(value);
-                    break;
-                case "packetReq":
-                    this.sendPacket.apply(this, value);
+                case "data":
+                    this.handleData(null, value);
                     break;
                 default:
                     return false;
@@ -270,146 +271,35 @@ module Talk {
          */
 
         /**
-         * Send data to the peer and chunk it if its needed
+         * Send a data to the peer
          * @param {*} payload
          * @param {string} [label] - Label of the data channel
          */
 
-        public sendData(payload: any, label?: string): void {
-            payload = JSON.stringify(payload);
-
-            var n = (() => {
-                var x = payload.length / this.config.chunkSize;
-                var f = Math.floor(x);
-
-                if(f < x) {
-                    return f + 1;
-                }
-                return f;
-            })();
-            var id = uuid();
-            var c = 0;
-
-            if(!this.chunks[id]) {
-                this.chunks[id] = {};
+        public sendData(label: string, payload: any): void {
+            try {
+                var channel = this.getDataChannel(label);
+                channel.send(payload.byteLength ? payload : JSON.stringify(payload));
             }
-
-            var interval = setInterval(() => {
-                if(c <= n) {
-                    var start = this.config.chunkSize * c;
-                    this.chunks[id][c + 1] = payload.slice(start, start + this.config.chunkSize);
-                    this.emit("packetSent", this, this.sendPacket(id, ++c, n, label));
+            catch(error) {
+                if(this.config.serverDataChannel) {
+                    this.sendMessage("data", payload);
                 }
                 else {
-                    clearInterval(interval);
+                    warn(error);
                 }
-            }, 0);
+            }
         }
 
         /**
-         * Send a packet
-         * @param {string} id - ID of the chunks array
-         * @param {number} c - Index of the chunks
-         * @param {number} n - Length of the chunks array
-         * @param {string} [label] - Label of the data channel
-         * @returns {Talk.Packet}
+         * Handle received data
+         * @param {*} payload
+         * @param {string} label
          */
 
-        private sendPacket(id: string, c: number, n: number, label?: string): Packet {
-            if(this.chunks[id] && this.chunks[id][c]) {
-                var packet = {
-                    sum: md5(this.chunks[id][c]),
-                    chunk: this.chunks[id][c],
-                    id: id,
-                    c: c,
-                    n: n
-                };
-
-                try {
-                    var channel = this.getDataChannel(label);
-                    channel.send(JSON.stringify(packet));
-                }
-                catch(error) {
-                    if(this.config.serverDataChannel) {
-                        this.sendMessage("packet", packet);
-                    }
-                    else {
-                        warn(error);
-                        return <Packet> {};
-                    }
-                }
-                if(c === n || Object.keys(this.chunks[id]).length === n) {
-                    this.sendMessage("packetsEnd", [id, n, label]);
-                }
-
-                return packet;
-            }
-            return <Packet> {};
-        }
-
-        /**
-         * Handle a received packet.
-         * @param {Talk.Packet} packet
-         * @param {string} [label] - Label of the data channel
-         */
-
-        private handlePacket(packet: Packet, label?: string): void {
-            if(!packet.id || !packet.c || !packet.n) {
-                return;
-            }
-            if(!this.chunks[packet.id]) {
-                this.chunks[packet.id] = {};
-            }
-            setTimeout(() => {
-                if(packet.chunk && md5(packet.chunk) === packet.sum) {
-                    this.chunks[packet.id][packet.c] = packet.chunk;
-                    this.emit("packetReceived", this, packet);
-                }
-                else {
-                    log("Invalid packet was received: require resend");
-                    this.sendMessage("packetReq", [packet.id, packet.c, packet.n, label]);
-                }
-            }, 0);
-        }
-
-        /**
-         * Executed when the sender has sent every packets
-         * @param {string} id - ID of the chunks
-         * @param {number} n - Length of the chunks array
-         * @param {string} [label] - Label of the data channel
-         */
-
-        private endOfPackets(id: string, n: number, label?: string): void {
-            if(!this.chunks[id]) {
-                return;
-            }
-            setTimeout(() => {
-                var buffer = "";
-                for(var i = 1; i <= n; i++) {
-                    if(!this.chunks[id][i]) {
-                        log("Invalid packet was received: require resend");
-                        this.sendMessage("packetReq", [id, i, n, label]);
-                        return;
-                    }
-                    buffer += this.chunks[id][i];
-                }
-                buffer = JSON.parse(buffer);
-                this.sendMessage("packetsReceived", id);
-                this.deleteChunks(id);
-                this.emit("data", this, buffer);
-                log("Data received:", buffer);
-            }, 0);
-        }
-
-        /**
-         * Delete chunks from the internal storage
-         * @param {string} id - ID of the chunks
-         */
-
-        private deleteChunks(id: string): void {
-            if(this.chunks[id]) {
-                delete this.chunks[id];
-            }
+        private handleData(label: string, payload: any): void {
+            log("Data received by `%s`:", label, payload);
+            this.emit("data", this, label, payload)
         }
 
         /**
@@ -450,10 +340,16 @@ module Talk {
             };
             channel.onmessage = (event: any) => {
                 if(event.data) {
-                    var payload = JSON.parse(event.data);
-                    this.handlePacket(payload, channel.label);
+                    try {
+                        var payload = JSON.parse(event.data);
+                    }
+                    catch(e) {
+                        var payload = event.data;
+                    }
+                    this.handleData(channel.label, payload);
                 }
             };
+            channel.binaryType = "arraybuffer";
         }
 
         /**
@@ -500,7 +396,7 @@ module Talk {
          */
 
         public addStream(stream: MediaStream): void {
-            this.localStream = this.config.newMediaStream ? new Talk.MediaStream(stream) : stream;
+            this.localStream = this.config.newLocalStream ? new Talk.MediaStream(stream) : stream;
             this.pc.addStream(this.localStream, this.config.media);
             log("Stream was added:", this.localStream);
             if(!negotiations) {

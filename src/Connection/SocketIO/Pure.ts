@@ -1,14 +1,18 @@
-/// <reference path="./definitions/socket.io-client" />
-/// <reference path="./definitions/wildemitter" />
+module Talk.Connection.SocketIO {
+    /**
+     * A handler is likes a directory: it can store infinite number of peers,
+     * and other handlers. The only limit is the limit of the interpreter.
+     *
+     * @emits Pure#ready (id: string)
+     */
 
-module Talk {
-    export class Connection extends WildEmitter {
+    export class Pure extends WildEmitter {
         public server: io.Socket;
         public handler: Handler;
         public id: string;
 
         /**
-         * Connection object is meant to sync peers across a Socket.IO server
+         * Pure connection object is meant to sync peers across a Socket.IO server
          * @param {Talk.Handler} handler
          * @param {string} [host]
          */
@@ -29,21 +33,21 @@ module Talk {
 
         /**
          * Send a message of a peer
-         * @param {Talk.Message} payload
+         * @param {Talk.IMessage} payload
          */
 
-        public send(payload: Message): void {
+        public send(payload: IMessage): void {
             this.server.emit("message", payload);
         }
 
         /**
          * Get a message, then find its peer and parse it
-         * @param {Talk.Message} payload
+         * @param {Talk.IMessage} payload
          */
 
-        public get(payload: Message): void {
+        public get(payload: IMessage): void {
             if(payload.key && payload.value && payload.peer && payload.handler) {
-                var peer = this.findHandler(payload.handler).get(payload.peer);
+                var peer = this.findHandler(<string[]> payload.handler).get(payload.peer);
                 if(peer) {
                     peer.parseMessage(payload.key, payload.value);
                 }
@@ -55,11 +59,11 @@ module Talk {
 
         /**
          * Find the handler from the bottom of the array
-         * @param {Talk.Handler[]} handler - An array of handlers
+         * @param {string[]} handler - An array of handler ids
          * @returns {Talk.Handler}
          */
 
-        private findHandler(handler: Handler[]): Handler {
+        private findHandler(handler: string[]): Handler {
             var dest = <Handler> this.handler;
             handler.forEach((id) => {
                 dest = dest.h(id);

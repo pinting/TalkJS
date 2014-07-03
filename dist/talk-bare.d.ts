@@ -1,17 +1,30 @@
-/// <reference path="../src/definitions/socket.io-client.d.ts" />
-/// <reference path="../src/definitions/wildemitter.d.ts" />
-/// <reference path="../src/definitions/mediastream.d.ts" />
-/// <reference path="../src/definitions/rtcpeerconnection.d.ts" />
-/// <reference path="../src/definitions/crypto.d.ts" />
-declare module Talk {
-    class Connection extends WildEmitter {
+/// <reference path="../src/Definitions/socket.io-client.d.ts" />
+/// <reference path="../src/Definitions/RTCPeerConnection.d.ts" />
+/// <reference path="../src/Definitions/Wildemitter.d.ts" />
+/// <reference path="../src/Definitions/Navigator.d.ts" />
+/// <reference path="../src/Definitions/Window.d.ts" />
+declare module Talk.Connection.SocketIO {
+    class Pure extends WildEmitter {
         public server: io.Socket;
         public handler: Handler;
         public id: string;
         constructor(handler: Handler, host?: string);
-        public send(payload: Message): void;
-        public get(payload: Message): void;
+        public send(payload: IMessage): void;
+        public get(payload: IMessage): void;
         private findHandler(handler);
+    }
+}
+declare module Talk.Connection.SocketIO {
+    class Room extends Pure {
+        public onAnswer: (peer: Peer) => void;
+        public onOffer: (peer: Peer) => void;
+        public type: string;
+        public room: string;
+        constructor(handler: Handler, host?: string, onOffer?: typeof noop, onAnswer?: any);
+        public get(payload: IMessage): void;
+        public join(room: string, type: string, cb?: (error: any, clients: any[]) => void): void;
+        public leave(): void;
+        public remove(id: any): boolean;
     }
 }
 declare module Talk {
@@ -29,40 +42,36 @@ declare module Talk {
     }
 }
 declare module Talk {
-    interface Packet {
-        chunk: string;
-        sum: string;
-        id: string;
-        c: number;
-        n: number;
+    interface ILogger {
+        warn: (...args: any[]) => void;
+        log: (...args: any[]) => void;
     }
-    interface Message {
-        handler: any[];
+}
+declare module Talk {
+    interface IMessage {
+        handler: string[];
         peer: string;
         key: string;
         value: any;
     }
-    interface Logger {
-        warn: (...args: any[]) => void;
-        log: (...args: any[]) => void;
-    }
+}
+declare module Talk {
     var PeerConnection: any;
     var SessionDescription: any;
     var IceCandidate: any;
     var MediaStream: any;
-    var userMedia: any;
-    var debug: typeof noop;
+    var URL: any;
+    var userMedia: LocalMediaStream;
     var warn: typeof noop;
     var log: typeof noop;
     var sctp: any;
     var negotiations: boolean;
-    function logger(obj: Logger): void;
+    function logger(obj: ILogger): void;
     function getUserMedia(audio?: boolean, video?: boolean, cb?: (error: any, stream?: MediaStream) => void): MediaStream;
     function attachMediaStream(element: HTMLVideoElement, stream: MediaStream): HTMLVideoElement;
     function dataURLtoBlob(dataURL: any): Blob;
     function safeCb(obj: any): any;
     function safeStr(obj: any): string;
-    function safeText(obj: string): string;
     function isFunc(obj: any): boolean;
     function isEmpty(obj: any): boolean;
     function isStr(obj: any): boolean;
@@ -70,13 +79,54 @@ declare module Talk {
     function isNum(obj: any): boolean;
     function randNum(min?: number, max?: number): number;
     function randWord(length?: number): string;
+    function roundUp(x: number): number;
     function uuid(): string;
-    function md5(obj: string): string;
-    function find(list: any[], obj: any): boolean;
     function extend(obj: Object, source: Object): Object;
     function clone(obj: any): any;
     function comp(obj1: Object, obj2: Object): boolean;
     function noop(...args: any[]): void;
+}
+declare module Talk.Packet.String {
+    interface IMessage {
+        key: string;
+        value: any;
+        id: string;
+    }
+}
+declare module Talk.Packet.String {
+    interface IPacket {
+        payload: string;
+        length: number;
+        index: number;
+    }
+}
+declare module Talk.Packet.String {
+    class Manager extends WildEmitter {
+        private packers;
+        constructor(target: any);
+        public send(peer: Peer, label: string, payload: string): Packer;
+        private add(peer, label, id?);
+        private clean(packer);
+        private get(label, id);
+    }
+}
+declare module Talk.Packet.String {
+    class Packer extends WildEmitter {
+        private packets;
+        private length;
+        public label: string;
+        private peer;
+        public id: string;
+        constructor(peer: Peer, label: string, id?: string);
+        public parse(key: string, value?: any): void;
+        private send(key, value?);
+        private get(i);
+        public chunk(buffer: any, size?: number): void;
+        public join(): void;
+        public add(packet: IPacket): void;
+        public ask(i: number): void;
+        public clean(): void;
+    }
 }
 declare module Talk {
     class Peer extends WildEmitter {
@@ -96,15 +146,14 @@ declare module Talk {
                 };
             };
             serverDataChannel: boolean;
-            newMediaStream: boolean;
+            newLocalStream: boolean;
             negotiate: boolean;
-            chunkSize: number;
         };
         public remoteStream: MediaStream;
         public localStream: MediaStream;
         private pc;
         private channels;
-        private chunks;
+        private packets;
         public id: string;
         constructor(id: string, options?: Object);
         private sendMessage(key, value);
@@ -117,11 +166,8 @@ declare module Talk {
         private answer(offer);
         private handleAnswer(answer);
         public close(): void;
-        public sendData(payload: any, label?: string): void;
-        private sendPacket(id, c, n, label?);
-        private handlePacket(packet, label?);
-        private endOfPackets(id, n, label?);
-        private deleteChunks(id);
+        public sendData(label: string, payload: any): void;
+        private handleData(label, payload);
         private getDataChannel(label);
         private initDataChannel(channel);
         public addDataChannel(label: string, options?: RTCDataChannelInit): RTCDataChannel;
@@ -137,18 +183,5 @@ declare module Talk {
         public unmuteLocal(): void;
         public pauseLocal(): void;
         public resumeLocal(): void;
-    }
-}
-declare module Talk {
-    class Room extends Connection {
-        public onAnswer: (peer: Peer) => void;
-        public onOffer: (peer: Peer) => void;
-        public type: string;
-        public room: string;
-        constructor(handler: Handler, host?: string, onOffer?: typeof noop, onAnswer?: any);
-        public get(payload: Message): void;
-        public join(room: string, type: string, cb?: (error: any, clients: any[]) => void): void;
-        public leave(): void;
-        public remove(id: any): boolean;
     }
 }

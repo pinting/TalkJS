@@ -1,7 +1,7 @@
 {
     "name": "TalkJS",
     "main": "index.js",
-    "version": "1.0.521",
+    "version": "1.0.583",
     "author": "Tornyi Dénes",
     "description": "WebRTC simplier library",
     "repository": {
@@ -13,8 +13,7 @@
     },
     "dependencies": {
         "socket.io-client": "*",
-        "wildemitter": "*",
-        "crypto-js": "*"
+        "wildemitter": "*"
     },
     "devDependencies": {
         "grunt-contrib-concat": "0.3.x",

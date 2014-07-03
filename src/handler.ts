@@ -1,6 +1,3 @@
-/// <reference path="./definitions/mediastream" />
-/// <reference path="./definitions/wildemitter" />
-
 module Talk {
     export class Handler extends WildEmitter {
         public handlers = [];
@@ -36,16 +33,15 @@ module Talk {
 
         private createHandler(id: string, H = Handler): Handler {
             var handler = new H(id, this.config);
-            handler.on("*", (...args: any[]) => {
-                switch(args[0]) {
+            handler.on("*", (key: string, payload?: IMessage) => {
+                switch(key) {
                     case "message":
-                        var payload = <Message> args[1];
-                        payload = clone(payload);
+                        payload = <IMessage> clone(payload);
                         payload.handler = [handler.id].concat(payload.handler);
                         this.emit("message", payload);
                         break;
                     default:
-                        this.emit.apply(this, args);
+                        this.emit.apply(this, arguments);
                         break;
                 }
             });
@@ -85,15 +81,15 @@ module Talk {
 
         public add(id: string, P = Peer): Peer {
             var peer = new P(id, this.config);
-            peer.on("*", (...args: any[]) => {
-                switch(args[0]) {
+            peer.on("*", (key: string) => {
+                switch(key) {
                     case "closed":
                         var i = this.peers.indexOf(peer);
                         if(i >= 0) {
                             this.peers.splice(i, 1);
                         }
                     default:
-                        this.emit.apply(this, args);
+                        this.emit.apply(this, arguments);
                         break;
                 }
             });
