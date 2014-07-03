@@ -527,6 +527,9 @@ var Talk;
                             case "clean":
                                 _this.clean(packer);
                                 break;
+                            default:
+                                _this.emit.apply(_this, arguments);
+                                break;
                         }
                     });
                     return packer;
@@ -600,7 +603,6 @@ var Talk;
                 };
 
                 Packer.prototype.send = function (key, value) {
-                    console.debug("SENDING:", key, value);
                     this.peer.sendData(this.label, {
                         value: value,
                         id: this.id,
@@ -635,6 +637,7 @@ var Talk;
                             };
                             _this.packets.push(packet);
                             _this.send("add", packet);
+                            _this.emit("packetSent", _this.peer, packet);
                         } else {
                             clearInterval(p);
                             setTimeout(function () {
@@ -664,6 +667,7 @@ var Talk;
                         this.length = packet.length;
                     }
                     this.packets.push(packet);
+                    this.emit("packetReceived", this.peer, packet);
                 };
 
                 Packer.prototype.ask = function (i) {
@@ -875,7 +879,6 @@ var Talk;
         };
 
         Peer.prototype.handleData = function (label, payload) {
-            Talk.log("Data received by `%s`:", label, payload);
             this.emit("data", this, label, payload);
         };
 

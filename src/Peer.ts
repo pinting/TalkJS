@@ -271,7 +271,7 @@ module Talk {
          */
 
         /**
-         * Send a data to the peer
+         * Send data to the peer
          * @param {*} payload
          * @param {string} [label] - Label of the data channel
          */
@@ -298,7 +298,6 @@ module Talk {
          */
 
         private handleData(label: string, payload: any): void {
-            log("Data received by `%s`:", label, payload);
             this.emit("data", this, label, payload)
         }
 

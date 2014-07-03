@@ -2,7 +2,9 @@ module Talk.Packet.String {
     /**
      * Manage outgoing and incoming data through string packet packers
      *
+     * @emits Manager#packetReceived (peer: Peer, packet: IPacket)
      * @emits Manager#data (peer: Peer, label: string, data: any)
+     * @emits Manager#packetSent (peer: Peer, packet: IPacket)
      */
 
     export class Manager extends WildEmitter {
@@ -55,6 +57,9 @@ module Talk.Packet.String {
                         this.emit.apply(this, arguments);
                     case "clean":
                         this.clean(packer);
+                        break;
+                    default:
+                        this.emit.apply(this, arguments);
                         break;
                 }
             });

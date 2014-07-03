@@ -2,7 +2,9 @@ module Talk.Packet.String {
     /**
      * Receive and send packets
      *
+     * @emits Packer#packetReceived (peer: Peer, packet: IPacket)
      * @emits Packer#data (peer: Peer, label: string, data: any)
+     * @emits Packer#packetSent (peer: Peer, packet: IPacket)
      * @emits Packer#clean
      */
 
@@ -63,12 +65,11 @@ module Talk.Packet.String {
          */
 
         private send(key: string, value?: any): void {
-            console.debug("SENDING:", key, value);
             this.peer.sendData(this.label, {
                 value: value,
                 id: this.id,
                 key: key
-            })
+            });
         }
 
         /**
@@ -108,6 +109,7 @@ module Talk.Packet.String {
                     };
                     this.packets.push(packet);
                     this.send("add", packet);
+                    this.emit("packetSent", this.peer, packet);
                 }
                 else {
                     clearInterval(p);
@@ -147,6 +149,7 @@ module Talk.Packet.String {
                 this.length = packet.length;
             }
             this.packets.push(packet);
+            this.emit("packetReceived", this.peer, packet);
         }
 
         /**
