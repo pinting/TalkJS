@@ -7,48 +7,110 @@ var __extends = this.__extends || function (d, b) {
 var Talk;
 (function (Talk) {
     (function (Connection) {
+        var Pure = (function (_super) {
+            __extends(Pure, _super);
+            function Pure() {
+                _super.apply(this, arguments);
+            }
+            Pure.prototype.send = function (payload) {
+            };
+
+            Pure.prototype.get = function (payload) {
+                if (payload.key && payload.value && payload.peer && payload.handler) {
+                    var peer = this.findHandler(payload.handler).get(payload.peer);
+                    if (peer) {
+                        peer.parseMessage(payload.key, payload.value);
+                    } else {
+                        Talk.warn("Peer not found!");
+                    }
+                }
+            };
+
+            Pure.prototype.connectionReady = function (id) {
+                this.id = id;
+                this.emit("ready", id);
+                Talk.log("Connection is ready:", this.id);
+            };
+
+            Pure.prototype.findHandler = function (handler) {
+                var dest = this.handler;
+                handler.forEach(function (id) {
+                    dest = dest.h(id);
+                });
+                return dest;
+            };
+            return Pure;
+        })(WildEmitter);
+        Connection.Pure = Pure;
+    })(Talk.Connection || (Talk.Connection = {}));
+    var Connection = Talk.Connection;
+})(Talk || (Talk = {}));
+var Talk;
+(function (Talk) {
+    (function (Connection) {
+        var Room = (function (_super) {
+            __extends(Room, _super);
+            function Room() {
+                _super.apply(this, arguments);
+            }
+            Room.prototype.join = function (room, type, cb) {
+            };
+
+            Room.prototype.leave = function () {
+            };
+
+            Room.prototype.get = function (payload) {
+                if (payload.key && payload.value && payload.peer) {
+                    var peer = this.handler.get(payload.peer);
+                    if (!peer && payload.key === "offer") {
+                        peer = this.handler.add(payload.peer);
+                        this.onAnswer(peer);
+                    }
+                    if (peer) {
+                        peer.parseMessage(payload.key, payload.value);
+                    } else {
+                        Talk.warn("Peer not found!");
+                    }
+                }
+            };
+
+            Room.prototype.remove = function (id) {
+                Talk.log("Removing a peer:", id);
+                var peer = this.handler.get(id);
+                if (peer) {
+                    peer.close();
+                    return true;
+                }
+                return false;
+            };
+            return Room;
+        })(Connection.Pure);
+        Connection.Room = Room;
+    })(Talk.Connection || (Talk.Connection = {}));
+    var Connection = Talk.Connection;
+})(Talk || (Talk = {}));
+var Talk;
+(function (Talk) {
+    (function (Connection) {
         (function (SocketIO) {
             var Pure = (function (_super) {
                 __extends(Pure, _super);
                 function Pure(handler, host) {
-                    if (typeof host === "undefined") { host = "http://srv.talk.pinting.hu:8000"; }
-                    var _this = this;
+                    if (typeof host === "undefined") { host = "http://localhost:8080"; }
                     _super.call(this);
 
                     this.handler = handler;
                     this.handler.on("message", this.send.bind(this));
+
                     this.server = io.connect(host);
-                    this.server.on("connect", function () {
-                        _this.id = _this.server.socket.sessionid;
-                        _this.emit("ready", _this.id);
-                        Talk.log("Connection is ready:", _this.id);
-                    });
+                    this.server.on("connect", this.connectionReady.bind(this));
                     this.server.on("message", this.get.bind(this));
                 }
                 Pure.prototype.send = function (payload) {
                     this.server.emit("message", payload);
                 };
-
-                Pure.prototype.get = function (payload) {
-                    if (payload.key && payload.value && payload.peer && payload.handler) {
-                        var peer = this.findHandler(payload.handler).get(payload.peer);
-                        if (peer) {
-                            peer.parseMessage(payload.key, payload.value);
-                        } else {
-                            Talk.warn("Peer not found!");
-                        }
-                    }
-                };
-
-                Pure.prototype.findHandler = function (handler) {
-                    var dest = this.handler;
-                    handler.forEach(function (id) {
-                        dest = dest.h(id);
-                    });
-                    return dest;
-                };
                 return Pure;
-            })(WildEmitter);
+            })(Connection.Pure);
             SocketIO.Pure = Pure;
         })(Connection.SocketIO || (Connection.SocketIO = {}));
         var SocketIO = Connection.SocketIO;
@@ -64,7 +126,14 @@ var Talk;
                 function Room(handler, host, onOffer, onAnswer) {
                     if (typeof host === "undefined") { host = "http://srv.talk.pinting.hu:8000"; }
                     if (typeof onOffer === "undefined") { onOffer = Talk.noop; }
-                    _super.call(this, handler, host);
+                    _super.call(this);
+
+                    this.handler = handler;
+                    this.handler.on("message", this.send.bind(this));
+
+                    this.server = io.connect(host);
+                    this.server.on("connect", this.connectionReady.bind(this));
+                    this.server.on("message", this.get.bind(this));
 
                     if (!onAnswer) {
                         this.onAnswer = onOffer;
@@ -72,21 +141,11 @@ var Talk;
                         this.onAnswer = onAnswer;
                     }
                     this.onOffer = onOffer;
+
                     this.server.on("remove", this.remove.bind(this));
                 }
-                Room.prototype.get = function (payload) {
-                    if (payload.key && payload.value && payload.peer) {
-                        var peer = this.handler.get(payload.peer);
-                        if (!peer && payload.key === "offer") {
-                            peer = this.handler.add(payload.peer);
-                            this.onAnswer(peer);
-                        }
-                        if (peer) {
-                            peer.parseMessage(payload.key, payload.value);
-                        } else {
-                            Talk.warn("Peer not found!");
-                        }
-                    }
+                Room.prototype.send = function (payload) {
+                    this.server.emit("message", payload);
                 };
 
                 Room.prototype.join = function (room, type, cb) {
@@ -115,18 +174,8 @@ var Talk;
                     this.room = null;
                     this.type = null;
                 };
-
-                Room.prototype.remove = function (id) {
-                    Talk.log("Removing a peer:", id);
-                    var peer = this.handler.get(id);
-                    if (peer) {
-                        peer.close();
-                        return true;
-                    }
-                    return false;
-                };
                 return Room;
-            })(SocketIO.Pure);
+            })(Connection.Room);
             SocketIO.Room = Room;
         })(Connection.SocketIO || (Connection.SocketIO = {}));
         var SocketIO = Connection.SocketIO;

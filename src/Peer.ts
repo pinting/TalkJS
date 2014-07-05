@@ -115,7 +115,7 @@ module Talk {
         }
 
         /**
-         * When the connection state has changed
+         * Executed when the connection state was changed
          */
 
         private onConnectionChange(): void {
@@ -137,7 +137,7 @@ module Talk {
         }
 
         /**
-         * When we found an ice candidate
+         * Executed when an ice candidate was found
          * @param {RTCIceCandidateEvent} event
          */
 
@@ -152,7 +152,7 @@ module Talk {
         }
 
         /**
-         * Handle a received ice candidate, through a message
+         * Handle a received ice candidate
          * @param {RTCIceCandidate} ice
          */
 
@@ -320,7 +320,7 @@ module Talk {
         }
 
         /**
-         * Configuration a newly created data channel
+         * Configure a newly created data channel
          * @param {RTCDataChannel} channel
          */
 
@@ -370,7 +370,7 @@ module Talk {
         }
 
         /**
-         * When the peer has added a data channel between us
+         * Executed when the peer has added a data channel
          * @param {RTCDataChannelEvent} event
          */
 

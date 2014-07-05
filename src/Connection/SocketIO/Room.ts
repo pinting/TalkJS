@@ -1,26 +1,30 @@
 module Talk.Connection.SocketIO {
     /**
-     * Room is an extended connection object: it can handle a handler like a
-     * chat room, so it will add and remove peers when its needed.
+     * Room is an advanced connection type: it can handle a handler as a
+     * chat room, so it will add and remove peers.
      *
      * @emits Room#ready (id: string)
      */
 
-    export class Room extends Pure {
-        public onAnswer: (peer: Peer) => void;
-        public onOffer: (peer: Peer) => void;
-        public type: string;
-        public room: string;
+    export class Room extends Connection.Room {
+        public server: io.Socket;
 
         /**
          * @param {Talk.Handler} handler
          * @param {string} [host]
          * @param {Function} [onOffer]
-         * @param {Function} [onAnswer] - If its not defined, onOffer will used
+         * @param {Function} [onAnswer] - If its not defined, onOffer will be used
          */
 
         constructor(handler: Handler, host = "http://srv.talk.pinting.hu:8000", onOffer = noop, onAnswer?: any) {
-            super(handler, host);
+            super();
+
+            this.handler = handler;
+            this.handler.on("message", this.send.bind(this));
+
+            this.server = io.connect(host);
+            this.server.on("connect", this.connectionReady.bind(this));
+            this.server.on("message", this.get.bind(this));
 
             if(!onAnswer) {
                 this.onAnswer = onOffer;
@@ -29,28 +33,17 @@ module Talk.Connection.SocketIO {
                 this.onAnswer = onAnswer;
             }
             this.onOffer = onOffer;
+
             this.server.on("remove", this.remove.bind(this));
         }
 
         /**
-         * Get a message, then find its peer and parse it
+         * Send a message of a peer
          * @param {Talk.IMessage} payload
          */
 
-        public get(payload: IMessage): void {
-            if(payload.key && payload.value && payload.peer) {
-                var peer = this.handler.get(payload.peer);
-                if(!peer && payload.key === "offer") {
-                    peer = this.handler.add(payload.peer);
-                    this.onAnswer(peer);
-                }
-                if(peer) {
-                    peer.parseMessage(payload.key, payload.value);
-                }
-                else {
-                    warn("Peer not found!")
-                }
-            }
+        public send(payload: IMessage): void {
+            this.server.emit("message", payload);
         }
 
         /**
@@ -89,22 +82,6 @@ module Talk.Connection.SocketIO {
             this.handler.find("close");
             this.room = null;
             this.type = null;
-        }
-
-        /**
-         * Remove user from the handler by id
-         * @param {string} id - ID of the peer
-         * @returns {boolean}
-         */
-
-        public remove(id): boolean {
-            log("Removing a peer:", id);
-            var peer = this.handler.get(id);
-            if(peer) {
-                peer.close();
-                return true;
-            }
-            return false;
         }
     }
 }

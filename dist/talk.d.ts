@@ -431,28 +431,42 @@ interface Window {
     webkitURL: any;
     URL: any;
 }
-declare module Talk.Connection.SocketIO {
+declare module Talk.Connection {
     class Pure extends WildEmitter {
-        public server: io.Socket;
         public handler: Handler;
         public id: string;
-        constructor(handler: Handler, host?: string);
         public send(payload: IMessage): void;
         public get(payload: IMessage): void;
-        private findHandler(handler);
+        public connectionReady(id: string): void;
+        public findHandler(handler: string[]): Handler;
     }
 }
-declare module Talk.Connection.SocketIO {
+declare module Talk.Connection {
     class Room extends Pure {
         public onAnswer: (peer: Peer) => void;
         public onOffer: (peer: Peer) => void;
         public type: string;
         public room: string;
-        constructor(handler: Handler, host?: string, onOffer?: typeof noop, onAnswer?: any);
-        public get(payload: IMessage): void;
         public join(room: string, type: string, cb?: (error: any, clients: any[]) => void): void;
         public leave(): void;
+        public get(payload: IMessage): void;
         public remove(id: any): boolean;
+    }
+}
+declare module Talk.Connection.SocketIO {
+    class Pure extends Connection.Pure {
+        public server: io.Socket;
+        constructor(handler: Handler, host?: string);
+        public send(payload: IMessage): void;
+    }
+}
+declare module Talk.Connection.SocketIO {
+    class Room extends Connection.Room {
+        public server: io.Socket;
+        constructor(handler: Handler, host?: string, onOffer?: typeof noop, onAnswer?: any);
+        public send(payload: IMessage): void;
+        public join(room: string, type: string, cb?: (error: any, clients: any[]) => void): void;
+        public leave(): void;
     }
 }
 declare module Talk {

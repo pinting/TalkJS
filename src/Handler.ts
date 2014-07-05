@@ -119,7 +119,7 @@ module Talk {
         /**
          * Get a list of peers by their parameters and optionally use their methods
          * @param {Object|Function|string} [props] - Properties of the wanted peers: empty means all.
-         * Second argument can be passed here too, if its empty.
+         * Second argument can be passed here too.
          * @param {Function|string} [cb] - Execute a callback on results (peer: Peer) => void,
          * or (if cb a string) call one of their properties.
          * @returns {Talk.Peer}

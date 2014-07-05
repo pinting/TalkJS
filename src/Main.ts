@@ -1,4 +1,4 @@
-/// <reference path="./Definitions/socket.io-client.d" />
+/// <reference path="./Definitions/socket.io-client" />
 /// <reference path="./Definitions/RTCPeerConnection" />
 /// <reference path="./Definitions/Wildemitter" />
 /// <reference path="./Definitions/Navigator" />
@@ -207,7 +207,7 @@ module Talk {
     }
 
     /**
-     * Check if object is a NOT EMPTY string.
+     * Check if object is NOT AN EMPTY string.
      * @param {*} obj
      * @returns {boolean}
      */
@@ -217,7 +217,9 @@ module Talk {
     }
 
     /**
-     * Check input is object
+     * Check if obj is really an object
+     * @param {*} obj
+     * @returns {boolean}
      */
 
     export function isObj(obj: any): boolean {
@@ -235,7 +237,7 @@ module Talk {
     }
 
     /**
-     * Create a random number between the minimum and the maximum argument
+     * Create a random number between the minimum and the maximum parameter
      * @param {number} [min]
      * @param {number} [max]
      * @returns {number}

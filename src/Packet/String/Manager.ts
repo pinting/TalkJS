@@ -82,7 +82,7 @@ module Talk.Packet.String {
         }
 
         /**
-         * Get a packer by its ID and its label
+         * Get a packer by its ID and label of its data channel
          * @param {string} label - Label of the data channel
          * @param {string} id - ID of the packer
          * @returns {*}
