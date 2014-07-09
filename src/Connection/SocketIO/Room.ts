@@ -23,7 +23,9 @@ module Talk.Connection.SocketIO {
             this.handler.on("message", this.send.bind(this));
 
             this.server = io.connect(host);
-            this.server.on("connect", this.connectionReady.bind(this));
+            this.server.on("connect", () => {
+                this.connectionReady(this.server.socket.sessionid);
+            });
             this.server.on("message", this.get.bind(this));
 
             if(!onAnswer) {

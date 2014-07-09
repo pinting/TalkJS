@@ -528,6 +528,18 @@ declare module Talk {
     function comp(obj1: Object, obj2: Object): boolean;
     function noop(...args: any[]): void;
 }
+declare module Talk.Packet.ArrayBuffer {
+}
+declare module Talk.Packet.String {
+    class Handler extends WildEmitter {
+        private threads;
+        constructor(target: any);
+        public send(peer: Peer, label: string, payload: string): Thread;
+        private add(peer, label, id?);
+        private clean(thread);
+        private get(label, id);
+    }
+}
 declare module Talk.Packet.String {
     interface IMessage {
         key: string;
@@ -543,23 +555,12 @@ declare module Talk.Packet.String {
     }
 }
 declare module Talk.Packet.String {
-    class Manager extends WildEmitter {
-        private packers;
-        constructor(target: any);
-        public send(peer: Peer, label: string, payload: string): Packer;
-        private add(peer, label, id?);
-        private clean(packer);
-        private get(label, id);
-    }
-}
-declare module Talk.Packet.String {
-    class Packer extends WildEmitter {
+    class Thread extends WildEmitter {
         private packets;
         private length;
         public label: string;
-        private peer;
         public id: string;
-        constructor(peer: Peer, label: string, id?: string);
+        constructor(label: string, id?: string);
         public parse(key: string, value?: any): void;
         private send(key, value?);
         private get(i);

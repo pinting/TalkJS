@@ -29,7 +29,7 @@ var Talk;
             Pure.prototype.connectionReady = function (id) {
                 this.id = id;
                 this.emit("ready", id);
-                Talk.log("Connection is ready:", this.id);
+                Talk.log("Connection is ready:", id);
             };
 
             Pure.prototype.findHandler = function (handler) {
@@ -126,13 +126,16 @@ var Talk;
                 function Room(handler, host, onOffer, onAnswer) {
                     if (typeof host === "undefined") { host = "http://srv.talk.pinting.hu:8000"; }
                     if (typeof onOffer === "undefined") { onOffer = Talk.noop; }
+                    var _this = this;
                     _super.call(this);
 
                     this.handler = handler;
                     this.handler.on("message", this.send.bind(this));
 
                     this.server = io.connect(host);
-                    this.server.on("connect", this.connectionReady.bind(this));
+                    this.server.on("connect", function () {
+                        _this.connectionReady(_this.server.socket.sessionid);
+                    });
                     this.server.on("message", this.get.bind(this));
 
                     if (!onAnswer) {
@@ -543,70 +546,92 @@ var Talk;
 var Talk;
 (function (Talk) {
     (function (Packet) {
+        (function (ArrayBuffer) {
+            var Handler = (function () {
+                function Handler() {
+                }
+                return Handler;
+            })();
+        })(Packet.ArrayBuffer || (Packet.ArrayBuffer = {}));
+        var ArrayBuffer = Packet.ArrayBuffer;
+    })(Talk.Packet || (Talk.Packet = {}));
+    var Packet = Talk.Packet;
+})(Talk || (Talk = {}));
+var Talk;
+(function (Talk) {
+    (function (Packet) {
         (function (String) {
-            var Manager = (function (_super) {
-                __extends(Manager, _super);
-                function Manager(target) {
+            var Handler = (function (_super) {
+                __extends(Handler, _super);
+                function Handler(target) {
                     var _this = this;
                     _super.call(this);
-                    this.packers = [];
+                    this.threads = [];
 
                     target.on("data", function (peer, label, payload) {
-                        if (payload.id && payload.key && !_this.get(label, payload.id)) {
-                            Talk.log("Creating a new string packet packer");
-                            var packer = _this.add(peer, label, payload.id);
-                            packer.parse(payload.key, payload.value);
-                            _this.packers.push(packer);
+                        if (payload.id && payload.key) {
+                            var thread = _this.get(label, payload.id);
+                            if (!thread) {
+                                thread = _this.add(peer, label, payload.id);
+                            }
+                            thread.parse(payload.key, payload.value);
                         }
                     });
                 }
-                Manager.prototype.send = function (peer, label, payload) {
-                    var packer = this.add(peer, label);
-                    packer.chunk(payload);
-                    return packer;
+                Handler.prototype.send = function (peer, label, payload) {
+                    var thread = this.add(peer, label);
+                    thread.chunk(payload);
+                    return thread;
                 };
 
-                Manager.prototype.add = function (peer, label, id) {
+                Handler.prototype.add = function (peer, label, id) {
                     var _this = this;
-                    var packer = new String.Packer(peer, label, id);
-                    packer.on("*", function (key) {
+                    var thread = new String.Thread(label, id);
+                    thread.on("*", function (key, value) {
                         switch (key) {
-                            case "data":
-                                _this.emit.apply(_this, arguments);
-                            case "clean":
-                                _this.clean(packer);
+                            case "message":
+                                peer.sendData(label, value);
                                 break;
-                            default:
-                                _this.emit.apply(_this, arguments);
+                            case "sent":
+                                _this.emit("sent", peer, label, value);
+                                break;
+                            case "added":
+                                _this.emit("added", peer, label, value);
+                                break;
+                            case "data":
+                                _this.emit("data", peer, label, value);
+                            case "clean":
+                                _this.clean(thread);
                                 break;
                         }
                     });
-                    return packer;
+                    this.threads.push(thread);
+                    return thread;
                 };
 
-                Manager.prototype.clean = function (packer) {
-                    var i = this.packers.indexOf(packer);
+                Handler.prototype.clean = function (thread) {
+                    var i = this.threads.indexOf(thread);
                     if (i >= 0) {
-                        this.packers.splice(i, 1);
+                        this.threads.splice(i, 1);
                         return true;
                     }
                     return false;
                 };
 
-                Manager.prototype.get = function (label, id) {
+                Handler.prototype.get = function (label, id) {
                     var result = false;
-                    this.packers.some(function (packer) {
-                        if (packer.label === label && packer.id === id) {
-                            result = packer;
+                    this.threads.some(function (thread) {
+                        if (thread.label === label && thread.id === id) {
+                            result = thread;
                             return true;
                         }
                         return false;
                     });
                     return result;
                 };
-                return Manager;
+                return Handler;
             })(WildEmitter);
-            String.Manager = Manager;
+            String.Handler = Handler;
         })(Packet.String || (Packet.String = {}));
         var String = Packet.String;
     })(Talk.Packet || (Talk.Packet = {}));
@@ -616,25 +641,19 @@ var Talk;
 (function (Talk) {
     (function (Packet) {
         (function (String) {
-            var Packer = (function (_super) {
-                __extends(Packer, _super);
-                function Packer(peer, label, id) {
+            var Thread = (function (_super) {
+                __extends(Thread, _super);
+                function Thread(label, id) {
                     if (typeof id === "undefined") { id = Talk.uuid(); }
-                    var _this = this;
                     _super.call(this);
                     this.packets = [];
 
                     this.label = label;
-                    this.peer = peer;
                     this.id = id;
 
-                    peer.on("data", function (peer, label, payload) {
-                        if (payload && payload.id === _this.id && label === _this.label) {
-                            _this.parse(payload.key, payload.value);
-                        }
-                    });
+                    Talk.log("New string packet handler thread was created `%s#%s`", label, id);
                 }
-                Packer.prototype.parse = function (key, value) {
+                Thread.prototype.parse = function (key, value) {
                     switch (key) {
                         case "add":
                             this.add(value);
@@ -651,15 +670,15 @@ var Talk;
                     }
                 };
 
-                Packer.prototype.send = function (key, value) {
-                    this.peer.sendData(this.label, {
+                Thread.prototype.send = function (key, value) {
+                    this.emit("message", {
                         value: value,
                         id: this.id,
                         key: key
                     });
                 };
 
-                Packer.prototype.get = function (i) {
+                Thread.prototype.get = function (i) {
                     var result = false;
                     this.packets.some(function (packet) {
                         if (packet.index === i) {
@@ -671,7 +690,7 @@ var Talk;
                     return result;
                 };
 
-                Packer.prototype.chunk = function (buffer, size) {
+                Thread.prototype.chunk = function (buffer, size) {
                     var _this = this;
                     if (typeof size === "undefined") { size = 10240; }
                     this.length = Talk.roundUp(buffer.length / size);
@@ -686,7 +705,7 @@ var Talk;
                             };
                             _this.packets.push(packet);
                             _this.send("add", packet);
-                            _this.emit("packetSent", _this.peer, packet);
+                            _this.emit("sent", packet);
                         } else {
                             clearInterval(p);
                             setTimeout(function () {
@@ -696,33 +715,35 @@ var Talk;
                     }, 0);
                 };
 
-                Packer.prototype.join = function () {
+                Thread.prototype.join = function () {
                     var buffer = "";
                     for (var i = 0; i < this.length; i++) {
                         var packet = this.get(i);
                         if (!packet) {
+                            Talk.log("Requesting packet `%d` in thread `%s#%s`", i, this.label, this.id);
                             this.send("ask", i);
                             return;
                         }
                         buffer += packet.payload;
                     }
-                    Talk.log("Data received:", buffer);
-                    this.emit("data", this.peer, this.label, buffer);
+                    Talk.log("Data received by `%s`:", this.id, buffer);
+                    this.emit("data", buffer);
                     this.send("clean");
                 };
 
-                Packer.prototype.add = function (packet) {
+                Thread.prototype.add = function (packet) {
                     if (!this.length) {
                         this.length = packet.length;
                     }
                     this.packets.push(packet);
-                    this.emit("packetReceived", this.peer, packet);
+                    this.emit("added", packet);
                 };
 
-                Packer.prototype.ask = function (i) {
+                Thread.prototype.ask = function (i) {
                     var _this = this;
                     var packet = this.get(i);
                     if (packet) {
+                        Talk.log("Resending packet `%d` in thread `%s#%s`", i, this.label, this.id);
                         this.send("add", packet);
                         setTimeout(function () {
                             _this.send("end");
@@ -730,13 +751,13 @@ var Talk;
                     }
                 };
 
-                Packer.prototype.clean = function () {
-                    Talk.log("Clean up string packet packer `%s`", this.id);
+                Thread.prototype.clean = function () {
+                    Talk.log("Cleaning up string packet handler thread `%s#%s`", this.label, this.id);
                     this.emit("clean");
                 };
-                return Packer;
+                return Thread;
             })(WildEmitter);
-            String.Packer = Packer;
+            String.Thread = Thread;
         })(Packet.String || (Packet.String = {}));
         var String = Packet.String;
     })(Talk.Packet || (Talk.Packet = {}));

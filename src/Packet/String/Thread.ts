@@ -2,37 +2,31 @@ module Talk.Packet.String {
     /**
      * Receive and send packets
      *
-     * @emits Packer#packetReceived (peer: Peer, packet: IPacket)
-     * @emits Packer#data (peer: Peer, label: string, data: any)
-     * @emits Packer#packetSent (peer: Peer, packet: IPacket)
-     * @emits Packer#clean
+     * @emits Thread#message (message: IMessage)
+     * @emits Thread#added (packet: IPacket)
+     * @emits Thread#sent (packet: IPacket)
+     * @emits Thread#data (data: any)
+     * @emits Thread#clean
      */
 
-    export class Packer extends WildEmitter {
+    export class Thread extends WildEmitter {
         private packets = <IPacket[]> [];
         private length: number;
         public label: string;
-        private peer: Peer;
         public id: string;
 
         /**
-         * @param {Talk.Peer} peer
          * @param {string} label - Label of the data channel
-         * @param {string} id - ID of the packer
+         * @param {string} id - ID of the thread
          */
 
-        constructor(peer: Peer, label: string, id = uuid()) {
+        constructor(label: string, id = uuid()) {
             super();
 
             this.label = label;
-            this.peer = peer;
             this.id = id;
 
-            peer.on("data", (peer, label, payload: IMessage) => {
-                if(payload && payload.id === this.id && label === this.label) {
-                    this.parse(payload.key, payload.value);
-                }
-            });
+            log("New string packet handler thread was created `%s#%s`", label, id);
         }
 
         /**
@@ -65,7 +59,7 @@ module Talk.Packet.String {
          */
 
         private send(key: string, value?: any): void {
-            this.peer.sendData(this.label, {
+            this.emit("message", <IMessage> {
                 value: value,
                 id: this.id,
                 key: key
@@ -109,7 +103,7 @@ module Talk.Packet.String {
                     };
                     this.packets.push(packet);
                     this.send("add", packet);
-                    this.emit("packetSent", this.peer, packet);
+                    this.emit("sent", packet);
                 }
                 else {
                     clearInterval(p);
@@ -121,7 +115,7 @@ module Talk.Packet.String {
         }
 
         /**
-         * Join payload of the packets together
+         * Join packets together
          */
 
         public join(): void {
@@ -129,18 +123,19 @@ module Talk.Packet.String {
             for(var i = 0; i < this.length; i++) {
                 var packet = this.get(i);
                 if(!packet) {
+                    log("Requesting packet `%d` in thread `%s#%s`", i, this.label, this.id);
                     this.send("ask", i);
                     return;
                 }
                 buffer += packet.payload;
             }
-            log("Data received:", buffer);
-            this.emit("data", this.peer, this.label, buffer);
+            log("Data received by `%s`:", this.id, buffer);
+            this.emit("data", buffer);
             this.send("clean");
         }
 
         /**
-         * Add packet to the packer
+         * Add packet to the thread
          * @param {*} packet
          */
 
@@ -149,17 +144,18 @@ module Talk.Packet.String {
                 this.length = packet.length;
             }
             this.packets.push(packet);
-            this.emit("packetReceived", this.peer, packet);
+            this.emit("added", packet);
         }
 
         /**
-         * Ask for a packet from the packer
+         * Ask for a packet from the thread
          * @param {number} i - Index of the packet
          */
 
         public ask(i: number): void {
             var packet = this.get(i);
             if(packet) {
+                log("Resending packet `%d` in thread `%s#%s`", i, this.label, this.id);
                 this.send("add", packet);
                 setTimeout(() => {
                     this.send("end");
@@ -172,7 +168,7 @@ module Talk.Packet.String {
          */
 
         public clean() {
-            log("Clean up string packet packer `%s`", this.id);
+            log("Cleaning up string packet handler thread `%s#%s`", this.label, this.id);
             this.emit("clean");
         }
     }

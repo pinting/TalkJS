@@ -41,7 +41,7 @@ module Talk.Connection {
         public connectionReady(id: string) {
             this.id = id;
             this.emit("ready", id);
-            log("Connection is ready:", this.id);
+            log("Connection is ready:", id);
         }
 
         /**
