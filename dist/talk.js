@@ -19,8 +19,8 @@ var Talk;
             };
 
             Pure.prototype.get = function (payload) {
-                if (payload.key && payload.value && payload.peer && payload.handler) {
-                    var peer = this.findHandler(payload.handler).get(payload.peer);
+                if (payload.key && payload.value && payload.peer && payload.group) {
+                    var peer = this.findGroup(payload.group).get(payload.peer);
                     if (peer) {
                         peer.parseMessage(payload.key, payload.value);
                     } else {
@@ -35,9 +35,9 @@ var Talk;
                 Talk.log("Connection is ready:", id);
             };
 
-            Pure.prototype.findHandler = function (handler) {
-                var dest = this.handler;
-                handler.forEach(function (id) {
+            Pure.prototype.findGroup = function (group) {
+                var dest = this.group;
+                group.forEach(function (id) {
                     dest = dest.h(id);
                 });
                 return dest;
@@ -64,9 +64,9 @@ var Talk;
 
             Room.prototype.get = function (payload) {
                 if (payload.key && payload.value && payload.peer) {
-                    var peer = this.handler.get(payload.peer);
+                    var peer = this.group.get(payload.peer);
                     if (!peer && payload.key === "offer") {
-                        peer = this.handler.add(payload.peer);
+                        peer = this.group.add(payload.peer);
                         this.onAnswer(peer);
                     }
                     if (peer) {
@@ -79,7 +79,7 @@ var Talk;
 
             Room.prototype.remove = function (id) {
                 Talk.log("Removing a peer:", id);
-                var peer = this.handler.get(id);
+                var peer = this.group.get(id);
                 if (peer) {
                     peer.close();
                     return true;
@@ -98,12 +98,12 @@ var Talk;
         (function (SocketIO) {
             var Pure = (function (_super) {
                 __extends(Pure, _super);
-                function Pure(handler, host) {
+                function Pure(group, host) {
                     if (typeof host === "undefined") { host = "http://localhost:8080"; }
                     _super.call(this);
 
-                    this.handler = handler;
-                    this.handler.on("message", this.send.bind(this));
+                    this.group = group;
+                    this.group.on("message", this.send.bind(this));
 
                     this.server = io.connect(host);
                     this.server.on("connect", this.connectionReady.bind(this));
@@ -126,14 +126,14 @@ var Talk;
         (function (SocketIO) {
             var Room = (function (_super) {
                 __extends(Room, _super);
-                function Room(handler, host, onOffer, onAnswer) {
+                function Room(group, host, onOffer, onAnswer) {
                     if (typeof host === "undefined") { host = "http://srv.talk.pinting.hu:8000"; }
                     if (typeof onOffer === "undefined") { onOffer = Talk.noop; }
                     var _this = this;
                     _super.call(this);
 
-                    this.handler = handler;
-                    this.handler.on("message", this.send.bind(this));
+                    this.group = group;
+                    this.group.on("message", this.send.bind(this));
 
                     this.server = io.connect(host);
                     this.server.on("connect", function () {
@@ -162,7 +162,7 @@ var Talk;
                         } else {
                             Talk.log("Joined to room `%s`", room);
                             clients.forEach(function (client) {
-                                var peer = _this.handler.add(client.id);
+                                var peer = _this.group.add(client.id);
                                 _this.onOffer(peer);
                                 peer.offer();
                             });
@@ -176,7 +176,7 @@ var Talk;
                 Room.prototype.leave = function () {
                     Talk.log("Room `%s` was left", this.room);
                     this.server.emit("leave");
-                    this.handler.find("close");
+                    this.group.find("close");
                     this.room = null;
                     this.type = null;
                 };
@@ -190,11 +190,11 @@ var Talk;
 })(Talk || (Talk = {}));
 var Talk;
 (function (Talk) {
-    var Handler = (function (_super) {
-        __extends(Handler, _super);
-        function Handler(id, options) {
+    var Group = (function (_super) {
+        __extends(Group, _super);
+        function Group(id, options) {
             _super.call(this);
-            this.handlers = [];
+            this.groups = [];
             this.config = {};
             this.peers = [];
 
@@ -205,15 +205,15 @@ var Talk;
             Talk.extend(this.config, options);
             this.id = id;
         }
-        Handler.prototype.createHandler = function (id, H) {
+        Group.prototype.createGroup = function (id, H) {
             var _this = this;
-            if (typeof H === "undefined") { H = Handler; }
-            var handler = new H(id, this.config);
-            handler.on("*", function (key, payload) {
+            if (typeof H === "undefined") { H = Group; }
+            var group = new H(id, this.config);
+            group.on("*", function (key, payload) {
                 switch (key) {
                     case "message":
                         payload = Talk.clone(payload);
-                        payload.handler = [handler.id].concat(payload.handler);
+                        payload.group = [group.id].concat(payload.group);
                         _this.emit("message", payload);
                         break;
                     default:
@@ -221,28 +221,28 @@ var Talk;
                         break;
                 }
             });
-            Talk.log("Handler created:", handler);
-            this.handlers.push(handler);
-            return handler;
+            Talk.log("Group created:", group);
+            this.groups.push(group);
+            return group;
         };
 
-        Handler.prototype.h = function (id, H) {
-            if (typeof H === "undefined") { H = Handler; }
+        Group.prototype.h = function (id, H) {
+            if (typeof H === "undefined") { H = Group; }
             var result = false;
-            this.handlers.some(function (handler) {
-                if (handler.id === id) {
-                    result = handler;
+            this.groups.some(function (group) {
+                if (group.id === id) {
+                    result = group;
                     return true;
                 }
                 return false;
             });
             if (!result) {
-                result = this.createHandler(id, H);
+                result = this.createGroup(id, H);
             }
             return result;
         };
 
-        Handler.prototype.add = function (id, P) {
+        Group.prototype.add = function (id, P) {
             var _this = this;
             if (typeof P === "undefined") { P = Talk.Peer; }
             var peer = new P(id, this.config);
@@ -263,7 +263,7 @@ var Talk;
             return peer;
         };
 
-        Handler.prototype.get = function (id) {
+        Group.prototype.get = function (id) {
             var result = false;
             this.peers.some(function (peer) {
                 if (peer.id === id) {
@@ -275,7 +275,7 @@ var Talk;
             return result;
         };
 
-        Handler.prototype.find = function (props, cb) {
+        Group.prototype.find = function (props, cb) {
             var result;
             if (Talk.isObj(props) && !Talk.isFunc(props)) {
                 result = this.peers.filter(function (peer) {
@@ -296,9 +296,9 @@ var Talk;
             }
             return result;
         };
-        return Handler;
+        return Group;
     })(WildEmitter);
-    Talk.Handler = Handler;
+    Talk.Group = Group;
 })(Talk || (Talk = {}));
 var Talk;
 (function (Talk) {
@@ -566,12 +566,12 @@ var Talk;
         (function (String) {
             var Handler = (function (_super) {
                 __extends(Handler, _super);
-                function Handler(target) {
+                function Handler(group) {
                     var _this = this;
                     _super.call(this);
                     this.threads = [];
 
-                    target.on("data", function (peer, label, payload) {
+                    group.on("data", function (peer, label, payload) {
                         if (payload.id && payload.key) {
                             var thread = _this.get(label, payload.id);
                             if (!thread) {
@@ -817,7 +817,7 @@ var Talk;
             var payload = {
                 peer: this.id,
                 value: value,
-                handler: [],
+                group: [],
                 key: key
             };
             this.emit("message", payload);

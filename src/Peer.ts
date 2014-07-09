@@ -81,7 +81,7 @@ module Talk {
             var payload = <IMessage> {
                 peer: this.id,
                 value: value,
-                handler: [],
+                group: [],
                 key: key
             };
             this.emit("message", payload);

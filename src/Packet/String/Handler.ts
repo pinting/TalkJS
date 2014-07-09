@@ -11,13 +11,13 @@ module Talk.Packet.String {
         private threads = <Thread[]> [];
 
         /**
-         * @param {Talk.Peer|Talk.Handler} target
+         * @param {Talk.Group} group
          */
 
-        constructor(target: any) {
+        constructor(group: Group) {
             super();
 
-            target.on("data", (peer, label, payload: IMessage) => {
+            group.on("data", (peer, label, payload: IMessage) => {
                 if(payload.id && payload.key) {
                     var thread = this.get(label, payload.id);
                     if(!thread) {

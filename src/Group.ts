@@ -1,16 +1,16 @@
 module Talk {
-    export class Handler extends WildEmitter {
-        public handlers = [];
+    export class Group extends WildEmitter {
+        public groups = [];
         public config = {};
         public peers = [];
         public id: string;
 
         /**
-         * A handler is likes a directory: it can store infinite number of peers,
-         * and other handlers. The only limit is the limit of the interpreter.
-         * @param {string|Talk.Handler.config} [id] - An unique ID, or the second
+         * A group is likes a directory: it can store infinite number of peers,
+         * and other groups. The only limit is the limit of the interpreter.
+         * @param {string|Talk.Group.config} [id] - An unique ID, or the second
          * argument can be passed here.
-         * @param {Talk.Handler.config} [options]
+         * @param {Talk.Group.config} [options]
          */
 
         constructor(id?: any, options?: Object) {
@@ -25,19 +25,19 @@ module Talk {
         }
 
         /**
-         * Create a handler
+         * Create a group
          * @param {string} id - An unique ID
-         * @param {Talk.Handler} [H] - Custom handler object
-         * @returns {Talk.Handler}
+         * @param {Talk.Group} [H] - Custom Group object
+         * @returns {Talk.Group}
          */
 
-        private createHandler(id: string, H = Handler): Handler {
-            var handler = new H(id, this.config);
-            handler.on("*", (key: string, payload?: IMessage) => {
+        private createGroup(id: string, H = Group): Group {
+            var group = new H(id, this.config);
+            group.on("*", (key: string, payload?: IMessage) => {
                 switch(key) {
                     case "message":
                         payload = <IMessage> clone(payload);
-                        payload.handler = [handler.id].concat(payload.handler);
+                        payload.group = [group.id].concat(payload.group);
                         this.emit("message", payload);
                         break;
                     default:
@@ -45,35 +45,35 @@ module Talk {
                         break;
                 }
             });
-            log("Handler created:", handler);
-            this.handlers.push(handler);
-            return handler;
+            log("Group created:", group);
+            this.groups.push(group);
+            return group;
         }
 
         /**
-         * Open a handler, or create it if it is not exists
+         * Open a group, or create it if it is not exists
          * @param {string} id - An unique ID
-         * @param {Talk.Handler} [H] - Custom handler object
-         * @returns {Talk.Handler}
+         * @param {Talk.Group} [H] - Custom Group object
+         * @returns {Talk.Group}
          */
 
-        public h(id, H = Handler): Handler {
+        public h(id, H = Group): Group {
             var result = <any> false;
-            this.handlers.some((handler: Handler) => {
-                if(handler.id === id) {
-                    result = handler;
+            this.groups.some((group: Group) => {
+                if(group.id === id) {
+                    result = group;
                     return true;
                 }
                 return false;
             });
             if(!result) {
-                result = this.createHandler(id, H);
+                result = this.createGroup(id, H);
             }
             return result;
         }
 
         /**
-         * Add a peer to THIS handler
+         * Add a peer to THIS group
          * @param {string} id - An unique ID
          * @param {Talk.Peer} [P] - Custom peer object
          * @returns {Talk.Peer}

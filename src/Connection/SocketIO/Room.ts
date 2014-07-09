@@ -1,6 +1,6 @@
 module Talk.Connection.SocketIO {
     /**
-     * Room is an advanced connection type: it can handle a handler as a
+     * Room is an advanced connection type: it can handle a group as a
      * chat room, so it will add and remove peers.
      *
      * @emits Room#ready (id: string)
@@ -10,17 +10,17 @@ module Talk.Connection.SocketIO {
         public server: io.Socket;
 
         /**
-         * @param {Talk.Handler} handler
+         * @param {Talk.Group} group
          * @param {string} [host]
          * @param {Function} [onOffer]
          * @param {Function} [onAnswer] - If its not defined, onOffer will be used
          */
 
-        constructor(handler: Handler, host = "http://srv.talk.pinting.hu:8000", onOffer = noop, onAnswer?: any) {
+        constructor(group: Group, host = "http://srv.talk.pinting.hu:8000", onOffer = noop, onAnswer?: any) {
             super();
 
-            this.handler = handler;
-            this.handler.on("message", this.send.bind(this));
+            this.group = group;
+            this.group.on("message", this.send.bind(this));
 
             this.server = io.connect(host);
             this.server.on("connect", () => {
@@ -63,7 +63,7 @@ module Talk.Connection.SocketIO {
                 else {
                     log("Joined to room `%s`", room);
                     clients.forEach((client) => {
-                        var peer = this.handler.add(client.id);
+                        var peer = this.group.add(client.id);
                         this.onOffer(peer);
                         peer.offer();
                     });
@@ -81,7 +81,7 @@ module Talk.Connection.SocketIO {
         public leave() {
             log("Room `%s` was left", this.room);
             this.server.emit("leave");
-            this.handler.find("close");
+            this.group.find("close");
             this.room = null;
             this.type = null;
         }

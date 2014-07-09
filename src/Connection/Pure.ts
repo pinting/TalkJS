@@ -4,7 +4,7 @@ module Talk.Connection {
      */
 
     export class Pure extends WildEmitter {
-        public handler: Handler;
+        public group: Group;
         public id: string;
 
         /**
@@ -22,8 +22,8 @@ module Talk.Connection {
          */
 
         public get(payload: IMessage): void {
-            if(payload.key && payload.value && payload.peer && payload.handler) {
-                var peer = this.findHandler(<string[]> payload.handler).get(payload.peer);
+            if(payload.key && payload.value && payload.peer && payload.group) {
+                var peer = this.findGroup(<string[]> payload.group).get(payload.peer);
                 if(peer) {
                     peer.parseMessage(payload.key, payload.value);
                 }
@@ -45,14 +45,14 @@ module Talk.Connection {
         }
 
         /**
-         * Find the handler from the bottom of the array
-         * @param {string[]} handler - An array of handler ids
-         * @returns {Talk.Handler}
+         * Find the group from the bottom of the array
+         * @param {string[]} group - An array of group ids
+         * @returns {Talk.Group}
          */
 
-        public findHandler(handler: string[]): Handler {
-            var dest = <Handler> this.handler;
-            handler.forEach((id) => {
+        public findGroup(group: string[]): Group {
+            var dest = <Group> this.group;
+            group.forEach((id) => {
                 dest = dest.h(id);
             });
             return dest;

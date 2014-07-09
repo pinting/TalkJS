@@ -35,9 +35,9 @@ module Talk.Connection {
 
         public get(payload: IMessage): void {
             if(payload.key && payload.value && payload.peer) {
-                var peer = this.handler.get(payload.peer);
+                var peer = this.group.get(payload.peer);
                 if(!peer && payload.key === "offer") {
-                    peer = this.handler.add(payload.peer);
+                    peer = this.group.add(payload.peer);
                     this.onAnswer(peer);
                 }
                 if(peer) {
@@ -50,14 +50,14 @@ module Talk.Connection {
         }
 
         /**
-         * Remove user from the handler by id
+         * Remove user from the group by id
          * @param {string} id - ID of the peer
          * @returns {boolean}
          */
 
         public remove(id): boolean {
             log("Removing a peer:", id);
-            var peer = this.handler.get(id);
+            var peer = this.group.get(id);
             if(peer) {
                 peer.close();
                 return true;

@@ -5,12 +5,12 @@
 /// <reference path="../src/Definitions/Window.d.ts" />
 declare module Talk.Connection {
     class Pure extends WildEmitter {
-        public handler: Handler;
+        public group: Group;
         public id: string;
         public send(payload: IMessage): void;
         public get(payload: IMessage): void;
         public connectionReady(id: string): void;
-        public findHandler(handler: string[]): Handler;
+        public findGroup(group: string[]): Group;
     }
 }
 declare module Talk.Connection {
@@ -28,28 +28,28 @@ declare module Talk.Connection {
 declare module Talk.Connection.SocketIO {
     class Pure extends Connection.Pure {
         public server: io.Socket;
-        constructor(handler: Handler, host?: string);
+        constructor(group: Group, host?: string);
         public send(payload: IMessage): void;
     }
 }
 declare module Talk.Connection.SocketIO {
     class Room extends Connection.Room {
         public server: io.Socket;
-        constructor(handler: Handler, host?: string, onOffer?: typeof noop, onAnswer?: any);
+        constructor(group: Group, host?: string, onOffer?: typeof noop, onAnswer?: any);
         public send(payload: IMessage): void;
         public join(room: string, type: string, cb?: (error: any, clients: any[]) => void): void;
         public leave(): void;
     }
 }
 declare module Talk {
-    class Handler extends WildEmitter {
-        public handlers: any[];
+    class Group extends WildEmitter {
+        public groups: any[];
         public config: {};
         public peers: any[];
         public id: string;
         constructor(id?: any, options?: Object);
-        private createHandler(id, H?);
-        public h(id: any, H?: typeof Handler): Handler;
+        private createGroup(id, H?);
+        public h(id: any, H?: typeof Group): Group;
         public add(id: string, P?: typeof Peer): Peer;
         public get(id: string): Peer;
         public find(props?: any, cb?: any): Peer[];
@@ -63,7 +63,7 @@ declare module Talk {
 }
 declare module Talk {
     interface IMessage {
-        handler: string[];
+        group: string[];
         peer: string;
         key: string;
         value: any;
@@ -105,7 +105,7 @@ declare module Talk.Packet.ArrayBuffer {
 declare module Talk.Packet.String {
     class Handler extends WildEmitter {
         private threads;
-        constructor(target: any);
+        constructor(group: Group);
         public send(peer: Peer, label: string, payload: string): Thread;
         private add(peer, label, id?);
         private clean(thread);
