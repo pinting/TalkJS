@@ -585,7 +585,6 @@ var Talk;
 
                 Handler.prototype.add = function (peer, label, id) {
                     var _this = this;
-                    Talk.log("New string packet handler thread was created `%s#%s`", label, id);
                     var thread = new String.Thread(label, id);
                     thread.on("*", function (key, value) {
                         switch (key) {
@@ -605,6 +604,7 @@ var Talk;
                                 break;
                         }
                     });
+                    Talk.log("New string packet handler thread was created `%s#%s`", label, thread.id);
                     this.threads.push(thread);
                     return thread;
                 };

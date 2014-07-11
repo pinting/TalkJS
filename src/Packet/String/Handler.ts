@@ -51,7 +51,6 @@ module Talk.Packet.String {
          */
 
         private add(peer: Peer, label: string, id?: string): Thread {
-            log("New string packet handler thread was created `%s#%s`", label, id);
             var thread = new Thread(label, id);
             thread.on("*", (key: string, value: any) => {
                 switch(key) {
@@ -71,6 +70,7 @@ module Talk.Packet.String {
                         break;
                 }
             });
+            log("New string packet handler thread was created `%s#%s`", label, thread.id);
             this.threads.push(thread);
             return thread;
         }
