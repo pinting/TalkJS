@@ -16,7 +16,7 @@ module Talk.Connection.SocketIO {
          * @param {Function} [onAnswer] - If its not defined, onOffer will be used
          */
 
-        constructor(group: Group, host = "http://srv.talk.pinting.hu:8000", onOffer = noop, onAnswer?: any) {
+        constructor(group: Group, host = "http://localhost:8000", onOffer = noop, onAnswer?: any) {
             super();
 
             this.group = group;
@@ -26,6 +26,7 @@ module Talk.Connection.SocketIO {
             this.server.on("connect", () => {
                 this.connectionReady(this.server.socket.sessionid);
             });
+            this.server.on("remove", this.remove.bind(this));
             this.server.on("message", this.get.bind(this));
 
             if(!onAnswer) {
@@ -35,8 +36,6 @@ module Talk.Connection.SocketIO {
                 this.onAnswer = onAnswer;
             }
             this.onOffer = onOffer;
-
-            this.server.on("remove", this.remove.bind(this));
         }
 
         /**

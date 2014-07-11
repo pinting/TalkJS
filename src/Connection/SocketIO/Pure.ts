@@ -13,7 +13,7 @@ module Talk.Connection.SocketIO {
          * @param {string} [host]
          */
 
-        constructor(group: Group, host = "http://localhost:8080") {
+        constructor(group: Group, host = "http://localhost:8000") {
             super();
 
             this.group = group;

@@ -51,6 +51,7 @@ module Talk.Packet.String {
          */
 
         private add(peer: Peer, label: string, id?: string): Thread {
+            log("New string packet handler thread was created `%s#%s`", label, id);
             var thread = new Thread(label, id);
             thread.on("*", (key: string, value: any) => {
                 switch(key) {
@@ -81,6 +82,7 @@ module Talk.Packet.String {
          */
 
         private clean(thread): boolean {
+            log("Cleaning up string packet handler thread `%s#%s`", thread.label, thread.id);
             var i = this.threads.indexOf(thread);
             if(i >= 0) {
                 this.threads.splice(i, 1);

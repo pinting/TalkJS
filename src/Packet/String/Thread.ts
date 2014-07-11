@@ -14,6 +14,7 @@ module Talk.Packet.String {
         private length: number;
         public label: string;
         public id: string;
+        private sent = 0;
 
         /**
          * @param {string} label - Label of the data channel
@@ -25,8 +26,6 @@ module Talk.Packet.String {
 
             this.label = label;
             this.id = id;
-
-            log("New string packet handler thread was created `%s#%s`", label, id);
         }
 
         /**
@@ -85,6 +84,22 @@ module Talk.Packet.String {
         }
 
         /**
+         * Send a packet and an end signal if its needed
+         * @param packet
+         */
+
+        private sendPacket(packet: IPacket) {
+            this.send("add", packet);
+            this.emit("sent", packet);
+
+            if(this.length <= ++this.sent) {
+                setTimeout(() => {
+                    this.send("end");
+                }, 50);
+            }
+        }
+
+        /**
          * Chunk the buffer to packets
          * @param {string} buffer
          * @param {number} [size]
@@ -102,14 +117,10 @@ module Talk.Packet.String {
                         index: i++
                     };
                     this.packets.push(packet);
-                    this.send("add", packet);
-                    this.emit("sent", packet);
+                    this.sendPacket(packet);
                 }
                 else {
                     clearInterval(p);
-                    setTimeout(() => {
-                        this.send("end");
-                    }, 50);
                 }
             }, 0);
         }
@@ -156,10 +167,7 @@ module Talk.Packet.String {
             var packet = this.get(i);
             if(packet) {
                 log("Resending packet `%d` in thread `%s#%s`", i, this.label, this.id);
-                this.send("add", packet);
-                setTimeout(() => {
-                    this.send("end");
-                }, 50);
+                this.sendPacket(packet);
             }
         }
 
@@ -168,7 +176,6 @@ module Talk.Packet.String {
          */
 
         public clean() {
-            log("Cleaning up string packet handler thread `%s#%s`", this.label, this.id);
             this.emit("clean");
         }
     }

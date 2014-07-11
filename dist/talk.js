@@ -99,7 +99,7 @@ var Talk;
             var Pure = (function (_super) {
                 __extends(Pure, _super);
                 function Pure(group, host) {
-                    if (typeof host === "undefined") { host = "http://localhost:8080"; }
+                    if (typeof host === "undefined") { host = "http://localhost:8000"; }
                     _super.call(this);
 
                     this.group = group;
@@ -127,7 +127,7 @@ var Talk;
             var Room = (function (_super) {
                 __extends(Room, _super);
                 function Room(group, host, onOffer, onAnswer) {
-                    if (typeof host === "undefined") { host = "http://srv.talk.pinting.hu:8000"; }
+                    if (typeof host === "undefined") { host = "http://localhost:8000"; }
                     if (typeof onOffer === "undefined") { onOffer = Talk.noop; }
                     var _this = this;
                     _super.call(this);
@@ -139,6 +139,7 @@ var Talk;
                     this.server.on("connect", function () {
                         _this.connectionReady(_this.server.socket.sessionid);
                     });
+                    this.server.on("remove", this.remove.bind(this));
                     this.server.on("message", this.get.bind(this));
 
                     if (!onAnswer) {
@@ -147,8 +148,6 @@ var Talk;
                         this.onAnswer = onAnswer;
                     }
                     this.onOffer = onOffer;
-
-                    this.server.on("remove", this.remove.bind(this));
                 }
                 Room.prototype.send = function (payload) {
                     this.server.emit("message", payload);
@@ -589,6 +588,7 @@ var Talk;
 
                 Handler.prototype.add = function (peer, label, id) {
                     var _this = this;
+                    Talk.log("New string packet handler thread was created `%s#%s`", label, id);
                     var thread = new String.Thread(label, id);
                     thread.on("*", function (key, value) {
                         switch (key) {
@@ -613,6 +613,7 @@ var Talk;
                 };
 
                 Handler.prototype.clean = function (thread) {
+                    Talk.log("Cleaning up string packet handler thread `%s#%s`", thread.label, thread.id);
                     var i = this.threads.indexOf(thread);
                     if (i >= 0) {
                         this.threads.splice(i, 1);
@@ -650,11 +651,10 @@ var Talk;
                     if (typeof id === "undefined") { id = Talk.uuid(); }
                     _super.call(this);
                     this.packets = [];
+                    this.sent = 0;
 
                     this.label = label;
                     this.id = id;
-
-                    Talk.log("New string packet handler thread was created `%s#%s`", label, id);
                 }
                 Thread.prototype.parse = function (key, value) {
                     switch (key) {
@@ -693,6 +693,18 @@ var Talk;
                     return result;
                 };
 
+                Thread.prototype.sendPacket = function (packet) {
+                    var _this = this;
+                    this.send("add", packet);
+                    this.emit("sent", packet);
+
+                    if (this.length <= ++this.sent) {
+                        setTimeout(function () {
+                            _this.send("end");
+                        }, 50);
+                    }
+                };
+
                 Thread.prototype.chunk = function (buffer, size) {
                     var _this = this;
                     if (typeof size === "undefined") { size = 10240; }
@@ -707,13 +719,9 @@ var Talk;
                                 index: i++
                             };
                             _this.packets.push(packet);
-                            _this.send("add", packet);
-                            _this.emit("sent", packet);
+                            _this.sendPacket(packet);
                         } else {
                             clearInterval(p);
-                            setTimeout(function () {
-                                _this.send("end");
-                            }, 50);
                         }
                     }, 0);
                 };
@@ -743,19 +751,14 @@ var Talk;
                 };
 
                 Thread.prototype.ask = function (i) {
-                    var _this = this;
                     var packet = this.get(i);
                     if (packet) {
                         Talk.log("Resending packet `%d` in thread `%s#%s`", i, this.label, this.id);
-                        this.send("add", packet);
-                        setTimeout(function () {
-                            _this.send("end");
-                        }, 50);
+                        this.sendPacket(packet);
                     }
                 };
 
                 Thread.prototype.clean = function () {
-                    Talk.log("Cleaning up string packet handler thread `%s#%s`", this.label, this.id);
                     this.emit("clean");
                 };
                 return Thread;

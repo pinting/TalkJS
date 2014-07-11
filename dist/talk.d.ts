@@ -560,10 +560,12 @@ declare module Talk.Packet.String {
         private length;
         public label: string;
         public id: string;
+        private sent;
         constructor(label: string, id?: string);
         public parse(key: string, value?: any): void;
         private send(key, value?);
         private get(i);
+        private sendPacket(packet);
         public chunk(buffer: any, size?: number): void;
         public join(): void;
         public add(packet: IPacket): void;
