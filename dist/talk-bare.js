@@ -545,14 +545,193 @@ var Talk;
 var Talk;
 (function (Talk) {
     (function (Packet) {
-        (function (ArrayBuffer) {
-            var Handler = (function () {
-                function Handler() {
+        (function (Buffer) {
+            var Handler = (function (_super) {
+                __extends(Handler, _super);
+                function Handler(group) {
+                    var _this = this;
+                    _super.call(this);
+                    this.threads = [];
+
+                    group.on("data", function (peer, label, payload) {
+                        var thread = _this.get(label);
+                        if (payload.key === "meta") {
+                            if (thread) {
+                                _this.clean(thread);
+                            }
+                            thread = _this.add(peer, label);
+                        }
+                        if (thread) {
+                            thread.parse(payload.key, payload.value || payload);
+                        }
+                    });
                 }
+                Handler.prototype.get = function (label) {
+                    var result = false;
+                    this.threads.some(function (thread) {
+                        if (thread.label === label) {
+                            result = thread;
+                            return true;
+                        }
+                        return false;
+                    });
+                    return result;
+                };
+
+                Handler.prototype.add = function (peer, label) {
+                    var _this = this;
+                    var thread = new Buffer.Thread(label);
+                    thread.on("*", function (key, value) {
+                        var args = [];
+                        for (var _i = 0; _i < (arguments.length - 2); _i++) {
+                            args[_i] = arguments[_i + 2];
+                        }
+                        switch (key) {
+                            case "message":
+                                peer.sendData(label, value);
+                                break;
+                            case "data":
+                                _this.emit("data", peer, label, value, args[0]);
+                            case "clean":
+                                _this.clean(thread);
+                                break;
+                            case "sent":
+                                _this.emit("sent", peer, label, value);
+                                break;
+                            case "added":
+                                _this.emit("added", peer, label, value);
+                                break;
+                        }
+                    });
+                    Talk.log("New buffer packet handler thread was created `%s`", label);
+                    this.threads.push(thread);
+                    return thread;
+                };
+
+                Handler.prototype.clean = function (thread) {
+                    Talk.log("Cleaning up buffer packet handler thread `%s`", thread.label);
+                    var i = this.threads.indexOf(thread);
+                    if (i >= 0) {
+                        this.threads.splice(i, 1);
+                        return true;
+                    }
+                    return false;
+                };
+
+                Handler.prototype.send = function (peer, label, buffer, message) {
+                    if (!this.get(label)) {
+                        var thread = this.add(peer, label);
+                        thread.chunk(buffer, message);
+                        return thread;
+                    } else {
+                        Talk.warn("Data channel `%s` is locked", label, peer);
+                        return false;
+                    }
+                };
                 return Handler;
-            })();
-        })(Packet.ArrayBuffer || (Packet.ArrayBuffer = {}));
-        var ArrayBuffer = Packet.ArrayBuffer;
+            })(WildEmitter);
+            Buffer.Handler = Handler;
+        })(Packet.Buffer || (Packet.Buffer = {}));
+        var Buffer = Packet.Buffer;
+    })(Talk.Packet || (Talk.Packet = {}));
+    var Packet = Talk.Packet;
+})(Talk || (Talk = {}));
+var Talk;
+(function (Talk) {
+    (function (Packet) {
+        (function (Buffer) {
+            var Thread = (function (_super) {
+                __extends(Thread, _super);
+                function Thread(label) {
+                    _super.call(this);
+                    this.packets = [];
+                    this.index = 0;
+
+                    this.label = label;
+                }
+                Thread.prototype.parse = function (key, value) {
+                    switch (key) {
+                        case "meta":
+                            this.onMeta(value);
+                            break;
+                        case "ack":
+                            this.onAck();
+                            break;
+                        case "end":
+                            this.join();
+                            break;
+                        default:
+                            this.add(value);
+                            break;
+                    }
+                };
+
+                Thread.prototype.send = function (key, value) {
+                    this.emit("message", {
+                        value: value,
+                        key: key
+                    });
+                };
+
+                Thread.prototype.sendMeta = function (message) {
+                    this.send("meta", {
+                        length: this.length,
+                        message: message
+                    });
+                };
+
+                Thread.prototype.createPacket = function (buffer) {
+                    return {
+                        length: this.length,
+                        index: this.index++,
+                        payload: buffer
+                    };
+                };
+
+                Thread.prototype.chunk = function (buffer, message, size) {
+                    if (typeof size === "undefined") { size = 10240; }
+                    this.length = Talk.roundUp((buffer.byteLength || buffer.length || buffer.size) / size);
+                    this.chunkSize = size;
+                    this.buffer = buffer;
+                    this.sendMeta(message);
+                };
+
+                Thread.prototype.onMeta = function (meta) {
+                    if (this.length) {
+                        return;
+                    }
+                    this.message = meta.message;
+                    this.length = meta.length;
+                    this.send("ack");
+                };
+
+                Thread.prototype.onAck = function () {
+                    var start = this.index * this.chunkSize;
+                    var buffer = this.buffer.slice(start, start + this.chunkSize);
+
+                    if (this.index < this.length) {
+                        this.emit("message", buffer);
+                        this.emit("sent", this.createPacket(buffer));
+                    } else {
+                        this.send("end");
+                        this.emit("clean");
+                    }
+                };
+
+                Thread.prototype.add = function (buffer) {
+                    this.packets.push(buffer);
+                    this.emit("added", this.createPacket(buffer));
+                    this.send("ack");
+                };
+
+                Thread.prototype.join = function () {
+                    this.emit("data", this.packets, this.message);
+                };
+                return Thread;
+            })(WildEmitter);
+            Buffer.Thread = Thread;
+        })(Packet.Buffer || (Packet.Buffer = {}));
+        var Buffer = Packet.Buffer;
     })(Talk.Packet || (Talk.Packet = {}));
     var Packet = Talk.Packet;
 })(Talk || (Talk = {}));

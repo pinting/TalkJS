@@ -100,7 +100,63 @@ declare module Talk {
     function comp(obj1: Object, obj2: Object): boolean;
     function noop(...args: any[]): void;
 }
-declare module Talk.Packet.ArrayBuffer {
+declare module Talk.Packet.Buffer {
+    class Handler extends WildEmitter {
+        private threads;
+        constructor(group: Group);
+        public get(label: string): Thread;
+        public add(peer: Peer, label: string): Thread;
+        private clean(thread);
+        public send(peer: Peer, label: string, buffer: IBuffer, message: any): Thread;
+    }
+}
+declare module Talk.Packet.Buffer {
+    interface IBuffer {
+        slice: (start: number, end: number) => IBuffer;
+        byteLength?: number;
+        length?: number;
+        size?: number;
+    }
+}
+declare module Talk.Packet.Buffer {
+    interface IMessage {
+        key: string;
+        value: any;
+    }
+}
+declare module Talk.Packet.Buffer {
+    interface IMeta {
+        length: number;
+        message: any;
+    }
+}
+declare module Talk.Packet.Buffer {
+    interface IPacket {
+        payload: IBuffer;
+        length: number;
+        index: number;
+    }
+}
+declare module Talk.Packet.Buffer {
+    class Thread extends WildEmitter {
+        private chunkSize;
+        private buffer;
+        private length;
+        private packets;
+        private message;
+        private index;
+        public label: any;
+        constructor(label: string);
+        public parse(key: string, value?: any): void;
+        private send(key, value?);
+        private sendMeta(message);
+        private createPacket(buffer);
+        public chunk(buffer: IBuffer, message?: any, size?: number): void;
+        private onMeta(meta);
+        private onAck();
+        private add(buffer);
+        private join();
+    }
 }
 declare module Talk.Packet.String {
     class Handler extends WildEmitter {
