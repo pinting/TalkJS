@@ -2,18 +2,25 @@ module Talk.Packet.Buffer {
     /**
      * Manage outgoing and incoming data through buffer packet handler threads
      *
-     * @emits Handler#data (peer: Peer, label: string, data: IBuffer, message: any)
+     * @emits Handler#data (peer: Peer, label: string, data: IBuffer[], message: any)
      * @emits Handler#added (peer: Peer, label: string, packet: IPacket)
      * @emits Handler#sent (peer: Peer, label: string, packet: IPacket)
      */
 
     export class Handler extends WildEmitter {
         private threads = <Thread[]> [];
+        private target: any;
 
-        constructor(group: Group) {
+        /**
+         * @param {Talk.Group|Talk.Peer} target
+         */
+
+        constructor(target: any) {
             super();
 
-            group.on("data", (peer, label, payload: IMessage) => {
+            this.target = target;
+
+            target.on("data", (peer, label, payload: IMessage) => {
                 var thread = this.get(label);
                 if(payload.key === "meta") {
                     if(thread) {
@@ -92,20 +99,19 @@ module Talk.Packet.Buffer {
 
         /**
          * Send data and chunk it
-         * @param peer - The peer used to send the data
          * @param label - Label of the data channel
          * @param buffer
          * @param message - Custom message
          */
 
-        public send(peer: Peer, label: string, buffer: IBuffer, message: any): Thread {
+        public send(label: string, buffer: IBuffer, message: any): Thread {
             if(!this.get(label)) {
-                var thread = this.add(peer, label);
+                var thread = this.add(this.target, label);
                 thread.chunk(buffer, message);
                 return thread;
             }
             else {
-                warn("Data channel `%s` is locked", label, peer);
+                warn("Data channel `%s` is locked", label, this.target);
                 return <any> false;
             }
         }

@@ -19,8 +19,8 @@ var Talk;
             };
 
             Pure.prototype.get = function (payload) {
-                if (payload.key && payload.value && payload.peer && payload.group) {
-                    var peer = this.findGroup(payload.group).get(payload.peer);
+                if (payload.key && payload.value && payload.peer) {
+                    var peer = this.group.get(payload.peer);
                     if (peer) {
                         peer.parseMessage(payload.key, payload.value);
                     } else {
@@ -33,14 +33,6 @@ var Talk;
                 this.id = id;
                 this.emit("ready", id);
                 Talk.log("Connection is ready:", id);
-            };
-
-            Pure.prototype.findGroup = function (group) {
-                var dest = this.group;
-                group.forEach(function (id) {
-                    dest = dest.h(id);
-                });
-                return dest;
             };
             return Pure;
         })(WildEmitter);
@@ -193,7 +185,6 @@ var Talk;
         __extends(Group, _super);
         function Group(id, options) {
             _super.call(this);
-            this.groups = [];
             this.config = {};
             this.peers = [];
 
@@ -204,43 +195,6 @@ var Talk;
             Talk.extend(this.config, options);
             this.id = id;
         }
-        Group.prototype.createGroup = function (id, H) {
-            var _this = this;
-            if (typeof H === "undefined") { H = Group; }
-            var group = new H(id, this.config);
-            group.on("*", function (key, payload) {
-                switch (key) {
-                    case "message":
-                        payload = Talk.clone(payload);
-                        payload.group = [group.id].concat(payload.group);
-                        _this.emit("message", payload);
-                        break;
-                    default:
-                        _this.emit.apply(_this, arguments);
-                        break;
-                }
-            });
-            Talk.log("Group created:", group);
-            this.groups.push(group);
-            return group;
-        };
-
-        Group.prototype.h = function (id, H) {
-            if (typeof H === "undefined") { H = Group; }
-            var result = false;
-            this.groups.some(function (group) {
-                if (group.id === id) {
-                    result = group;
-                    return true;
-                }
-                return false;
-            });
-            if (!result) {
-                result = this.createGroup(id, H);
-            }
-            return result;
-        };
-
         Group.prototype.add = function (id, P) {
             var _this = this;
             if (typeof P === "undefined") { P = Talk.Peer; }
@@ -274,26 +228,95 @@ var Talk;
             return result;
         };
 
-        Group.prototype.find = function (props, cb) {
-            var result;
-            if (Talk.isObj(props) && !Talk.isFunc(props)) {
-                result = this.peers.filter(function (peer) {
-                    return Talk.comp(props, peer);
-                });
-            } else {
-                result = this.peers;
-                cb = props;
-            }
-            switch (typeof cb) {
-                case "function":
-                    result.forEach(cb);
-                    break;
-                case "string":
-                    result.forEach(function (peer) {
-                        peer[cb]();
-                    });
-            }
+        Group.prototype.find = function (props) {
+            if (typeof props === "undefined") { props = {}; }
+            var group = new Group;
+            this.peers.forEach(function (peer) {
+                if (Talk.hasProps(props, peer)) {
+                    group.peers.push(peer);
+                }
+            });
+            return group;
+        };
+
+        Group.prototype.offer = function () {
+            this.peers.forEach(function (peer) {
+                peer.offer();
+            });
+        };
+
+        Group.prototype.close = function () {
+            this.peers.forEach(function (peer) {
+                peer.close();
+            });
+        };
+
+        Group.prototype.sendData = function (label, payload) {
+            this.peers.forEach(function (peer) {
+                peer.sendData(label, payload);
+            });
+        };
+
+        Group.prototype.addDataChannel = function (label, options) {
+            var result = [];
+            this.peers.forEach(function (peer) {
+                result.push(peer.addDataChannel(label, options));
+            });
             return result;
+        };
+
+        Group.prototype.addStream = function (stream) {
+            this.peers.forEach(function (peer) {
+                peer.addStream(stream);
+            });
+        };
+
+        Group.prototype.mute = function () {
+            this.peers.forEach(function (peer) {
+                peer.mute();
+            });
+        };
+
+        Group.prototype.unmute = function () {
+            this.peers.forEach(function (peer) {
+                peer.unmute();
+            });
+        };
+
+        Group.prototype.pause = function () {
+            this.peers.forEach(function (peer) {
+                peer.pause();
+            });
+        };
+
+        Group.prototype.resume = function () {
+            this.peers.forEach(function (peer) {
+                peer.resume();
+            });
+        };
+
+        Group.prototype.muteLocal = function () {
+            this.peers.forEach(function (peer) {
+                peer.muteLocal();
+            });
+        };
+
+        Group.prototype.unmuteLocal = function () {
+            this.peers.forEach(function (peer) {
+                peer.unmuteLocal();
+            });
+        };
+
+        Group.prototype.pauseLocal = function () {
+            this.peers.forEach(function (peer) {
+                peer.pauseLocal();
+            });
+        };
+
+        Group.prototype.resumeLocal = function () {
+            this.peers.forEach(function (peer) {
+                peer.resumeLocal();
+            });
         };
         return Group;
     })(WildEmitter);
@@ -497,32 +520,21 @@ var Talk;
     }
     Talk.extend = extend;
 
-    function clone(obj) {
-        if (isObj(obj)) {
-            if (Array.isArray(obj)) {
-                return obj.slice(0);
-            }
-            return extend({}, obj);
-        }
-        return obj;
-    }
-    Talk.clone = clone;
-
-    function comp(obj1, obj2) {
-        for (var key in obj1) {
-            if (!obj1.hasOwnProperty(key) || !obj2.hasOwnProperty(key)) {
+    function hasProps(source, target) {
+        for (var key in source) {
+            if (!source.hasOwnProperty(key) || !target.hasOwnProperty(key)) {
                 return false;
             }
-            if (isObj(obj1[key]) && isObj(obj2[key]) && comp(obj1[key], obj2[key])) {
+            if (isObj(source[key]) && isObj(target[key]) && hasProps(source[key], target[key])) {
                 continue;
             }
-            if (obj1[key] !== obj2[key]) {
+            if (source[key] !== target[key]) {
                 return false;
             }
         }
         return true;
     }
-    Talk.comp = comp;
+    Talk.hasProps = hasProps;
 
     function noop() {
         var args = [];
@@ -538,12 +550,14 @@ var Talk;
         (function (Buffer) {
             var Handler = (function (_super) {
                 __extends(Handler, _super);
-                function Handler(group) {
+                function Handler(target) {
                     var _this = this;
                     _super.call(this);
                     this.threads = [];
 
-                    group.on("data", function (peer, label, payload) {
+                    this.target = target;
+
+                    target.on("data", function (peer, label, payload) {
                         var thread = _this.get(label);
                         if (payload.key === "meta") {
                             if (thread) {
@@ -608,13 +622,13 @@ var Talk;
                     return false;
                 };
 
-                Handler.prototype.send = function (peer, label, buffer, message) {
+                Handler.prototype.send = function (label, buffer, message) {
                     if (!this.get(label)) {
-                        var thread = this.add(peer, label);
+                        var thread = this.add(this.target, label);
                         thread.chunk(buffer, message);
                         return thread;
                     } else {
-                        Talk.warn("Data channel `%s` is locked", label, peer);
+                        Talk.warn("Data channel `%s` is locked", label, this.target);
                         return false;
                     }
                 };
@@ -731,12 +745,14 @@ var Talk;
         (function (String) {
             var Handler = (function (_super) {
                 __extends(Handler, _super);
-                function Handler(group) {
+                function Handler(target) {
                     var _this = this;
                     _super.call(this);
                     this.threads = [];
 
-                    group.on("data", function (peer, label, payload) {
+                    this.target = target;
+
+                    target.on("data", function (peer, label, payload) {
                         if (payload.id && payload.key) {
                             var thread = _this.get(label, payload.id);
                             if (!thread) {
@@ -746,8 +762,8 @@ var Talk;
                         }
                     });
                 }
-                Handler.prototype.send = function (peer, label, payload) {
-                    var thread = this.add(peer, label);
+                Handler.prototype.send = function (label, payload) {
+                    var thread = this.add(this.target, label);
                     thread.chunk(payload);
                     return thread;
                 };

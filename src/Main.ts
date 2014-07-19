@@ -279,36 +279,20 @@ module Talk {
     }
 
     /**
-     * Clone an object or an array
-     * @param {Object|Array} obj
-     * @returns {Object|Array}
+     * Compare objects
+     * @param source
+     * @param target
      */
 
-    export function clone(obj: any): any {
-        if(isObj(obj)) {
-            if(Array.isArray(obj)) {
-                return obj.slice(0);
-            }
-            return extend({}, obj);
-        }
-        return obj;
-    }
-
-    /**
-     * Compare objects by the first one
-     * @param obj1
-     * @param obj2
-     */
-
-    export function comp(obj1: Object, obj2: Object): boolean {
-        for(var key in obj1) {
-            if(!obj1.hasOwnProperty(key) || !obj2.hasOwnProperty(key)) {
+    export function hasProps(source: Object, target: Object): boolean {
+        for(var key in source) {
+            if(!source.hasOwnProperty(key) || !target.hasOwnProperty(key)) {
                 return false;
             }
-            if(isObj(obj1[key]) && isObj(obj2[key]) && comp(obj1[key], obj2[key])) {
+            if(isObj(source[key]) && isObj(target[key]) && hasProps(source[key], target[key])) {
                 continue;
             }
-            if(obj1[key] !== obj2[key]) {
+            if(source[key] !== target[key]) {
                 return false;
             }
         }

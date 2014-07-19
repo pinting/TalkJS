@@ -1,13 +1,11 @@
 module Talk {
     export class Group extends WildEmitter {
-        public groups = [];
         public config = {};
         public peers = [];
         public id: string;
 
         /**
-         * A group is likes a directory: it can store infinite number of peers,
-         * and other groups. The only limit is the limit of the interpreter.
+         * A group can store infinite number of peers and can call their methods.
          * @param {string|Talk.Group.config} [id] - An unique ID, or the second
          * argument can be passed here.
          * @param {Talk.Group.config} [options]
@@ -22,52 +20,6 @@ module Talk {
             }
             extend(this.config, options);
             this.id = id;
-        }
-
-        /**
-         * Create a group
-         * @param id - An unique ID
-         * @param [H] - Custom Group object
-         */
-
-        private createGroup(id: string, H = Group): Group {
-            var group = new H(id, this.config);
-            group.on("*", (key: string, payload?: IMessage) => {
-                switch(key) {
-                    case "message":
-                        payload = <IMessage> clone(payload);
-                        payload.group = [group.id].concat(payload.group);
-                        this.emit("message", payload);
-                        break;
-                    default:
-                        this.emit.apply(this, arguments);
-                        break;
-                }
-            });
-            log("Group created:", group);
-            this.groups.push(group);
-            return group;
-        }
-
-        /**
-         * Open a group, or create it if it is not exists
-         * @param id - An unique ID
-         * @param [H] - Custom Group object
-         */
-
-        public h(id, H = Group): Group {
-            var result = <any> false;
-            this.groups.some((group: Group) => {
-                if(group.id === id) {
-                    result = group;
-                    return true;
-                }
-                return false;
-            });
-            if(!result) {
-                result = this.createGroup(id, H);
-            }
-            return result;
         }
 
         /**
@@ -96,7 +48,7 @@ module Talk {
         }
 
         /**
-         * Get an EXISTING peer by its ID
+         * Get an EXISTING peer from the group by its ID
          * @param id
          */
 
@@ -113,34 +65,155 @@ module Talk {
         }
 
         /**
-         * Get a list of peers by their parameters and optionally use their methods
-         * @param {Object|Function|string} [props] - Properties of the wanted peers: empty means all.
-         * Second argument can be passed here too.
-         * @param {Function|string} [cb] - Execute a callback on results (peer: Peer) => void,
-         * or (if cb a string) call one of their properties.
+         * Get a group of peers by their parameters
+         * @param [props] - Properties of the wanted peers: empty means all.
          */
 
-        public find(props?: any, cb?: any): Peer[] {
-            var result;
-            if(isObj(props) && !isFunc(props)) {
-                result = this.peers.filter((peer) => {
-                    return comp(props, peer);
-                });
-            }
-            else {
-                result = this.peers;
-                cb = props;
-            }
-            switch(typeof cb) {
-                case "function":
-                    result.forEach(cb);
-                    break;
-                case "string":
-                    result.forEach((peer) => {
-                        peer[cb]();
-                    });
-            }
+        public find(props = {}): Group {
+            var group = new Group;
+            this.peers.forEach((peer) => {
+                if(hasProps(props, peer)) {
+                    group.peers.push(peer);
+                }
+            });
+            return group;
+        }
+
+        /**
+         * Make an offer to peers of this group
+         */
+
+        public offer(): void {
+            this.peers.forEach((peer) => {
+                peer.offer();
+            });
+        }
+
+        /**
+         * Close every peer in this group
+         */
+
+        public close(): void {
+            this.peers.forEach((peer) => {
+                peer.close();
+            });
+        }
+
+        /**
+         * Send data to the peers of this group
+         * @param payload
+         * @param [label] - Label of the data channel
+         */
+
+        public sendData(label: string, payload: any): void {
+            this.peers.forEach((peer) => {
+                peer.sendData(label, payload);
+            });
+        }
+
+        /**
+         * Add a data channel to the peers of this group
+         * @param label
+         * @param [options]
+         */
+
+        public addDataChannel(label: string, options?: RTCDataChannelInit): RTCDataChannel[] {
+            var result = <RTCDataChannel[]> [];
+            this.peers.forEach((peer) => {
+                result.push(peer.addDataChannel(label, options));
+            });
             return result;
+        }
+
+        /**
+         * Add our stream to the peers of this group
+         * @param stream
+         */
+
+        public addStream(stream: MediaStream): void {
+            this.peers.forEach((peer) => {
+                peer.addStream(stream);
+            });
+        }
+
+        /**
+         * Mute the audio stream of the peers in this group
+         */
+
+        public mute(): void {
+            this.peers.forEach((peer) => {
+                peer.mute();
+            });
+        }
+
+        /**
+         * Unmute the audio stream of the peers in this group
+         */
+
+        public unmute(): void {
+            this.peers.forEach((peer) => {
+                peer.unmute();
+            });
+        }
+
+        /**
+         * Pause video stream of the peers in this group
+         */
+
+        public pause(): void {
+            this.peers.forEach((peer) => {
+                peer.pause();
+            });
+        }
+
+        /**
+         * Resume video stream of the peers in this group
+         */
+
+        public resume(): void {
+            this.peers.forEach((peer) => {
+                peer.resume();
+            });
+        }
+
+        /**
+         * Mute the local audio stream for the peers of this group
+         */
+
+        public muteLocal(): void {
+            this.peers.forEach((peer) => {
+                peer.muteLocal();
+            });
+        }
+
+        /**
+         * Unmute the local audio stream for the peers of this group
+         */
+
+        public unmuteLocal(): void {
+            this.peers.forEach((peer) => {
+                peer.unmuteLocal();
+            });
+        }
+
+        /**
+         * Pause the local video stream for the peers of this group
+         */
+
+        public pauseLocal(): void {
+            this.peers.forEach((peer) => {
+                peer.pauseLocal();
+            });
+        }
+
+        /**
+         * Resume the local video stream for the peers of this group
+         */
+
+        public resumeLocal(): void {
+            this.peers.forEach((peer) => {
+                peer.resumeLocal();
+            });
         }
     }
 }

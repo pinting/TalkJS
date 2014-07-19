@@ -9,15 +9,18 @@ module Talk.Packet.String {
 
     export class Handler extends WildEmitter {
         private threads = <Thread[]> [];
+        private target: any;
 
         /**
-         * @param {Talk.Group} group
+         * @param {Talk.Group|Talk.Peer} target
          */
 
-        constructor(group: Group) {
+        constructor(target: any) {
             super();
 
-            group.on("data", (peer, label, payload: IMessage) => {
+            this.target = target;
+
+            target.on("data", (peer, label, payload: IMessage) => {
                 if(payload.id && payload.key) {
                     var thread = this.get(label, payload.id);
                     if(!thread) {
@@ -30,13 +33,12 @@ module Talk.Packet.String {
 
         /**
          * Send data and chunk it
-         * @param peer - The peer used to send the data
          * @param label - Label of the data channel
          * @param payload
          */
 
-        public send(peer: Peer, label: string, payload: string): Thread {
-            var thread = this.add(peer, label);
+        public send(label: string, payload: string): Thread {
+            var thread = this.add(this.target, label);
             thread.chunk(payload);
             return thread;
         }

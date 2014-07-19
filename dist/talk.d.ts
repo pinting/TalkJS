@@ -438,7 +438,6 @@ declare module Talk.Connection {
         public send(payload: IMessage): void;
         public get(payload: IMessage): void;
         public connectionReady(id: string): void;
-        public findGroup(group: string[]): Group;
     }
 }
 declare module Talk.Connection {
@@ -471,16 +470,26 @@ declare module Talk.Connection.SocketIO {
 }
 declare module Talk {
     class Group extends WildEmitter {
-        public groups: any[];
         public config: {};
         public peers: any[];
         public id: string;
         constructor(id?: any, options?: Object);
-        private createGroup(id, H?);
-        public h(id: any, H?: typeof Group): Group;
         public add(id: string, P?: typeof Peer): Peer;
         public get(id: string): Peer;
-        public find(props?: any, cb?: any): Peer[];
+        public find(props?: {}): Group;
+        public offer(): void;
+        public close(): void;
+        public sendData(label: string, payload: any): void;
+        public addDataChannel(label: string, options?: RTCDataChannelInit): RTCDataChannel[];
+        public addStream(stream: MediaStream): void;
+        public mute(): void;
+        public unmute(): void;
+        public pause(): void;
+        public resume(): void;
+        public muteLocal(): void;
+        public unmuteLocal(): void;
+        public pauseLocal(): void;
+        public resumeLocal(): void;
     }
 }
 declare module Talk {
@@ -491,7 +500,6 @@ declare module Talk {
 }
 declare module Talk {
     interface IMessage {
-        group: string[];
         peer: string;
         key: string;
         value: any;
@@ -523,18 +531,18 @@ declare module Talk {
     function roundUp(x: number): number;
     function uuid(): string;
     function extend(obj: Object, source: Object): Object;
-    function clone(obj: any): any;
-    function comp(obj1: Object, obj2: Object): boolean;
+    function hasProps(source: Object, target: Object): boolean;
     function noop(...args: any[]): void;
 }
 declare module Talk.Packet.Buffer {
     class Handler extends WildEmitter {
         private threads;
-        constructor(group: Group);
+        private target;
+        constructor(target: any);
         public get(label: string): Thread;
         public add(peer: Peer, label: string): Thread;
         private clean(thread);
-        public send(peer: Peer, label: string, buffer: IBuffer, message: any): Thread;
+        public send(label: string, buffer: IBuffer, message: any): Thread;
     }
 }
 declare module Talk.Packet.Buffer {
@@ -588,8 +596,9 @@ declare module Talk.Packet.Buffer {
 declare module Talk.Packet.String {
     class Handler extends WildEmitter {
         private threads;
-        constructor(group: Group);
-        public send(peer: Peer, label: string, payload: string): Thread;
+        private target;
+        constructor(target: any);
+        public send(label: string, payload: string): Thread;
         private add(peer, label, id?);
         private clean(thread);
         private get(label, id);

@@ -22,8 +22,8 @@ module Talk.Connection {
          */
 
         public get(payload: IMessage): void {
-            if(payload.key && payload.value && payload.peer && payload.group) {
-                var peer = this.findGroup(<string[]> payload.group).get(payload.peer);
+            if(payload.key && payload.value && payload.peer) {
+                var peer = this.group.get(payload.peer);
                 if(peer) {
                     peer.parseMessage(payload.key, payload.value);
                 }
@@ -42,19 +42,6 @@ module Talk.Connection {
             this.id = id;
             this.emit("ready", id);
             log("Connection is ready:", id);
-        }
-
-        /**
-         * Find the group from the bottom of the array
-         * @param group - An array of group ids
-         */
-
-        public findGroup(group: string[]): Group {
-            var dest = <Group> this.group;
-            group.forEach((id) => {
-                dest = dest.h(id);
-            });
-            return dest;
         }
     }
 }
