@@ -11,9 +11,9 @@ module Talk.Connection {
 
         /**
          * Join to a room
-         * @param {string} room - Name of the room
-         * @param {string} type
-         * @param {Function} [cb]
+         * @param room - Name of the room
+         * @param type
+         * @param [cb]
          */
 
         public join(room: string, type: string, cb?: (error: any, clients: any[]) => void): void {
@@ -30,7 +30,7 @@ module Talk.Connection {
 
         /**
          * Get a message, then find its peer and parse it
-         * @param {Talk.IMessage} payload
+         * @param payload
          */
 
         public get(payload: IMessage): void {
@@ -51,8 +51,7 @@ module Talk.Connection {
 
         /**
          * Remove user from the group by id
-         * @param {string} id - ID of the peer
-         * @returns {boolean}
+         * @param id - ID of the peer
          */
 
         public remove(id): boolean {

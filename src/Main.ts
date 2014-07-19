@@ -65,7 +65,7 @@ module Talk {
 
     /**
      * Set a new logger
-     * @param {Talk.ILogger} obj
+     * @param obj
      */
 
     export function logger(obj: ILogger): void {
@@ -79,10 +79,9 @@ module Talk {
 
     /**
      * Get user media
-     * @param {boolean} [audio]
-     * @param {boolean} [video]
-     * @param {Function} [cb]
-     * @returns {MediaStream}
+     * @param [audio]
+     * @param [video]
+     * @param [cb]
      */
 
     export function getUserMedia(audio = true, video = true, cb?: (error: any, stream?: MediaStream) => void): MediaStream {
@@ -116,9 +115,8 @@ module Talk {
 
     /**
      * Attach stream to an element
-     * @param {HTMLVideoElement} element
-     * @param {MediaStream} stream
-     * @returns {HTMLVideoElement}
+     * @param element
+     * @param stream
      */
 
     export function attachMediaStream(element: HTMLVideoElement, stream: MediaStream): HTMLVideoElement {
@@ -133,30 +131,11 @@ module Talk {
     }
 
     /**
-     * Convert DataURL to Blob
-     * @param {string} dataURL
-     * @returns {Blob}
-     */
-
-    export function dataURLtoBlob(dataURL) {
-        var type = dataURL.split(";")[0].split(":")[1];
-        var data = atob(dataURL.split(",")[1]);
-        var buffer = new Uint8Array(data.length);
-
-        for(var i = 0; i < data.length; i++) {
-            buffer[i] = data.charCodeAt(i);
-        }
-
-        return new Blob([buffer], {type: type});
-    }
-
-    /**
      * Check if input is a function: if it is not, then return an empty function
-     * @param {*} obj
-     * @returns {Function}
+     * @param obj
      */
 
-    export function safeCb(obj: any): any {
+    export function safeCb(obj: any): (...args: any[]) => any {
         if(typeof obj === "function") {
             return obj;
         }
@@ -167,8 +146,7 @@ module Talk {
 
     /**
      * Remove unwanted characters from a string
-     * @param {string} obj
-     * @returns {string}
+     * @param obj
      */
 
     export function safeStr(obj: any): string {
@@ -177,8 +155,7 @@ module Talk {
 
     /**
      * Check if object is function
-     * @param {*} obj
-     * @returns {boolean}
+     * @param obj
      */
 
     export function isFunc(obj: any): boolean {
@@ -188,7 +165,6 @@ module Talk {
     /**
      * Check if object is empty
      * @param {Array|Object|string} obj
-     * @returns {boolean}
      */
 
     export function isEmpty(obj: any): boolean {
@@ -208,8 +184,7 @@ module Talk {
 
     /**
      * Check if object is NOT AN EMPTY string.
-     * @param {*} obj
-     * @returns {boolean}
+     * @param obj
      */
 
     export function isStr(obj: any): boolean {
@@ -218,8 +193,7 @@ module Talk {
 
     /**
      * Check if obj is really an object
-     * @param {*} obj
-     * @returns {boolean}
+     * @param obj
      */
 
     export function isObj(obj: any): boolean {
@@ -228,8 +202,7 @@ module Talk {
 
     /**
      * Check if object is a number
-     * @param {*} obj
-     * @returns {boolean}
+     * @param obj
      */
 
     export function isNum(obj: any): boolean {
@@ -238,9 +211,8 @@ module Talk {
 
     /**
      * Create a random number between the minimum and the maximum parameter
-     * @param {number} [min]
-     * @param {number} [max]
-     * @returns {number}
+     * @param [min]
+     * @param [max]
      */
 
     export function randNum(min = 0, max = Math.pow(10, 16)): number {
@@ -249,8 +221,7 @@ module Talk {
 
     /**
      * Create a random word
-     * @param {number} [length]
-     * @returns {string}
+     * @param [length]
      */
 
     export function randWord(length = 8): string {
@@ -268,8 +239,7 @@ module Talk {
 
     /**
      * Round up a number to the next integer
-     * @param {number} x
-     * @returns {number}
+     * @param x
      */
 
     export function roundUp(x: number) {
@@ -282,7 +252,6 @@ module Talk {
 
     /**
      * Generate an UUID
-     * @returns {string}
      */
 
     export function uuid(): string {
@@ -296,9 +265,8 @@ module Talk {
 
     /**
      * Extend an object
-     * @param {Object} obj
-     * @param {Object} source
-     * @returns {Object}
+     * @param obj
+     * @param source
      */
 
     export function extend(obj: Object, source: Object): Object {
@@ -328,9 +296,8 @@ module Talk {
 
     /**
      * Compare objects by the first one
-     * @param {Object} obj1
-     * @param {Object} obj2
-     * @returns {boolean}
+     * @param obj1
+     * @param obj2
      */
 
     export function comp(obj1: Object, obj2: Object): boolean {
@@ -350,7 +317,7 @@ module Talk {
 
     /**
      * An empty function
-     * @param {...*} [args]
+     * @param [args]
      */
 
     export function noop(...args: any[]): void {

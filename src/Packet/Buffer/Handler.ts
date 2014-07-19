@@ -28,9 +28,8 @@ module Talk.Packet.Buffer {
         }
 
         /**
-         * Get a thread
-         * @param {string} label
-         * @returns {*}
+         * Get a thread by the label of its data channel
+         * @param label - Label of the data channel
          */
 
         public get(label: string): Thread {
@@ -47,9 +46,8 @@ module Talk.Packet.Buffer {
 
         /**
          * Create a new thread
-         * @param {Talk.Peer} peer
-         * @param {string} label
-         * @returns {*}
+         * @param peer - The peer used for data sending
+         * @param label - Label of the data channel
          */
 
         public add(peer: Peer, label: string): Thread {
@@ -79,8 +77,7 @@ module Talk.Packet.Buffer {
 
         /**
          * Clean up a thread
-         * @param {*} thread
-         * @returns {boolean}
+         * @param thread
          */
 
         private clean(thread: Thread): boolean {
@@ -95,11 +92,10 @@ module Talk.Packet.Buffer {
 
         /**
          * Send data and chunk it
-         * @param {Talk.Peer} peer
-         * @param {string} label
-         * @param {*} buffer
-         * @param {*} message
-         * @returns {*}
+         * @param peer - The peer used to send the data
+         * @param label - Label of the data channel
+         * @param buffer
+         * @param message - Custom message
          */
 
         public send(peer: Peer, label: string, buffer: IBuffer, message: any): Thread {

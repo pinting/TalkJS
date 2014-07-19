@@ -26,8 +26,8 @@ module Talk.Packet.Buffer {
 
         /**
          * Parse a message
-         * @param {string} key
-         * @param {*} value
+         * @param key
+         * @param [value]
          */
 
         public parse(key: string, value?: any): void {
@@ -49,8 +49,8 @@ module Talk.Packet.Buffer {
 
         /**
          * Send out a new message
-         * @param {string} key
-         * @param {*} value
+         * @param key
+         * @param [value]
          */
 
         private send(key: string, value?: any): void {
@@ -61,8 +61,8 @@ module Talk.Packet.Buffer {
         }
 
         /**
-         * Send meta with a custom user message
-         * @param {*} message
+         * Send meta with a custom message
+         * @param message
          */
 
         private sendMeta(message: any): void {
@@ -74,8 +74,7 @@ module Talk.Packet.Buffer {
 
         /**
          * Create a packet
-         * @param {*} buffer
-         * @returns {*}
+         * @param buffer
          */
 
         private createPacket(buffer: IBuffer): IPacket {
@@ -88,9 +87,9 @@ module Talk.Packet.Buffer {
 
         /**
          * Chunk the buffer to packets
-         * @param {*} buffer
-         * @param {*} message
-         * @param {number} [size]
+         * @param buffer
+         * @param [message] - Custom message
+         * @param [size]
          */
 
         public chunk(buffer: IBuffer, message?: any, size = 10240): void {
@@ -102,7 +101,7 @@ module Talk.Packet.Buffer {
 
         /**
          * Executed when meta was received
-         * @param {*} meta
+         * @param meta
          */
 
         private onMeta(meta: IMeta): void {
@@ -134,7 +133,7 @@ module Talk.Packet.Buffer {
 
         /**
          * Add packet to the thread
-         * @param {*} buffer
+         * @param buffer
          */
 
         private add(buffer: IBuffer): void {

@@ -9,7 +9,7 @@ module Talk.Connection {
 
         /**
          * Send a message of a peer
-         * @param {Talk.IMessage} payload
+         * @param payload
          */
 
         public send(payload: IMessage): void {
@@ -18,7 +18,7 @@ module Talk.Connection {
 
         /**
          * Get a message, then find its peer and parse it
-         * @param {Talk.IMessage} payload
+         * @param payload
          */
 
         public get(payload: IMessage): void {
@@ -35,7 +35,7 @@ module Talk.Connection {
 
         /**
          * Executed when the connection is ready for use
-         * @param {string} id - Unique ID of the connection
+         * @param id - Unique ID of the connection
          */
 
         public connectionReady(id: string) {
@@ -46,8 +46,7 @@ module Talk.Connection {
 
         /**
          * Find the group from the bottom of the array
-         * @param {string[]} group - An array of group ids
-         * @returns {Talk.Group}
+         * @param group - An array of group ids
          */
 
         public findGroup(group: string[]): Group {

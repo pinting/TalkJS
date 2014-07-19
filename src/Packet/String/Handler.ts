@@ -30,10 +30,9 @@ module Talk.Packet.String {
 
         /**
          * Send data and chunk it
-         * @param {Talk.Peer} peer - The peer used to send the data
-         * @param {string} label - Label of the data channel
-         * @param {*} payload
-         * @returns {*}
+         * @param peer - The peer used to send the data
+         * @param label - Label of the data channel
+         * @param payload
          */
 
         public send(peer: Peer, label: string, payload: string): Thread {
@@ -44,10 +43,9 @@ module Talk.Packet.String {
 
         /**
          * Add a new thread to the handler
-         * @param {Talk.Peer} peer - The peer used for data sending
-         * @param {string} label - Label of the data channel
-         * @param {string} id - ID of the thread
-         * @returns {*}
+         * @param peer - The peer used for data sending
+         * @param label - Label of the data channel
+         * @param id - ID of the thread
          */
 
         private add(peer: Peer, label: string, id?: string): Thread {
@@ -78,7 +76,6 @@ module Talk.Packet.String {
         /**
          * Delete a thread
          * @param thread
-         * @returns {boolean}
          */
 
         private clean(thread): boolean {
@@ -93,9 +90,8 @@ module Talk.Packet.String {
 
         /**
          * Get a thread by its ID and the label of its data channel
-         * @param {string} label - Label of the data channel
-         * @param {string} id - ID of the thread
-         * @returns {*}
+         * @param label - Label of the data channel
+         * @param id - ID of the thread
          */
 
         private get(label: string, id: string): Thread {

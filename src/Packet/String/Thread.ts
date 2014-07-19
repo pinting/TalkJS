@@ -17,8 +17,8 @@ module Talk.Packet.String {
         private sent = 0;
 
         /**
-         * @param {string} label - Label of the data channel
-         * @param {string} id - ID of the thread
+         * @param label - Label of the data channel
+         * @param id - ID of the thread
          */
 
         constructor(label: string, id = uuid()) {
@@ -30,8 +30,8 @@ module Talk.Packet.String {
 
         /**
          * Parse a message
-         * @param {string} key
-         * @param {*} value
+         * @param key
+         * @param value
          */
 
         public parse(key: string, value?: any): void {
@@ -53,8 +53,8 @@ module Talk.Packet.String {
 
         /**
          * Send out a new message
-         * @param {string} key
-         * @param {*} value
+         * @param key
+         * @param value
          */
 
         private send(key: string, value?: any): void {
@@ -67,8 +67,7 @@ module Talk.Packet.String {
 
         /**
          * Get a packet by its index
-         * @param {number} i
-         * @returns {*}
+         * @param i
          */
 
         private get(i: number): IPacket {
@@ -101,8 +100,8 @@ module Talk.Packet.String {
 
         /**
          * Chunk the buffer to packets
-         * @param {string} buffer
-         * @param {number} [size]
+         * @param buffer
+         * @param [size]
          */
 
         public chunk(buffer: any, size = 10240): void {
@@ -147,7 +146,7 @@ module Talk.Packet.String {
 
         /**
          * Add packet to the thread
-         * @param {*} packet
+         * @param packet
          */
 
         public add(packet: IPacket): void {
@@ -160,7 +159,7 @@ module Talk.Packet.String {
 
         /**
          * Ask for a packet from the thread
-         * @param {number} i - Index of the packet
+         * @param i - Index of the packet
          */
 
         public ask(i: number): void {

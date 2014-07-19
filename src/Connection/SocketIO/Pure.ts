@@ -9,8 +9,8 @@ module Talk.Connection.SocketIO {
         public server: io.Socket;
 
         /**
-         * @param {Talk.Group} group
-         * @param {string} [host]
+         * @param group
+         * @param [host]
          */
 
         constructor(group: Group, host = "http://localhost:8000") {
@@ -26,7 +26,7 @@ module Talk.Connection.SocketIO {
 
         /**
          * Send a message of a peer
-         * @param {Talk.IMessage} payload
+         * @param payload
          */
 
         public send(payload: IMessage): void {

@@ -26,9 +26,8 @@ module Talk {
 
         /**
          * Create a group
-         * @param {string} id - An unique ID
-         * @param {Talk.Group} [H] - Custom Group object
-         * @returns {Talk.Group}
+         * @param id - An unique ID
+         * @param [H] - Custom Group object
          */
 
         private createGroup(id: string, H = Group): Group {
@@ -52,9 +51,8 @@ module Talk {
 
         /**
          * Open a group, or create it if it is not exists
-         * @param {string} id - An unique ID
-         * @param {Talk.Group} [H] - Custom Group object
-         * @returns {Talk.Group}
+         * @param id - An unique ID
+         * @param [H] - Custom Group object
          */
 
         public h(id, H = Group): Group {
@@ -74,9 +72,8 @@ module Talk {
 
         /**
          * Add a peer to THIS group
-         * @param {string} id - An unique ID
-         * @param {Talk.Peer} [P] - Custom peer object
-         * @returns {Talk.Peer}
+         * @param id - An unique ID
+         * @param [P] - Custom peer object
          */
 
         public add(id: string, P = Peer): Peer {
@@ -100,8 +97,7 @@ module Talk {
 
         /**
          * Get an EXISTING peer by its ID
-         * @param {string} id
-         * @returns {Talk.Peer}
+         * @param id
          */
 
         public get(id: string): Peer {
@@ -122,7 +118,6 @@ module Talk {
          * Second argument can be passed here too.
          * @param {Function|string} [cb] - Execute a callback on results (peer: Peer) => void,
          * or (if cb a string) call one of their properties.
-         * @returns {Talk.Peer}
          */
 
         public find(props?: any, cb?: any): Peer[] {

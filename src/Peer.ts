@@ -73,8 +73,8 @@ module Talk {
 
         /**
          * Send message to the peer
-         * @param {string} key - Key of the message
-         * @param {*} value
+         * @param key - Key of the message
+         * @param value
          */
 
         private sendMessage(key: string, value: Object): void {
@@ -89,9 +89,8 @@ module Talk {
 
         /**
          * Parse message from the peer
-         * @param {string} key
-         * @param {*} value
-         * @returns {boolean}
+         * @param key
+         * @param value
          */
 
         public parseMessage(key: string, value: any): boolean {
@@ -138,7 +137,7 @@ module Talk {
 
         /**
          * Executed when an ice candidate was found
-         * @param {RTCIceCandidateEvent} event
+         * @param event
          */
 
         private onCandidate(event: RTCIceCandidateEvent): void {
@@ -153,7 +152,7 @@ module Talk {
 
         /**
          * Handle a received ice candidate
-         * @param {RTCIceCandidate} ice
+         * @param ice
          */
 
         private handleCandidate(ice: RTCIceCandidate): void {
@@ -209,7 +208,7 @@ module Talk {
 
         /**
          * Answer for a offer of the peer
-         * @param {RTCSessionDescription} offer
+         * @param offer
          */
 
         private answer(offer: RTCSessionDescription): void {
@@ -241,7 +240,7 @@ module Talk {
 
         /**
          * Handle the answer of the peer
-         * @param {RTCSessionDescription} answer
+         * @param answer
          */
 
         private handleAnswer(answer: RTCSessionDescription): void {
@@ -272,8 +271,8 @@ module Talk {
 
         /**
          * Send data to the peer
-         * @param {*} payload
-         * @param {string} [label] - Label of the data channel
+         * @param payload
+         * @param [label] - Label of the data channel
          */
 
         public sendData(label: string, payload: any): void {
@@ -293,8 +292,8 @@ module Talk {
 
         /**
          * Handle received data
-         * @param {*} payload
-         * @param {string} label
+         * @param payload
+         * @param label
          */
 
         private handleData(label: string, payload: any): void {
@@ -303,8 +302,7 @@ module Talk {
 
         /**
          * Get a data channel
-         * @param {string} label
-         * @returns {boolean|RTCDataChannel}
+         * @param label
          */
 
         private getDataChannel(label: string): RTCDataChannel {
@@ -321,7 +319,7 @@ module Talk {
 
         /**
          * Configure a newly created data channel
-         * @param {RTCDataChannel} channel
+         * @param channel
          */
 
         private initDataChannel(channel: RTCDataChannel): void {
@@ -353,9 +351,8 @@ module Talk {
 
         /**
          * Add a data channel
-         * @param {string} label
-         * @param {RTCDataChannelInit} [options]
-         * @returns {RTCDataChannel}
+         * @param label
+         * @param [options]
          */
 
         public addDataChannel(label: string, options?: RTCDataChannelInit): RTCDataChannel {
@@ -371,7 +368,7 @@ module Talk {
 
         /**
          * Executed when the peer has added a data channel
-         * @param {RTCDataChannelEvent} event
+         * @param event
          */
 
         private onDataChannel(event: RTCDataChannelEvent): void {
@@ -391,7 +388,7 @@ module Talk {
 
         /**
          * Add our stream to the peer
-         * @param {MediaStream} stream
+         * @param stream
          */
 
         public addStream(stream: MediaStream): void {
@@ -405,7 +402,7 @@ module Talk {
 
         /**
          * When the peer adds its stream to us
-         * @param {RTCMediaStreamEvent} event
+         * @param event
          */
 
         private onAddStream(event: RTCMediaStreamEvent): void {
@@ -421,7 +418,7 @@ module Talk {
 
         /**
          * When the added stream is removed
-         * @param {RTCMediaStreamEvent} event
+         * @param event
          */
 
         private onRemoveStream(event: RTCMediaStreamEvent): void {
